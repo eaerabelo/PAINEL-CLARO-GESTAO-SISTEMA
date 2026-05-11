@@ -11,7 +11,7 @@ Este sistema foi desenvolvido como uma Single Page Application (SPA) para revolu
 - **Bundler:** Vite (Extrema velocidade em HMR)
 - **Estilização:** Tailwind CSS (Utility-first framework)
 - **Ícones:** Lucide React
-- **Persistência de Dados (MVP):** LocalStorage API (Armazenamento Client-side em tempo real)
+- **Persistência de Dados:** Firebase Firestore (Banco de Dados em Nuvem NoSQL em tempo real)
 
 ---
 
@@ -21,26 +21,38 @@ A plataforma é dividida em módulos estratégicos baseados no Controle de Acess
 
 ### 1. Vendas
 O coração da operação. Permite o lançamento de vendas de aparelhos, acessórios, planos móveis e banda larga.
-- *Diferenciais:* Travas de regras de negócios, cálculo dinâmico de comissionamento de acessórios e bloqueio de preços para combinações padrão, além de busca inteligente de histórico e filtro de dias.
+- *Diferenciais:* Auto-preenchimento restrito ao **Primeiro Nome** do Vendedor, cálculo dinâmico de comissionamento e bloqueio de preços para combinações padrão.
 
 ### 2. Resultado (Visão Global)
 Acompanhamento macro da loja. Uma tabela em estilo Excel que cruza todas as vendas por data e classifica em categorias complexas como Gross Dia, Migrações, Portabilidades e Total Residencial. Calcula e distribui automaticamente a meta diária (peso em dobro nos finais de semana).
 
 ### 3. Colaboradores (Dashboards Individuais)
-Mostra relatórios automáticos (Meta vs Realizado) da produção diária e mensal de cada vendedor em tempo real, baseando-se nos apontamentos e cruzando-os com as metas distribuídas para a equipe.
+Mostra relatórios automáticos (Meta vs Realizado) da produção diária e mensal de cada vendedor em tempo real. Esta aba retém a visualização do **Nome Completo** para fins gerenciais.
 
 ### 4. Metas
 Módulo exclusivo da gerência para distribuir os alvos financeiros e quantitativos de Ativações Pós, Aparelhos, Controle e UR-Residencial, gerando o espelho que alimenta todo o painel.
 
 ### 5. Escala de Trabalho
-Gerenciamento duplo (Semanal Fixo x Calendário Dinâmico) para visualização de horas de entrada, saídas, folgas e plantões da equipe, com bloqueios de edição para não-gestores.
+Gerenciamento duplo (Semanal Fixo x Calendário Dinâmico) de horários, exibindo todos os usuários do sistema apenas pelo **Primeiro Nome** para visualização otimizada.
+- *Diferenciais:* Cores de alerta automáticas para marcações de exceção como FALTA, ATESTADO, FÉRIAS, FERIADO e FOLGA.
 
 ### 6. Controle Simcard (Estoque)
 Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de autorização, dados de cliente, e regras rígidas contra exclusões não autorizadas (Modal de Cofre Master).
+- *Diferenciais:* Inclusão "Em Lote" simultânea para simplificar o recebimento de inventários.
 
-### 7. UR-Residencial & Reprovados
+### 7. UR-Residencial, Reprovados & Propostas
 - **Residencial:** Lança vendas automaticamente a partir da aba principal, separando a logística de agendamento e status de instalação (Pendentes, Conectados, Cancelados).
 - **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`) para preenchimento inteligente e automático de endereços no Estado de São Paulo.
+- **Propostas:** Simulador de ofertas com cálculo de abatimento em combos (Single, Multi, Multi 3P) com gatilhos de "Economia Anual".
+
+---
+
+## 🛡️ Usabilidade e Concorrência (Multi-usuários)
+O sistema foi arquitetado para suportar múltiplos computadores operando simultaneamente no salão de vendas, garantindo uma experiência fluida e sem conflitos:
+- **Isolamento Visual (Local State):** A navegação entre abas, preenchimento de formulários e abertura de modais ocorrem na memória local. A tela de um usuário nunca sofre interferência ou troca inesperada pelas ações de outro.
+- **Sincronização Real-Time:** Apenas os dados confirmados (salvar, editar, excluir) são transmitidos via rede, atualizando as tabelas e o estoque da loja inteira em milissegundos sem a necessidade de recarregar a página (F5).
+- **Timeout Inteligente:** A regra de expiração de sessão por inatividade (30 minutos) monitora o mouse e o teclado de *cada* máquina de forma completamente isolada.
+- **Anti-Conflito:** Janelas flutuantes e modais de edição em uso são protegidos contra fechamentos abruptos caso os dados de fundo sejam alterados por terceiros.
 
 ---
 
@@ -74,4 +86,4 @@ Os arquivos consolidados ficarão dentro da pasta `/dist/`, prontos para serem h
 ---
 
 ## 🗄️ Estrutura de Armazenamento
-Nesta versão MVP (Minimum Viable Product), não dependemos de um banco de dados hospedado em nuvem (Backend). Todos os estados são consolidados na memória do navegador do próprio usuário via **`localStorage`**. Fechar abas, desligar o computador ou atualizar a página **não resulta em perda de dados**.
+O sistema utiliza o **Firebase Firestore** na nuvem com uma arquitetura robusta de Múltiplas Coleções (garantindo escalabilidade infinita e fugindo do limite de 1MB por arquivo). As alterações são propagadas em Real-Time usando listeners (`onSnapshot`) e gravadas de forma otimizada via **Smart Diff** e **Batch Writes**, sendo sincronizadas instantaneamente em todas as telas da loja para que nenhum colaborador trabalhe com informações desatualizadas.

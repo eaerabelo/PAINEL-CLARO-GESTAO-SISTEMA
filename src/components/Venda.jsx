@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { Plus, MonitorPlay, AlertCircle, X, Check, Lock, Briefcase, Trash2, Edit3, Calendar, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import { PRICING_MOVEL, FIBRA_OPTIONS, TV_BOX_OPTIONS, FIXO_OPTIONS, MESH_OPTIONS, SEGURO_OPTIONS, DEPENDENTE_OPTIONS, PRODUTOS_CONTRATO_OBRIGATORIO, VENDEDORES, PRODUTOS } from '../utils/constants';
+import { PRICING_MOVEL, FIBRA_OPTIONS, TV_BOX_OPTIONS, FIXO_OPTIONS, MESH_OPTIONS, SEGURO_OPTIONS, DEPENDENTE_OPTIONS, PRODUTOS_CONTRATO_OBRIGATORIO, PRODUTOS } from '../utils/constants';
 import { applyCpfCnpjMask, applyContratoMask, applyCurrencyMask, parseCurrencyToFloat, getTodaySP } from '../utils/masks';
 
-const safeVendedores = Array.isArray(VENDEDORES) ? VENDEDORES : [];
 const safeProdutos = Array.isArray(PRODUTOS) ? PRODUTOS : [];
 
-export const Venda = ({ salesData, setSalesData, isVendedor, globalUser }) => {
+export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB = {} }) => {
+    const safeVendedores = Object.values(usersDB)
+        .filter(u => !u.role || u.role === 'VENDEDOR')
+        .map(u => u.name.split(' ')[0])
+        .filter(Boolean);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formError, setFormError] = useState('');
     const [filterDate, setFilterDate] = useState(getTodaySP());
@@ -55,7 +58,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser }) => {
     const openNovaVendaModal = () => {
         setFormError('');
         setEditingId(null);
-        setFormData({ vendedor: isVendedor && globalUser ? globalUser.name : '', data: filterDate || getTodaySP(), qtda: 1, portabilidade: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '' });
+        setFormData({ vendedor: isVendedor && globalUser ? globalUser.name.split(' ')[0] : '', data: filterDate || getTodaySP(), qtda: 1, portabilidade: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '' });
         setIsModalOpen(true);
     };
 
@@ -246,7 +249,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser }) => {
                                     <td className="px-6 py-3"><span className={`flex items-center gap-1.5 text-xs font-medium ${sale.mplay === 'SIM' ? 'text-[#E3000F]' : 'text-neutral-400'}`}>{sale.mplay === 'SIM' ? <MonitorPlay size={14} /> : <div className="w-3.5 h-3.5 rounded-full border border-neutral-300"></div>}{sale.mplay}</span></td>
                                     <td className="px-6 py-3 text-center">{sale.adicionais && sale.adicionais.length > 0 ? (<div className="flex justify-center gap-1.5 flex-wrap">{sale.adicionais.map(ad => (<span key={ad} className="bg-[#E3000F]/10 text-[#E3000F] px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{ad}</span>))}</div>) : <span className="text-neutral-300 text-xs">-</span>}</td>
                                     <td className="px-6 py-3 text-center">
-                                        {(!isVendedor || sale.vendedor === globalUser?.name) ? (
+                                        {(!isVendedor || sale.vendedor === globalUser?.name || sale.vendedor === globalUser?.name.split(' ')[0]) ? (
                                             <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button onClick={(e) => { e.stopPropagation(); handleEditSale(sale); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="Editar Venda"><Edit3 size={16} /></button>
                                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteSale(sale.id); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors" title="Excluir Venda"><Trash2 size={16} /></button>

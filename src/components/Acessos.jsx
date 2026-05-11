@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Key, Lock, Unlock, ShieldAlert, Trash2, Edit3, X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export function Acessos({ usersDB, setUsersDB }) {
+export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverrides, setReprovadosData }) {
     const [isUnlocked, setIsUnlocked] = useState(false);
     const [masterPass, setMasterPass] = useState('');
     const [showPassword, setShowPassword] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUsername, setEditingUsername] = useState(null);
-    const [formData, setFormData] = useState({ name: '', username: '', password: '', role: 'GESTOR', sellerCode: '' });
+    const [formData, setFormData] = useState({ name: '', username: '', password: '', role: 'GERENTE', phone: '', email: '' });
 
     const handleUnlock = (e) => {
         e.preventDefault();
@@ -33,29 +33,60 @@ export function Acessos({ usersDB, setUsersDB }) {
     const openModal = (userKey = null) => {
         if (userKey) {
             setEditingUsername(userKey);
-            setFormData({ ...usersDB[userKey], username: userKey, password: usersDB[userKey].pass });
+            setFormData({ ...usersDB[userKey], username: userKey, password: usersDB[userKey].pass, email: usersDB[userKey].email || '' });
         } else {
             setEditingUsername(null);
-            setFormData({ name: '', username: '', password: '', role: 'GESTOR', sellerCode: '' });
+            setFormData({ name: '', username: '', password: '', role: 'GERENTE', phone: '', email: '' });
         }
         setIsModalOpen(true);
     };
 
     const handleDelete = (userKey) => {
+        const userToDelete = usersDB[userKey];
+        const userName = userToDelete?.name;
+        const firstName = userName?.split(' ')[0];
+
         if (window.confirm(`Tem certeza que deseja apagar o usuário ${userKey}? Ele perderá o acesso instantaneamente.`)) {
             setUsersDB(prev => {
                 const newDb = { ...prev };
                 delete newDb[userKey];
                 return newDb;
             });
+
+            if (userName) {
+                if (setScheduleData) {
+                    setScheduleData(prev => {
+                        const newData = { ...prev };
+                        delete newData[userName];
+                        if (firstName) delete newData[firstName];
+                        return newData;
+                    });
+                }
+                if (setMonthlyOverrides) {
+                    setMonthlyOverrides(prev => {
+                        const newData = { ...prev };
+                        delete newData[userName];
+                        if (firstName) delete newData[firstName];
+                        return newData;
+                    });
+                }
+                if (setReprovadosData) {
+                    setReprovadosData(prev => prev.filter(item => item.vendedor !== userName && item.vendedor !== firstName));
+                }
+            }
             toast.success('Usuário apagado com sucesso!');
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!formData.name || !formData.username || !formData.password) {
+        if (!formData.name || !formData.username || !formData.password || !formData.email) {
             toast.error('Preencha os campos obrigatórios!');
+            return;
+        }
+
+        if (!formData.email.toLowerCase().endsWith('@claro.com.br')) {
+            toast.error('O e-mail deve ser corporativo (@claro.com.br).');
             return;
         }
 
@@ -74,7 +105,8 @@ export function Acessos({ usersDB, setUsersDB }) {
                 name: formData.name.toUpperCase(),
                 role: formData.role,
                 pass: formData.password,
-                sellerCode: (formData.sellerCode || '').toUpperCase()
+                phone: formData.phone || '',
+                email: formData.email.toLowerCase()
             };
             return newDb;
         });
@@ -142,9 +174,10 @@ export function Acessos({ usersDB, setUsersDB }) {
                             <tr>
                                 <th className="px-6 py-4">Nome Completo</th>
                                 <th className="px-6 py-4">Usuário (Login)</th>
+                                <th className="px-6 py-4">E-mail Corporativo</th>
                                 <th className="px-6 py-4">Senha</th>
                                 <th className="px-6 py-4">Função / Nível</th>
-                                <th className="px-6 py-4">Cód. Vendedor</th>
+                                <th className="px-6 py-4">Celular</th>
                                 <th className="px-6 py-4 text-center">Ações</th>
                             </tr>
                         </thead>
@@ -158,6 +191,7 @@ export function Acessos({ usersDB, setUsersDB }) {
                                     <tr key={username} className="hover:bg-neutral-50 transition-colors">
                                         <td className="px-6 py-3 font-bold text-neutral-800">{user.name}</td>
                                         <td className="px-6 py-3 font-mono text-neutral-600">{username}</td>
+                                        <td className="px-6 py-3 text-neutral-500">{user.email || '-'}</td>
                                         <td className="px-6 py-3">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-mono bg-neutral-100 px-2 py-1 rounded text-neutral-700 tracking-wider">
@@ -169,14 +203,14 @@ export function Acessos({ usersDB, setUsersDB }) {
                                             </div>
                                         </td>
                                         <td className="px-6 py-3">
-                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${user.role === 'GESTOR' ? 'bg-red-100 text-red-700' :
-                                                user.role === 'ENCARREGADO' ? 'bg-blue-100 text-blue-700' :
+                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${user.role === 'GERENTE' ? 'bg-red-100 text-red-700' :
+                                                user.role === 'SENIOR' ? 'bg-blue-100 text-blue-700' :
                                                     'bg-neutral-100 text-neutral-600'
                                                 }`}>
                                                 {user.role}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-3 font-mono text-neutral-500">{user.sellerCode || '-'}</td>
+                                        <td className="px-6 py-3 font-mono text-neutral-500">{user.phone || '-'}</td>
                                         <td className="px-6 py-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 <button onClick={() => openModal(username)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit3 size={16} /></button>
@@ -209,20 +243,24 @@ export function Acessos({ usersDB, setUsersDB }) {
                                 <input type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900 font-mono" />
                             </div>
                             <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">E-mail Corporativo <span className="text-[#E3000F]">*</span></label>
+                                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900" placeholder="exemplo@claro.com.br" />
+                            </div>
+                            <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Senha de Acesso</label>
                                 <input type="text" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900 font-mono tracking-wider" />
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Nível de Acesso (Função)</label>
                                 <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900 font-bold">
-                                    <option value="GESTOR">GESTOR GERAL</option>
-                                    <option value="ENCARREGADO">ENCARREGADO LÍDER</option>
+                                    <option value="GERENTE">GERENTE</option>
+                                    <option value="SENIOR">SÊNIOR</option>
                                     <option value="VENDEDOR">VENDEDOR</option>
                                 </select>
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Cód. Vendedor (Opcional)</label>
-                                <input type="text" maxLength={6} value={formData.sellerCode} onChange={e => setFormData({ ...formData, sellerCode: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900 font-mono uppercase" />
+                                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Celular (Opcional)</label>
+                                <input type="text" maxLength={15} value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900 font-mono" placeholder="+5511900000000" />
                             </div>
                             <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-2">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-5 py-2.5 bg-white border border-neutral-200 text-neutral-600 font-medium rounded-xl hover:bg-neutral-50 transition-colors">Cancelar</button>

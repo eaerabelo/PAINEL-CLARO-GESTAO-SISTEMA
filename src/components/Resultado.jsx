@@ -3,14 +3,17 @@ import { BarChart3, Calendar, TrendingUp } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { getTodaySP, applyCurrencyMask } from '../utils/masks';
-import { METAS_PADRAO, VENDEDORES } from '../utils/constants';
+import { METAS_PADRAO } from '../utils/constants';
 
-export function Resultado({ salesData, goalsDB }) {
+export function Resultado({ salesData, goalsDB, usersDB = {} }) {
     const currentYYYYMM = getTodaySP().slice(0, 7);
     const [monthFilter, setMonthFilter] = useState(currentYYYYMM);
 
     const activeMetas = goalsDB[monthFilter] || METAS_PADRAO || {};
-    const safeVendedores = Array.isArray(VENDEDORES) ? VENDEDORES : [];
+    const safeVendedores = Object.values(usersDB)
+        .filter(u => !u.role || u.role === 'VENDEDOR')
+        .map(u => u.name)
+        .filter(Boolean);
     const numSellers = safeVendedores.length || 1;
 
     // Cálculos de extração por Dia
@@ -19,7 +22,7 @@ export function Resultado({ salesData, goalsDB }) {
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthStr, 10);
         const daysInMonth = new Date(year, month, 0).getDate();
-        const metaGross = ((Number(activeMetas.posTotal) || 0) + (Number(activeMetas.controle) || 0)) * numSellers; // Soma da Meta Pós Total + Controle multiplicada pela Equipe
+        const metaGross = (Number(activeMetas.posTotal) || 0) + (Number(activeMetas.controle) || 0); // Agora é a meta global direta
 
         let totalWeights = 0;
         for (let d = 1; d <= daysInMonth; d++) {
@@ -155,6 +158,25 @@ export function Resultado({ salesData, goalsDB }) {
         return isCurrency ? applyCurrencyMask(val) : val;
     };
 
+    const metaGrossTotal = (Number(activeMetas.posTotal) || 0) + (Number(activeMetas.controle) || 0);
+    const metaLoja = {
+        grossDia: metaGrossTotal,
+        metaDia: metaGrossTotal,
+        total: metaGrossTotal,
+        posTt: Number(activeMetas.posPago) || 0,
+        receita: Number(activeMetas.receita) || 0,
+        fibra: Number(activeMetas.fibra) || 0,
+        tvBox: Number(activeMetas.tv) || 0,
+        totalRes: Number(activeMetas.urTotal) || 0,
+        aparelho: Number(activeMetas.aparelho) || 0,
+        seguro: Number(activeMetas.seguro) || 0,
+        acessorio: Number(activeMetas.acessorio) || 0,
+        trocafy: Number(activeMetas.trocafy) || 0,
+        pelicula: Number(activeMetas.pelicula) || 0,
+        mplay: Number(activeMetas.mplay) || 0,
+        mesh: Number(activeMetas.mesh) || 0,
+    };
+
     const handleExportExcel = () => {
         if (rows.length === 0) {
             toast.error('Nenhum dado para exportar.');
@@ -170,6 +192,13 @@ export function Resultado({ salesData, goalsDB }) {
         const totalsRow = { 'DATA': 'TOTAL' };
         COLUMNS.forEach(col => { totalsRow[col.label] = totals[col.key]; });
         dataToExport.push(totalsRow);
+
+        const metaRow = { 'DATA': 'META LOJA' };
+        COLUMNS.forEach(col => { 
+            const hasMeta = metaLoja[col.key] !== undefined && metaLoja[col.key] > 0;
+            metaRow[col.label] = hasMeta ? metaLoja[col.key] : '-'; 
+        });
+        dataToExport.push(metaRow);
 
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
@@ -241,6 +270,18 @@ export function Resultado({ salesData, goalsDB }) {
                                     {renderValue(totals[col.key], col.isCurrency)}
                                 </td>
                             ))}
+                        </tr>
+                        {/* LINHA DE METAS LOJA */}
+                        <tr className="text-neutral-900 font-black uppercase text-[11px]">
+                            <td className="border-b border-neutral-300 px-3 py-3 sticky left-0 bg-neutral-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-blue-600">META LOJA</td>
+                            {COLUMNS.map(col => {
+                                const hasMeta = metaLoja[col.key] !== undefined && metaLoja[col.key] > 0;
+                                return (
+                                    <td key={`meta-${col.key}`} className={`border-b border-neutral-300 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50' : 'bg-neutral-50'}`}>
+                                        {hasMeta ? renderValue(metaLoja[col.key], col.isCurrency) : <span className="text-neutral-300">-</span>}
+                                    </td>
+                                );
+                            })}
                         </tr>
                     </tfoot>
                 </table>

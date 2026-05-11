@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo
 } from 'lucide-react';
 
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, writeBatch } from 'firebase/firestore';
 import { db } from './firebase.js';
 
 import {
@@ -30,6 +30,7 @@ import { Proposta } from './components/Proposta.jsx';
 import { UrResidencial } from './components/UrResidencial.jsx';
 import { Reprovados } from './components/Reprovados.jsx';
 import { Resultado } from './components/Resultado.jsx';
+import { Login } from './components/Login.jsx';
 
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
 const safeAppUsers = APP_USERS || {};
@@ -39,12 +40,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('VENDA');
 
   // --- ESTADOS DO SISTEMA DE LOGIN GLOBAL ---
-  const [globalUser, setGlobalUser] = useState(null);
+  const [globalUser, setGlobalUser] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sessionUser');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Date.now() - parsed.loginTime < 30 * 60 * 1000) return parsed;
+          localStorage.removeItem('sessionUser');
+        } catch (e) { }
+      }
+    }
+    return null;
+  });
   const [authModal, setAuthModal] = useState({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
   const [authCredentials, setAuthCredentials] = useState({ user: '', password: '' });
   const [authError, setAuthError] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-  const [regForm, setRegForm] = useState({ name: '', username: '', password: '', confirmPassword: '', sellerCode: '' });
 
   // --- ESTADOS DE GESTÃO DE METAS (MONTH-BY-MONTH) ---
   const currentYYYYMM = getTodaySP().slice(0, 7);
@@ -52,7 +63,18 @@ export default function App() {
   const activeMetas = goalsDB[currentYYYYMM] || safeMetasPadrao;
 
   // --- ESTADOS DO DASHBOARD DE VENDAS ---
-  const [selectedSeller, setSelectedSeller] = useState(null);
+  const [selectedSeller, setSelectedSeller] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sessionUser');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Date.now() - parsed.loginTime < 30 * 60 * 1000 && parsed.role === 'VENDEDOR') return parsed.name;
+        } catch (e) { }
+      }
+    }
+    return null;
+  });
 
   // --- ESTADOS DE BANCO DE DADOS (NUVEM - FIREBASE) ---
   const [simcardsData, setSimcardsData] = useState([]);
@@ -63,55 +85,266 @@ export default function App() {
   const [monthlyOverrides, setMonthlyOverrides] = useState({});
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
-  // 1. CARREGAMENTO REAL-TIME (ON-SNAPSHOT)
+  // Referência do último estado salvo na nuvem para não sobrescrever dados sem necessidade
+  const cloudRefs = useRef({
+    sales: [],
+    simcards: [],
+    reprovados: [],
+    config: ''
+  });
+
+  // --- SISTEMA DE DESFAZER (UNDO / CTRL+Z) ---
+  const [undoStack, setUndoStack] = useState([]);
+
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    
+    const lastAction = undoStack[undoStack.length - 1];
+    
+    if (lastAction) {
+      if (lastAction.type === 'salesData') setSalesData(lastAction.state);
+      if (lastAction.type === 'simcardsData') setSimcardsData(lastAction.state);
+      if (lastAction.type === 'reprovadosData') setReprovadosData(lastAction.state);
+      toast.success('Ação desfeita com sucesso! Registro recuperado.');
+    }
+    
+    setUndoStack(prevStack => prevStack.slice(0, -1));
+  };
+
   useEffect(() => {
-    const docRef = doc(db, 'painel_claro', 'loja_uniao_osasco');
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isInputFocused = ['input', 'textarea', 'select'].includes(activeTag);
+
+        if (!isInputFocused && undoStack.length > 0) {
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undoStack]);
+
+  // Interceptadores para detectar exclusões
+  const handleSetSalesData = (action) => {
+    setSalesData(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
+        setUndoStack(s => [...s, { type: 'salesData', state: prev }]);
+      }
+      return next;
+    });
+  };
+
+  const handleSetSimcardsData = (action) => {
+    setSimcardsData(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
+        setUndoStack(s => [...s, { type: 'simcardsData', state: prev }]);
+      }
+      return next;
+    });
+  };
+
+  const handleSetReprovadosData = (action) => {
+    setReprovadosData(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
+        setUndoStack(s => [...s, { type: 'reprovadosData', state: prev }]);
+      }
+      return next;
+    });
+  };
+
+  // 1. CARREGAMENTO REAL-TIME SEPARADO (ON-SNAPSHOT NAS COLEÇÕES)
+  useEffect(() => {
+    const unsubs = [];
+
+    // CONFIGS GERAIS (Usuários, Metas, Escalas - Permanece como Documento Único pois é leve)
+    unsubs.push(onSnapshot(doc(db, 'lojas', 'uniao_osasco_config'), (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.salesData) setSalesData(data.salesData);
-        if (data.simcardsData) setSimcardsData(data.simcardsData);
-        if (data.reprovadosData) setReprovadosData(data.reprovadosData);
-        if (data.goalsDB) setGoalsDB(data.goalsDB);
-        if (data.scheduleData) setScheduleData(data.scheduleData);
-        if (data.monthlyOverrides) setMonthlyOverrides(data.monthlyOverrides);
-        if (data.usersDB) setUsersDB(data.usersDB);
+        const d = docSnap.data();
+        if (d.usersDB) setUsersDB(d.usersDB);
+        if (d.goalsDB) setGoalsDB(d.goalsDB);
+        if (d.scheduleData) setScheduleData(d.scheduleData);
+        if (d.monthlyOverrides) setMonthlyOverrides(d.monthlyOverrides);
+
+        cloudRefs.current.config = JSON.stringify({
+          usersDB: d.usersDB || {},
+          goalsDB: d.goalsDB || {},
+          scheduleData: d.scheduleData || {},
+          monthlyOverrides: d.monthlyOverrides || {}
+        });
       } else {
         setGoalsDB({ [currentYYYYMM]: { ...safeMetasPadrao } });
       }
+    }, (error) => console.error("Erro Configs:", error)));
+
+    // VENDAS (Muda para Coleção separada para escalabilidade infinita)
+    unsubs.push(onSnapshot(collection(db, 'vendas_uniao_osasco'), (snap) => {
+      const data = snap.docs.map(d => d.data());
+      data.sort((a, b) => b.id - a.id); // Ordena pelas mais recentes
+      setSalesData(data);
+      cloudRefs.current.sales = data;
+    }));
+
+    // ESTOQUE SIMCARDS (Muda para Coleção)
+    unsubs.push(onSnapshot(collection(db, 'estoque_uniao_osasco'), (snap) => {
+      const data = snap.docs.map(d => d.data());
+      data.sort((a, b) => b.id - a.id);
+      setSimcardsData(data);
+      cloudRefs.current.simcards = data;
+    }));
+
+    // REPROVADOS (Muda para Coleção)
+    unsubs.push(onSnapshot(collection(db, 'reprovados_uniao_osasco'), (snap) => {
+      const data = snap.docs.map(d => d.data());
+      data.sort((a, b) => b.id - a.id);
+      setReprovadosData(data);
+      cloudRefs.current.reprovados = data;
+      
+      // Marca como pronto quando carregar as coleções
       setIsFirebaseReady(true);
-    }, (error) => {
-      console.error("Erro Firebase:", error);
-      setIsFirebaseReady(true);
-    });
-    return () => unsubscribe();
+    }));
+
+    return () => unsubs.forEach(unsub => unsub());
   }, [currentYYYYMM]);
 
-  // 2. AUTO-SAVE NA NUVEM COM DEBOUNCE (Garante performance de rede)
+  // 2. AUTO-SAVE NA NUVEM (Smart Diff - Salva apenas os documentos que foram alterados)
   useEffect(() => {
     if (!isFirebaseReady) return;
-    const timeoutId = setTimeout(() => {
-      const docRef = doc(db, 'painel_claro', 'loja_uniao_osasco');
-      setDoc(docRef, {
-        salesData, simcardsData, reprovadosData, goalsDB, scheduleData, monthlyOverrides, usersDB
-      }, { merge: true });
-    }, 1200); // Aguarda 1.2 segundos após o usuário terminar de mexer para subir os dados
+    const timeoutId = setTimeout(async () => {
+      try {
+        const batch = writeBatch(db);
+        let hasChanges = false;
+        let opsCount = 0; // Limite do batch do Firebase é 500 operações por vez
+
+        const safeStr = (obj) => JSON.stringify(obj || {});
+
+        // Função inteligente de comparação (Diff)
+        const syncCollection = (localArray, cloudArray, collectionName) => {
+          const localMap = new Map(localArray.map(item => [String(item.id), item]));
+          const cloudMap = new Map(cloudArray.map(item => [String(item.id), item]));
+
+          // 1. Identificar Novas inserções ou Edições feitas pelo usuário
+          localMap.forEach((item, id) => {
+            if (opsCount >= 490) return;
+            const cloudItem = cloudMap.get(id);
+            if (!cloudItem || safeStr(item) !== safeStr(cloudItem)) {
+              batch.set(doc(db, collectionName, id), item);
+              hasChanges = true;
+              opsCount++;
+            }
+          });
+
+          // 2. Identificar Exclusões (Botão de Excluir da Tabela)
+          cloudMap.forEach((item, id) => {
+            if (opsCount >= 490) return;
+            if (!localMap.has(id)) {
+              batch.delete(doc(db, collectionName, id));
+              hasChanges = true;
+              opsCount++;
+            }
+          });
+        };
+
+        syncCollection(salesData, cloudRefs.current.sales, 'vendas_uniao_osasco');
+        syncCollection(simcardsData, cloudRefs.current.simcards, 'estoque_uniao_osasco');
+        syncCollection(reprovadosData, cloudRefs.current.reprovados, 'reprovados_uniao_osasco');
+
+        // 3. Salva Configurações Globais apenas se houver mudança nos privilégios
+        const currentConfigStr = safeStr({ usersDB, goalsDB, scheduleData, monthlyOverrides });
+        if (currentConfigStr !== cloudRefs.current.config) {
+          batch.set(doc(db, 'lojas', 'uniao_osasco_config'), {
+            usersDB, goalsDB, scheduleData, monthlyOverrides
+          }, { merge: true });
+          hasChanges = true;
+          cloudRefs.current.config = currentConfigStr;
+        }
+
+        // 4. Dispara todas as diferenças para a nuvem de uma vez só!
+        if (hasChanges) {
+          await batch.commit();
+          cloudRefs.current.sales = [...salesData];
+          cloudRefs.current.simcards = [...simcardsData];
+          cloudRefs.current.reprovados = [...reprovadosData];
+        }
+      } catch (error) {
+        console.error("Erro no Auto-Save (Smart Diff):", error);
+      }
+    }, 1200); 
     return () => clearTimeout(timeoutId);
   }, [salesData, simcardsData, reprovadosData, goalsDB, scheduleData, monthlyOverrides, usersDB, isFirebaseReady]);
 
-  // 3. TIMER DE SESSÃO EXPIRADA (30 MINUTOS)
+  // 3. TIMER DE SESSÃO EXPIRADA POR INATIVIDADE (30 MINUTOS)
   useEffect(() => {
-    let sessionTimer;
-    if (globalUser) {
-      sessionTimer = setTimeout(() => {
-        setGlobalUser(null);
-        setSelectedSeller(null);
-        setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
-        toast.error('Sessão de 30 minutos expirada. Faça login novamente para continuar.', { duration: 5000 });
-      }, 30 * 60 * 1000);
+    if (!globalUser) return;
+
+    let timeoutId;
+
+    const logout = () => {
+      setGlobalUser(null);
+      setSelectedSeller(null);
+      localStorage.removeItem('sessionUser');
+      setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
+      toast.error('Sessão expirada por inatividade. Faça login novamente para continuar.', { duration: 5000 });
+    };
+
+    const resetTimer = () => {
+      const saved = localStorage.getItem('sessionUser');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          parsed.loginTime = Date.now();
+          localStorage.setItem('sessionUser', JSON.stringify(parsed));
+        } catch (e) { }
+      }
+
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(logout, 30 * 60 * 1000);
+    };
+
+    const timeLeft = (30 * 60 * 1000) - (Date.now() - globalUser.loginTime);
+    if (timeLeft <= 0) {
+      logout();
+      return;
     }
-    return () => clearTimeout(sessionTimer);
+
+    resetTimer();
+
+    let isThrottled = false;
+    const handleActivity = () => {
+      if (!isThrottled) {
+        resetTimer();
+        isThrottled = true;
+        setTimeout(() => { isThrottled = false; }, 60000); // Atualiza no máximo a cada 1 minuto
+      }
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach(event => document.addEventListener(event, handleActivity));
+
+    return () => {
+      clearTimeout(timeoutId);
+      events.forEach(event => document.removeEventListener(event, handleActivity));
+    };
   }, [globalUser]);
+
+  // 4. SINCRONIZAÇÃO EM TEMPO REAL DAS PERMISSÕES DO USUÁRIO ATUAL
+  useEffect(() => {
+    if (globalUser && globalUser.username && isFirebaseReady) {
+      const currentDbUser = usersDB[globalUser.username] || safeAppUsers[globalUser.username];
+      if (currentDbUser && currentDbUser.role !== globalUser.role) {
+        const updatedUser = { ...globalUser, role: currentDbUser.role, name: currentDbUser.name };
+        setGlobalUser(updatedUser);
+        localStorage.setItem('sessionUser', JSON.stringify(updatedUser));
+        toast.success(`Atenção: Suas permissões foram atualizadas para ${currentDbUser.role}!`, { icon: '🔄' });
+      }
+    }
+  }, [usersDB, globalUser?.role, globalUser?.username, isFirebaseReady]);
 
   const sidebarSections = [
     { name: 'ACESSOS', icon: <Key size={18} /> },
@@ -124,14 +357,15 @@ export default function App() {
     { name: 'RESULTADO', icon: <BarChart3 size={18} /> },
     { name: 'SISTEMAS CLARO', icon: <Database size={18} /> },
     { name: 'UR-RESIDENCIAL', icon: <Briefcase size={18} /> },
-    { name: 'VENDA', icon: <CreditCard size={18} /> },
-    { name: 'VENDA ACUMULADO', icon: <BarChart3 size={18} /> },
+    { name: 'VENDA', icon: <CreditCard size={18} /> }
   ].sort((a, b) => a.name.localeCompare(b.name));
 
   // --- REGRAS DE HIERARQUIA DERIVADAS DO LOGIN ---
-  const isGestor = globalUser?.role === 'GESTOR';
-  const canModifySimcard = isGestor || globalUser?.role === 'ENCARREGADO';
-  const canEditSchedule = isGestor;
+  const isGerente = globalUser?.role === 'GERENTE';
+  const canModifySimcard = isGerente || globalUser?.role === 'SENIOR';
+  const canEditSchedule = isGerente || globalUser?.role === 'SENIOR';
+  const hasScheduleAccess = isGerente || globalUser?.role === 'SENIOR';
+  const hasMetaAccess = isGerente || globalUser?.role === 'SENIOR';
   const isVendedor = globalUser?.role === 'VENDEDOR';
 
   // --- LÓGICA DE LOGIN ---
@@ -140,18 +374,27 @@ export default function App() {
     const userMatched = usersDB[authCredentials.user] || safeAppUsers[authCredentials.user];
     if (userMatched && userMatched.pass === authCredentials.password) {
       if (authModal.requiredRole && authModal.requiredRole !== userMatched.role) {
-        setAuthError(`Acesso negado. Requer permissão de ${authModal.requiredRole}.`);
-        return;
+        if (authModal.requiredRole === 'SENIOR' && !['GERENTE', 'SENIOR'].includes(userMatched.role)) {
+          setAuthError('Acesso negado. Requer permissão de Sênior ou Gerente.');
+          return;
+        }
+        if (authModal.requiredRole === 'GERENTE' && userMatched.role !== 'GERENTE') {
+          setAuthError('Acesso negado. Requer permissão de Gerente.');
+          return;
+        }
       }
-      setGlobalUser(userMatched);
+      const userWithTime = { ...userMatched, username: authCredentials.user, loginTime: Date.now() };
+      setGlobalUser(userWithTime);
+      localStorage.setItem('sessionUser', JSON.stringify(userWithTime));
       setAuthError('');
       if (userMatched.role === 'VENDEDOR') setSelectedSeller(userMatched.name);
-      if (authModal.pendingAction === 'DELETE' && authModal.pendingId !== null && (userMatched.role === 'GESTOR' || userMatched.role === 'ENCARREGADO')) {
-        setSimcardsData(prev => prev.filter(item => item.id !== authModal.pendingId));
+      if (authModal.pendingAction === 'DELETE' && authModal.pendingId !== null && (userMatched.role === 'GERENTE' || userMatched.role === 'SENIOR')) {
+        handleSetSimcardsData(prev => prev.filter(item => item.id !== authModal.pendingId));
       }
       setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
       setAuthCredentials({ user: '', password: '' });
-      if (activeTab === 'META' && userMatched.role !== 'GESTOR') setActiveTab('VENDA');
+      if (activeTab === 'META' && !['GERENTE', 'SENIOR'].includes(userMatched.role)) setActiveTab('VENDA');
+      if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR'].includes(userMatched.role)) setActiveTab('VENDA');
     } else {
       setAuthError('Usuário ou senha incorretos. Acesso negado.');
     }
@@ -160,38 +403,10 @@ export default function App() {
   const handleLogout = () => {
     setGlobalUser(null);
     setSelectedSeller(null);
-    if (activeTab === 'META') setActiveTab('VENDA');
+    localStorage.removeItem('sessionUser');
+    if (activeTab === 'META' || activeTab === 'ESCALA DE TRABALHO' || activeTab === 'ACESSOS') setActiveTab('VENDA');
   };
 
-  // --- LÓGICA DE REGISTRO ---
-  const handleRegisterSubmit = (e) => {
-    e.preventDefault();
-    if (!regForm.name || !regForm.username || !regForm.password || !regForm.confirmPassword || !regForm.sellerCode) {
-      setAuthError('Preencha todos os campos do registro.');
-      return;
-    }
-    if (regForm.password !== regForm.confirmPassword) {
-      setAuthError('A senha e a confirmação não coincidem.');
-      return;
-    }
-    if (usersDB[regForm.username] || safeAppUsers[regForm.username]) {
-      setAuthError('Este nome de usuário já está em uso.');
-      return;
-    }
-
-    const newUser = {
-      name: regForm.name.toUpperCase(),
-      role: 'VENDEDOR',
-      pass: regForm.password,
-      sellerCode: regForm.sellerCode.toUpperCase()
-    };
-
-    setUsersDB(prev => ({ ...prev, [regForm.username]: newUser }));
-    toast.success('Conta criada com sucesso! Você já pode fazer o login.');
-    setIsRegistering(false);
-    setRegForm({ name: '', username: '', password: '', confirmPassword: '', sellerCode: '' });
-    setAuthError('');
-  };
 
   // =========================================================
   // 🛡️ TELA DE BLOQUEIO INICIAL (LOGIN OBRIGATÓRIO)
@@ -207,97 +422,21 @@ export default function App() {
 
   if (!globalUser) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-neutral-100 font-sans">
+      <>
         <Toaster position="top-right" />
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-fade-in border border-neutral-200 my-8">
-          <div className="p-6 border-b border-neutral-100 flex flex-col items-center text-center">
-            <div className="flex items-center gap-2 text-[#E3000F] font-bold text-xl tracking-tight mb-2">
-              <div className="w-7 h-7 rounded-full bg-[#E3000F] flex items-center justify-center text-white text-sm font-black">C</div>
-              Painel Gestão Claro
-            </div>
-            <p className="text-sm text-neutral-500">{isRegistering ? 'Cadastro de Novo Vendedor' : 'União Osasco - AT1M'}</p>
-          </div>
-
-          {!isRegistering ? (
-            <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
-              {authError && (
-                <div className="bg-red-50 text-[#E3000F] text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2">
-                  <AlertCircle size={14} /> {authError}
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Matrícula / Usuário</label>
-                <input
-                  type="text"
-                  value={authCredentials.user}
-                  onChange={e => setAuthCredentials({ ...authCredentials, user: e.target.value })}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] font-mono"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Senha</label>
-                <input
-                  type="password"
-                  value={authCredentials.password}
-                  onChange={e => setAuthCredentials({ ...authCredentials, password: e.target.value })}
-                  className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] tracking-widest"
-                />
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="submit" className="w-full py-3 bg-[#E3000F] text-white font-medium rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">
-                  <Check size={16} /> Confirmar Acesso
-                </button>
-              </div>
-              <div className="text-center pt-2">
-                <button type="button" onClick={() => { setIsRegistering(true); setAuthError(''); }} className="text-xs text-[#E3000F] font-bold hover:underline">
-                  Novo por aqui? Criar conta de Vendedor
-                </button>
-              </div>
-            </form>
-          ) : (
-            <form onSubmit={handleRegisterSubmit} className="p-6 space-y-4">
-              {authError && (
-                <div className="bg-red-50 text-[#E3000F] text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-2">
-                  <AlertCircle size={14} /> {authError}
-                </div>
-              )}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Nome Completo</label>
-                <input type="text" value={regForm.name} onChange={e => setRegForm({ ...regForm, name: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm" placeholder="Ex: João da Silva" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Nome de Usuário (Login)</label>
-                <input type="text" value={regForm.username} onChange={e => setRegForm({ ...regForm, username: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm font-mono" placeholder="Ex: joao.silva" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Senha</label>
-                  <input type="password" value={regForm.password} onChange={e => setRegForm({ ...regForm, password: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm tracking-widest" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Repetir Senha</label>
-                  <input type="password" value={regForm.confirmPassword} onChange={e => setRegForm({ ...regForm, confirmPassword: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm tracking-widest" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Código de Vendedor</label>
-                <input type="text" maxLength={6} value={regForm.sellerCode} onChange={e => setRegForm({ ...regForm, sellerCode: e.target.value })} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm font-mono uppercase" placeholder="Máx 6 caracteres" />
-              </div>
-              <div className="pt-4 flex flex-col gap-3">
-                <button type="submit" className="w-full py-3 bg-neutral-900 text-white font-medium rounded-xl hover:bg-black transition-colors shadow-lg flex items-center justify-center gap-2">
-                  <UserPlus size={16} /> Registrar Usuário
-                </button>
-                <button type="button" onClick={() => { setIsRegistering(false); setAuthError(''); }} className="text-xs text-neutral-500 font-bold hover:underline text-center">
-                  Já tem uma conta? Faça login
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
+        <Login 
+          usersDB={{ ...safeAppUsers, ...usersDB }} 
+          setUsersDB={setUsersDB} 
+          onLogin={(userData, username) => {
+            const userWithTime = { ...userData, username, loginTime: Date.now() };
+            setGlobalUser(userWithTime);
+            localStorage.setItem('sessionUser', JSON.stringify(userWithTime));
+            if (userData.role === 'VENDEDOR') setSelectedSeller(userData.name);
+            if (activeTab === 'META' && !['GERENTE', 'SENIOR'].includes(userData.role)) setActiveTab('VENDA');
+            if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR'].includes(userData.role)) setActiveTab('VENDA');
+          }} 
+        />
+      </>
     );
   }
 
@@ -306,10 +445,10 @@ export default function App() {
       <Toaster position="top-right" />
 
       {isSidebarOpen && (
-        <div className="fixed inset-0 bg-black/20 z-10 md:hidden animate-fade-in backdrop-blur-sm no-print" onClick={() => setIsSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/20 z-20 md:hidden animate-fade-in backdrop-blur-sm no-print" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      <aside className={`${isSidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:translate-x-0'} no-print overflow-hidden shrink-0 transition-all duration-300 ease-in-out bg-white border-r border-neutral-200 flex flex-col z-20 absolute md:relative h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}>
+      <aside className={`${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:w-0 md:translate-x-0'} no-print overflow-hidden shrink-0 transition-all duration-300 ease-in-out bg-white border-r border-neutral-200 flex flex-col z-30 fixed md:relative top-0 left-0 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}>
         <div className="h-16 flex items-center px-6 border-b border-neutral-100 min-w-[16rem] shrink-0">
           <div className="flex items-center gap-2 text-[#E3000F] font-bold text-xl tracking-tight">
             <div className="w-6 h-6 rounded-full bg-[#E3000F] flex items-center justify-center text-white text-xs">C</div>
@@ -320,11 +459,12 @@ export default function App() {
           <div className="px-4 mb-2 text-xs font-semibold text-neutral-400 tracking-wider">MÓDULOS (A-Z)</div>
           <ul className="space-y-1 px-3">
             {sidebarSections.map((section) => {
-              if (section.name === 'META' && !isGestor) return null;
+              if (section.name === 'META' && !hasMetaAccess) return null;
+              if (section.name === 'ESCALA DE TRABALHO' && !hasScheduleAccess) return null;
 
               return (
                 <li key={section.name}>
-                  <button onClick={() => { setActiveTab(section.name); if(window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === section.name ? 'bg-red-50 text-[#E3000F]' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
+                  <button onClick={() => { setActiveTab(section.name); if (window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === section.name ? 'bg-red-50 text-[#E3000F]' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
                     <div className="flex items-center gap-3"><span className={`${activeTab === section.name ? 'text-[#E3000F]' : 'text-neutral-400'}`}>{section.icon}</span>{section.name}</div>
                     {activeTab === section.name && <ChevronRight size={14} />}
                   </button>
@@ -343,6 +483,16 @@ export default function App() {
             <h1 className="text-lg font-medium text-neutral-800 hidden sm:block">{activeTab}</h1>
           </div>
           <div className="flex items-center gap-5">
+            {undoStack.length > 0 && (
+              <button 
+                onClick={handleUndo} 
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-lg text-sm font-medium transition-colors animate-fade-in"
+                title="Desfazer exclusão (Ctrl+Z)"
+              >
+                <Undo size={16} /> Desfazer
+              </button>
+            )}
+
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
               <input type="text" placeholder="Buscar CPF ou Contrato..." className="pl-9 pr-4 py-1.5 bg-neutral-100 border-transparent rounded-full text-sm focus:bg-white focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all w-64 outline-none" />
@@ -361,7 +511,7 @@ export default function App() {
                   </div>
                   <div className="relative cursor-pointer">
                     <div className="w-10 h-10 bg-red-50 text-[#E3000F] rounded-full flex items-center justify-center border border-red-100 group-hover:bg-[#E3000F] group-hover:text-white transition-colors">
-                      {isGestor ? <Crown size={18} /> : <UserCircle size={22} />}
+                      {isGerente ? <Crown size={18} /> : <UserCircle size={22} />}
                     </div>
                     <div onClick={handleLogout} className="absolute top-12 right-0 bg-white border border-neutral-200 shadow-xl rounded-xl py-2 w-32 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex items-center justify-center gap-2 text-sm font-bold text-red-600 hover:bg-red-50 z-50">
                       <LogOut size={16} /> Sair
@@ -376,27 +526,27 @@ export default function App() {
         <div className="flex-1 overflow-auto print:overflow-visible print:h-auto print:block print:p-0 print:bg-white p-2 sm:p-4 lg:p-8 bg-neutral-50 print-area-wrapper">
 
           {activeTab === 'META' ? (
-            <Meta isGestor={isGestor} setAuthModal={setAuthModal} goalsDB={goalsDB} setGoalsDB={setGoalsDB} currentYYYYMM={currentYYYYMM} />
+            <Meta hasAccess={hasMetaAccess} setAuthModal={setAuthModal} goalsDB={goalsDB} setGoalsDB={setGoalsDB} currentYYYYMM={currentYYYYMM} usersDB={usersDB} />
           ) : activeTab === 'VENDA' ? (
-            <Venda salesData={salesData} setSalesData={setSalesData} isVendedor={isVendedor} globalUser={globalUser} />
+            <Venda salesData={salesData} setSalesData={handleSetSalesData} isVendedor={isVendedor} globalUser={globalUser} usersDB={usersDB} />
           ) : activeTab === 'CONTROLE-SIMCARD' ? (
-            <ControleSimcard simcardsData={simcardsData} setSimcardsData={setSimcardsData} canModifySimcard={canModifySimcard} globalUser={globalUser} setAuthModal={setAuthModal} />
+            <ControleSimcard simcardsData={simcardsData} setSimcardsData={handleSetSimcardsData} canModifySimcard={canModifySimcard} globalUser={globalUser} setAuthModal={setAuthModal} usersDB={usersDB} />
           ) : activeTab === 'COLABORADORES' ? (
-            <Colaboradores selectedSeller={selectedSeller} setSelectedSeller={setSelectedSeller} isVendedor={isVendedor} globalUser={globalUser} salesData={salesData} activeMetas={activeMetas} />
+            <Colaboradores selectedSeller={selectedSeller} setSelectedSeller={setSelectedSeller} isVendedor={isVendedor} globalUser={globalUser} salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} setAuthModal={setAuthModal} />
           ) : activeTab === 'ESCALA DE TRABALHO' ? (
-            <EscalaTrabalho canEditSchedule={canEditSchedule} scheduleData={scheduleData} setScheduleData={setScheduleData} monthlyOverrides={monthlyOverrides} setMonthlyOverrides={setMonthlyOverrides} />
+            <EscalaTrabalho canEditSchedule={canEditSchedule} scheduleData={scheduleData} setScheduleData={setScheduleData} monthlyOverrides={monthlyOverrides} setMonthlyOverrides={setMonthlyOverrides} hasAccess={hasScheduleAccess} setAuthModal={setAuthModal} usersDB={usersDB} />
           ) : activeTab === 'SISTEMAS CLARO' ? (
             <SistemasClaro />
           ) : activeTab === 'ACESSOS' ? (
-            <Acessos usersDB={usersDB} setUsersDB={setUsersDB} />
+            <Acessos usersDB={usersDB} setUsersDB={setUsersDB} setScheduleData={setScheduleData} setMonthlyOverrides={setMonthlyOverrides} setReprovadosData={handleSetReprovadosData} />
           ) : activeTab === 'UR-RESIDENCIAL' ? (
-            <UrResidencial salesData={salesData} setSalesData={setSalesData} globalUser={globalUser} isGestor={isGestor} />
+            <UrResidencial salesData={salesData} setSalesData={handleSetSalesData} globalUser={globalUser} isGerente={isGerente} usersDB={usersDB} />
           ) : activeTab === 'PROPOSTA' ? (
             <Proposta globalUser={globalUser} />
           ) : activeTab === 'REPROVADOS' ? (
-            <Reprovados reprovadosData={reprovadosData} setReprovadosData={setReprovadosData} globalUser={globalUser} isGestor={isGestor} isVendedor={isVendedor} />
+            <Reprovados reprovadosData={reprovadosData} setReprovadosData={handleSetReprovadosData} globalUser={globalUser} isGerente={isGerente} isVendedor={isVendedor} usersDB={usersDB} />
           ) : activeTab === 'RESULTADO' ? (
-            <Resultado salesData={salesData} goalsDB={goalsDB} />
+            <Resultado salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-neutral-400 animate-fade-in border-2 border-dashed border-neutral-200 rounded-xl bg-white/50">
               <Database size={48} className="mb-4 text-neutral-300" />

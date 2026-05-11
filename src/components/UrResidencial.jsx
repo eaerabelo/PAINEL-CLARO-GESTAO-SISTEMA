@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Edit2, Save, X, Search, Calendar, Filter, Trash2, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { APP_USERS } from '../utils/constants';
 
-export function UrResidencial({ salesData, setSalesData, globalUser, isGestor }) {
+export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, usersDB = {} }) {
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
@@ -18,7 +17,10 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGestor })
     const STATUS_OPTIONS = ['PEND.DE INSTALAÇÃO', 'CONECTADO', 'CANCELADO'];
     const AGENDAMENTO_OPTIONS = ['08:00 A 12:00', '12:00 A 15:00', '15:00 A 18:00'];
     const ACAO_OPTIONS = ['REAGENDADO', 'RETENÇÃO EM FALTA', 'DESISTIU'];
-    const VENDEDORES_OPTIONS = Object.values(APP_USERS || {}).filter(u => u.role === 'VENDEDOR').map(u => u.name);
+    const VENDEDORES_OPTIONS = Object.values(usersDB || {})
+        .filter(u => !u.role || u.role === 'VENDEDOR')
+        .map(u => u.name.split(' ')[0])
+        .filter(Boolean);
     const RESIDENTIAL_PRODUCTS = [
         'FIBRA 350 MEGAS', 'FIBRA 500 MEGAS', 'FIBRA 750 MEGAS', 'FIBRA 1 GIGA',
         'CLARO TV+', 'FIXO ILIMITADO BRASIL', 'PONTO ADICIONAL', 'MESH', 'EXTENSOR WIFI'
@@ -66,8 +68,8 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGestor })
     };
 
     const handleDelete = (id) => {
-        if (!isGestor) return;
-        if (window.confirm('Atenção Gestor: Tem certeza que deseja apagar este registro de residencial?')) {
+        if (!isGerente) return;
+        if (window.confirm('Atenção Gerente: Tem certeza que deseja apagar este registro de residencial?')) {
             setSalesData(prev => prev.filter(item => item.id !== id));
             toast.success('Registro apagado com sucesso!');
         }
@@ -163,7 +165,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGestor })
                                             <tr key={item.id || index} className="hover:bg-neutral-50 transition-colors bg-white">
                                                 {/* REGRAS DE BLOQUEIO DE CAMPO (GESTOR) APLICADOS AQUI */}
                                                 <td className="px-3 py-2 border-b border-neutral-200 border-r border-neutral-100">
-                                                    {isEditing ? <input type="text" value={editForm.contrato || ''} onChange={(e) => handleChange(e, 'contrato')} disabled={!isGestor} className={`w-28 px-2 py-1 border rounded ${!isGestor ? 'bg-neutral-100 cursor-not-allowed' : 'bg-white focus:border-[#E3000F] outline-none'}`} /> : <span className="font-mono text-neutral-700">{item.contrato || '-'}</span>}
+                                                    {isEditing ? <input type="text" value={editForm.contrato || ''} onChange={(e) => handleChange(e, 'contrato')} disabled={!isGerente} className={`w-28 px-2 py-1 border rounded ${!isGerente ? 'bg-neutral-100 cursor-not-allowed' : 'bg-white focus:border-[#E3000F] outline-none'}`} /> : <span className="font-mono text-neutral-700">{item.contrato || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 border-r border-neutral-100">
                                                     {isEditing ? <input type="text" value={editForm.cidade || ''} onChange={(e) => handleChange(e, 'cidade')} className="w-24 px-2 py-1 border rounded bg-white outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-700">{item.cidade || '-'}</span>}
@@ -193,7 +195,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGestor })
                                                     {isEditing ? <input type="text" value={editForm.nomeCliente || ''} onChange={(e) => handleChange(e, 'nomeCliente')} className="w-32 px-2 py-1 border rounded bg-white outline-none" /> : <span className="text-neutral-800">{item.nomeCliente || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 border-r border-neutral-100">
-                                                    {isEditing ? <input type="text" value={editForm.cpf || ''} onChange={(e) => handleChange(e, 'cpf')} disabled={!isGestor} className={`w-32 px-2 py-1 border rounded ${!isGestor ? 'bg-neutral-100 cursor-not-allowed' : 'bg-white outline-none'}`} /> : <span className="font-mono text-neutral-600">{item.cpf || '-'}</span>}
+                                                    {isEditing ? <input type="text" value={editForm.cpf || ''} onChange={(e) => handleChange(e, 'cpf')} disabled={!isGerente} className={`w-32 px-2 py-1 border rounded ${!isGerente ? 'bg-neutral-100 cursor-not-allowed' : 'bg-white outline-none'}`} /> : <span className="font-mono text-neutral-600">{item.cpf || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 border-r border-neutral-100">
                                                     {isEditing ? <input type="text" value={editForm.obsUr || ''} onChange={(e) => handleChange(e, 'obsUr')} className="w-36 px-2 py-1 border rounded bg-white outline-none" /> : <span className="text-neutral-500 truncate max-w-[150px] inline-block" title={item.obsUr}>{item.obsUr || '-'}</span>}
@@ -210,7 +212,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGestor })
                                                     ) : (
                                                         <div className="flex items-center justify-center gap-2">
                                                             <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                                            {isGestor && (
+                                                            {isGerente && (
                                                                 <button onClick={() => handleDelete(item.id)} className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                                             )}
                                                         </div>

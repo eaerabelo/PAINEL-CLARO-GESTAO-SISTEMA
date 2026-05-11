@@ -3,18 +3,73 @@
 @tailwind utilities;
 
 /* Regras customizadas que usamos no final do App.jsx */
-.scrollbar-hide::-webkit-scrollbar { display: none; }
-.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-
-@keyframes fadeIn { 
-  from { opacity: 0; transform: translateY(5px); } 
-  to { opacity: 1; transform: translateY(0); } 
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
-.animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
 
 @media print {
-  body * { visibility: hidden; }
-  .print-schedule, .print-schedule * { visibility: visible; }
-  .print-schedule { position: absolute; left: 0; top: 0; width: 100%; height: auto; border: none; box-shadow: none; }
-  .no-print { display: none !important; }
-  .print-area-wrapper { overflow: visible !important; background: white !important; } }
+  body * {
+    visibility: hidden;
+  }
+
+  .print-schedule,
+  .print-schedule * {
+    visibility: visible;
+  }
+
+  .print-schedule {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    border: none;
+    box-shadow: none;
+  }
+
+  .print-proposta,
+  .print-proposta * {
+    visibility: visible;
+  }
+
+  .print-proposta {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    border: none;
+    box-shadow: none;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-area-wrapper {
+    overflow: visible !important;
+    background: white !important;
+  }
+}

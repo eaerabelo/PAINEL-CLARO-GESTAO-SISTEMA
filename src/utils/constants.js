@@ -96,7 +96,7 @@ export const METAS_PADRAO = {
 export const SIMCARD_TABS = ['GESTAO', 'SOBREPOSIÇÃO', 'FALTA ESTOQUE', ...VENDEDORES, 'APARELHO & ACESSORIO'];
 
 export const APP_USERS = {
-    '95802904': { pass: '00332890', role: 'GESTOR', name: 'Gestor Geral' },
+    'adm': { pass: 'DEV2026', role: 'GESTOR', name: 'Desenvolvedor Master' },
     '1234567': { pass: '00332890', role: 'ENCARREGADO', name: 'Encarregado Lider' },
     '123654': { pass: '00332890', role: 'VENDEDOR', name: 'MATHEUS' },
 };

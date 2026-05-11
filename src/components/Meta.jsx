@@ -5,7 +5,7 @@ import { applyCurrencyMask, parseCurrencyToFloat } from '../utils/masks';
 
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
 
-export const Meta = ({ isGestor, setAuthModal, goalsDB, setGoalsDB, currentYYYYMM }) => {
+export const Meta = ({ hasAccess, setAuthModal, goalsDB, setGoalsDB, currentYYYYMM }) => {
     const [selectedGoalMonth, setSelectedGoalMonth] = useState(currentYYYYMM);
     const [goalForm, setGoalForm] = useState({ ...safeMetasPadrao, receita: applyCurrencyMask(safeMetasPadrao.receita) });
     const [showGoalSuccess, setShowGoalSuccess] = useState(false);
@@ -58,13 +58,13 @@ export const Meta = ({ isGestor, setAuthModal, goalsDB, setGoalsDB, currentYYYYM
 
     return (
         <div className="h-full flex flex-col animate-fade-in">
-            {!isGestor ? (
+            {!hasAccess ? (
                 <div className="flex-1 flex items-center justify-center bg-neutral-50/50 rounded-2xl">
                     <div className="bg-white p-8 rounded-3xl shadow-lg border border-neutral-200 max-w-sm text-center">
                         <Lock size={40} className="text-[#E3000F] mx-auto mb-4" />
                         <h2 className="text-xl font-bold text-neutral-800 mb-2">Acesso Restrito</h2>
-                        <p className="text-sm text-neutral-500 mb-6">Apenas contas de Gestor Geral têm autorização para editar o espelho de metas.</p>
-                        <button onClick={() => setAuthModal({ isOpen: true, pendingAction: null, pendingId: null, requiredRole: 'GESTOR' })} className="px-6 py-2.5 bg-[#E3000F] text-white font-medium rounded-xl hover:bg-red-700 transition-colors">Autenticar como Gestor</button>
+                        <p className="text-sm text-neutral-500 mb-6">Apenas contas de Gerente ou Sênior têm autorização para editar o espelho de metas.</p>
+                        <button onClick={() => setAuthModal({ isOpen: true, pendingAction: null, pendingId: null, requiredRole: 'SENIOR' })} className="px-6 py-2.5 bg-[#E3000F] text-white font-medium rounded-xl hover:bg-red-700 transition-colors">Autenticar</button>
                     </div>
                 </div>
             ) : (
@@ -84,7 +84,7 @@ export const Meta = ({ isGestor, setAuthModal, goalsDB, setGoalsDB, currentYYYYM
                             <div className="p-6 md:p-8 border-b border-neutral-100 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-neutral-50/50 shrink-0">
                                 <div>
                                     <h2 className="text-2xl font-bold text-neutral-800 flex items-center gap-2"><Target className="text-[#E3000F]" /> Gestão de Metas Mensais</h2>
-                                    <p className="text-sm text-neutral-500 mt-1">Configure os volumes de produtos e a receita para o mês selecionado.</p>
+                                    <p className="text-sm text-neutral-500 mt-1">Configure a <strong className="text-neutral-700">Meta Total da Loja</strong>. O sistema dividirá os valores pela quantidade de vendedores ativos automaticamente.</p>
                                 </div>
                                 <div className="flex items-center gap-4 bg-white p-2 rounded-xl shadow-sm border border-neutral-200">
                                     <div className="flex items-center gap-2 px-2 text-sm font-bold text-neutral-500"><History size={16} /> Mês:</div>

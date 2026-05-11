@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Unlock, Lock, Printer, Edit3, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { VENDEDORES, HORARIOS_PADRAO } from '../utils/constants';
+import { HORARIOS_PADRAO } from '../utils/constants';
 
 const LOCAL_WEEKDAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 const getLocalDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-const SAFE_VENDEDORES = Array.isArray(VENDEDORES) ? VENDEDORES : [];
-const SAFE_HORARIOS = Array.isArray(HORARIOS_PADRAO) ? HORARIOS_PADRAO : ['09:00 - 18:00', '10:00 - 19:00', '13:00 - 22:00', 'FOLGA'];
+const SAFE_HORARIOS = ['09:40 - 18:00', '10:40 - 19:00', '11:40 - 20:00', '13:40 - 22:00', 'FOLGA'];
 
-export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData, monthlyOverrides, setMonthlyOverrides }) => {
+export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData, monthlyOverrides, setMonthlyOverrides, hasAccess, setAuthModal, usersDB = {} }) => {
+    const SAFE_VENDEDORES = Object.values(usersDB)
+        .map(u => u.name.split(' ')[0])
+        .filter(Boolean);
     const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
     const [editScheduleCell, setEditScheduleCell] = useState(null);
     const [editScheduleValue, setEditScheduleValue] = useState('');
@@ -57,25 +59,40 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
     const formatScheduleCell = (val) => {
         if (!val) return <span className="text-neutral-300">-</span>;
         const v = String(val).toUpperCase();
-        if (v === 'FOLGA') return <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded text-[10px] font-bold tracking-wide block">FOLGA</span>;
-        if (v === 'FERIADO') return <span className="bg-orange-100 text-orange-700 px-2.5 py-1 rounded text-[10px] font-bold tracking-wide block">FERIADO</span>;
-        if (v === 'FÉRIAS' || v === 'ATESTADO') return <span className="bg-purple-100 text-purple-700 px-2.5 py-1 rounded text-[10px] font-bold tracking-wide block">{v}</span>;
-        return <span className="text-neutral-800 font-bold text-[10px] leading-tight block">{v.replace(' - ', '\n')}</span>;
+        if (v === 'FOLGA') return <span className="bg-green-100 text-green-700 px-2.5 py-1 rounded text-[10px] print:text-[8px] print:px-1 print:py-0.5 font-bold tracking-wide block">FOLGA</span>;
+        if (v === 'FERIADO') return <span className="bg-orange-100 text-orange-700 px-2.5 py-1 rounded text-[10px] print:text-[8px] print:px-1 print:py-0.5 font-bold tracking-wide block">FERIADO</span>;
+        if (v === 'FÉRIAS' || v === 'ATESTADO') return <span className="bg-purple-100 text-purple-700 px-2.5 py-1 rounded text-[10px] print:text-[8px] print:px-1 print:py-0.5 font-bold tracking-wide block">{v}</span>;
+        if (v === 'FALTA') return <span className="bg-red-100 text-red-700 px-2.5 py-1 rounded text-[10px] print:text-[8px] print:px-1 print:py-0.5 font-bold tracking-wide block">FALTA</span>;
+        if (v === 'REDUZIDO') return <span className="bg-teal-100 text-teal-700 px-2.5 py-1 rounded text-[10px] print:text-[8px] print:px-1 print:py-0.5 font-bold tracking-wide block">REDUZIDO</span>;
+        return <span className="text-neutral-800 font-bold text-[10px] print:text-[8px] leading-tight block">{v.replace(' - ', '\n')}</span>;
     };
 
     const goToPrevMonth = () => setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() - 1, 1));
     const goToNextMonth = () => setCurrentMonthDate(new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth() + 1, 1));
 
+    if (!hasAccess) {
+        return (
+            <div className="flex-1 flex items-center justify-center bg-neutral-50/50 rounded-2xl h-full animate-fade-in">
+                <div className="bg-white p-8 rounded-3xl shadow-lg border border-neutral-200 max-w-sm text-center">
+                    <Lock size={40} className="text-[#E3000F] mx-auto mb-4" />
+                    <h2 className="text-xl font-bold text-neutral-800 mb-2">Acesso Restrito</h2>
+                    <p className="text-sm text-neutral-500 mb-6">Apenas contas de Gerente ou Sênior têm autorização para visualizar e editar a escala de trabalho.</p>
+                    <button onClick={() => setAuthModal({ isOpen: true, pendingAction: null, pendingId: null, requiredRole: 'SENIOR' })} className="px-6 py-2.5 bg-[#E3000F] text-white font-medium rounded-xl hover:bg-red-700 transition-colors">Autenticar</button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <>
-            <div className="flex flex-col min-h-full animate-fade-in print-schedule gap-6">
+            <div className="flex flex-col min-h-full animate-fade-in print-schedule gap-6 print:block print:h-auto print:overflow-visible">
 
-                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden flex flex-col shrink-0">
-                    <div className="p-4 border-b border-neutral-100 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center bg-white">
+                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden print:overflow-visible flex flex-col shrink-0">
+                    <div className="p-4 border-b border-neutral-100 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center bg-white print:p-2">
                         <h2 className="font-semibold text-neutral-800 flex flex-wrap items-center gap-2">
                             <span className="w-full sm:w-auto">Quadro Padrão de Escala Semanal</span>
                             {canEditSchedule ? (
-                                <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase sm:ml-2 no-print"><Unlock size={12} /> Edição Liberada (Gestor)</span>
+                                <span className="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase sm:ml-2 no-print"><Unlock size={12} /> Edição Liberada</span>
                             ) : (
                                 <span className="bg-neutral-100 text-neutral-500 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase sm:ml-2 no-print"><Lock size={12} /> Somente Leitura</span>
                             )}
@@ -87,11 +104,11 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                         </div>
                     </div>
 
-                    <div className="overflow-auto bg-neutral-50/30 p-4">
-                        <table className="w-full text-sm text-center whitespace-nowrap border-collapse border border-neutral-300 shadow-sm">
-                            <thead className="text-[11px] text-white uppercase bg-neutral-900">
+                    <div className="overflow-auto print:overflow-visible bg-neutral-50/30 p-4 print:p-0">
+                        <table className="w-full text-sm text-center whitespace-nowrap border-collapse border border-neutral-300 shadow-sm print:text-[10px]">
+                            <thead className="text-[11px] text-white uppercase bg-neutral-900 print:text-[10px]">
                                 <tr>
-                                    <th className="border border-neutral-700 px-4 py-3 font-bold tracking-wider text-left bg-neutral-800 w-48">Colaborador</th>
+                                    <th className="border border-neutral-700 px-4 py-3 font-bold tracking-wider text-left bg-neutral-800 w-48 print:px-2 print:py-1">Colaborador</th>
                                     <th className="border border-neutral-700 px-4 py-3 font-bold tracking-wider">Segunda-feira</th>
                                     <th className="border border-neutral-700 px-4 py-3 font-bold tracking-wider">Terça-feira</th>
                                     <th className="border border-neutral-700 px-4 py-3 font-bold tracking-wider">Quarta-feira</th>
@@ -111,7 +128,7 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                                             <td
                                                 key={`weekly-${seller}-${day}`}
                                                 onClick={() => handleScheduleClick(seller, day, 'WEEKLY')}
-                                                className={`border border-neutral-200 px-3 py-3 relative ${canEditSchedule ? 'cursor-pointer hover:bg-blue-50/50 group' : ''}`}
+                                                className={`border border-neutral-200 px-3 py-3 print:px-1 print:py-1 relative ${canEditSchedule ? 'cursor-pointer hover:bg-blue-50/50 group' : ''}`}
                                             >
                                                 {formatScheduleCell(scheduleData[seller]?.[day])}
                                                 {canEditSchedule && (
@@ -128,8 +145,8 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden flex flex-col flex-1 shrink-0">
-                    <div className="p-4 border-b border-neutral-100 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center bg-white">
+                <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden print:overflow-visible flex flex-col flex-1 shrink-0 print:mt-6">
+                    <div className="p-4 border-b border-neutral-100 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center bg-white print:p-2">
                         <div className="w-full md:w-auto">
                             <h2 className="font-semibold text-neutral-800 flex items-center gap-2">
                                 Escala Detalhada do Mês
@@ -149,17 +166,17 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                         </div>
                     </div>
 
-                    <div className="overflow-auto flex-1 bg-white p-4">
-                        <table className="w-full text-sm text-center whitespace-nowrap border-collapse border border-neutral-300 shadow-sm min-w-max">
-                            <thead className="text-[11px] text-white uppercase bg-neutral-800 sticky top-0 z-20">
+                    <div className="overflow-auto print:overflow-visible flex-1 bg-white p-4 print:p-0">
+                        <table className="w-full text-sm text-center whitespace-nowrap border-collapse border border-neutral-300 shadow-sm min-w-max print:min-w-0 print:text-[8px]">
+                            <thead className="text-[11px] print:text-[8px] text-white uppercase bg-neutral-800 sticky top-0 z-20">
                                 <tr>
-                                    <th className="border border-neutral-700 px-4 py-3 font-bold tracking-wider text-left bg-neutral-900 sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Colaborador</th>
+                                    <th className="border border-neutral-700 px-4 py-3 print:px-2 print:py-1 font-bold tracking-wider text-left bg-neutral-900 sticky left-0 z-30 shadow-[2px_0_5px_rgba(0,0,0,0.1)]">Colaborador</th>
                                     {Array.from({ length: getLocalDaysInMonth(currentMonthDate.getFullYear(), currentMonthDate.getMonth()) }).map((_, i) => {
                                         const d = i + 1;
                                         const dateObj = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), d);
                                         const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                                         return (
-                                            <th key={`head-${d}`} className={`border border-neutral-700 px-2 py-2 min-w-[90px] ${isWeekend ? 'bg-[#C00000] text-white' : ''}`}>
+                                            <th key={`head-${d}`} className={`border border-neutral-700 px-2 py-2 min-w-[90px] print:min-w-0 print:px-1 print:py-1 ${isWeekend ? 'bg-[#C00000] text-white' : ''}`}>
                                                 <div className="font-bold text-base leading-none">{d}</div>
                                                 <div className={`text-[9px] mt-1 ${isWeekend ? 'text-red-100' : 'text-neutral-400'}`}>{LOCAL_WEEKDAYS[dateObj.getDay()]}</div>
                                             </th>
@@ -170,18 +187,19 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                             <tbody className="bg-white">
                                 {SAFE_VENDEDORES.map((seller) => (
                                     <tr key={`month-${seller}`} className="hover:bg-neutral-50 transition-colors">
-                                        <td className="border border-neutral-200 px-4 py-3 font-bold text-neutral-800 text-left bg-neutral-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
+                                        <td className="border border-neutral-200 px-4 py-3 print:px-2 print:py-1 font-bold text-neutral-800 text-left bg-neutral-50 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)]">
                                             {seller}
                                         </td>
                                         {Array.from({ length: getLocalDaysInMonth(currentMonthDate.getFullYear(), currentMonthDate.getMonth()) }).map((_, i) => {
                                             const d = i + 1;
                                             const dateObj = new Date(currentMonthDate.getFullYear(), currentMonthDate.getMonth(), d);
+                                            const dateStr = `${currentMonthDate.getFullYear()}-${String(currentMonthDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                                             const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
                                             return (
                                                 <td
                                                     key={`month-${seller}-${d}`}
-                                                    onClick={() => handleScheduleClick(seller, d, 'MONTHLY')}
-                                                    className={`border border-neutral-200 px-1 py-2 relative ${isWeekend ? 'bg-red-50/30' : ''} ${canEditSchedule ? 'cursor-pointer hover:bg-blue-50/50 group' : ''}`}
+                                                    onClick={() => handleScheduleClick(seller, d, 'MONTHLY', dateStr)}
+                                                    className={`border border-neutral-200 px-1 py-2 print:px-0.5 print:py-0.5 relative ${isWeekend ? 'bg-red-50/30' : ''} ${canEditSchedule ? 'cursor-pointer hover:bg-blue-50/50 group' : ''}`}
                                                 >
                                                     {formatScheduleCell(getDailySchedule(seller, currentMonthDate.getFullYear(), currentMonthDate.getMonth(), d))}
                                                     {canEditSchedule && (
@@ -219,7 +237,13 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                                             <button key={h} type="button" onClick={() => setEditScheduleValue(h)} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${editScheduleValue === h ? 'bg-neutral-800 text-white border-neutral-800' : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'}`}>{h}</button>
                                         ))}
                                         {editScheduleCell.type === 'MONTHLY' && (
-                                            <button type="button" onClick={() => setEditScheduleValue('')} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${editScheduleValue === '' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'}`}>VOLTAR AO PADRÃO</button>
+                                            <>
+                                                <button type="button" onClick={() => setEditScheduleValue('FALTA')} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${editScheduleValue === 'FALTA' ? 'bg-red-600 text-white border-red-600' : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'}`}>FALTA</button>
+                                                <button type="button" onClick={() => setEditScheduleValue('ATESTADO')} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${editScheduleValue === 'ATESTADO' ? 'bg-orange-600 text-white border-orange-600' : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100'}`}>ATESTADO</button>
+                                                <button type="button" onClick={() => setEditScheduleValue('FÉRIAS')} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${editScheduleValue === 'FÉRIAS' ? 'bg-purple-600 text-white border-purple-600' : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'}`}>FÉRIAS</button>
+                                                <button type="button" onClick={() => setEditScheduleValue('REDUZIDO')} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${editScheduleValue === 'REDUZIDO' ? 'bg-teal-600 text-white border-teal-600' : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'}`}>REDUZIDO</button>
+                                                <button type="button" onClick={() => setEditScheduleValue('')} className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-colors ${editScheduleValue === '' ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'}`}>VOLTAR AO PADRÃO</button>
+                                            </>
                                         )}
                                     </div>
                                 </div>

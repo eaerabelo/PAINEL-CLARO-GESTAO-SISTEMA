@@ -9,7 +9,7 @@ export const ProgressBar = ({ label, realizado, meta, isDark = false, isCurrency
     const textMain = isDark ? 'text-white' : 'text-neutral-800';
     const textSub = isDark ? 'text-neutral-400' : 'text-neutral-500';
     const formattedRealizado = isCurrency ? applyCurrencyMask(realizado) : realizado;
-    const formattedMeta = isCurrency ? applyCurrencyMask(metaVal) : metaVal;
+    const formattedMeta = isCurrency ? applyCurrencyMask(metaVal) : (Number.isInteger(metaVal) ? metaVal : metaVal.toFixed(1));
 
     return (
         <div className="mb-4 last:mb-0">

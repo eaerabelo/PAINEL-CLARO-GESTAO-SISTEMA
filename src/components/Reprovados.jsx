@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { AlertOctagon, Plus, Search, Calendar, Edit3, Trash2, X, Lock, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { VENDEDORES } from '../utils/constants';
 import { applyCpfCnpjMask, getTodaySP } from '../utils/masks';
 
-const safeVendedores = Array.isArray(VENDEDORES) ? VENDEDORES : [];
-
-export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGestor, isVendedor }) {
+export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGerente, isVendedor, usersDB = {} }) {
+    const safeVendedores = Object.values(usersDB)
+        .filter(u => !u.role || u.role === 'VENDEDOR')
+        .map(u => u.name.split(' ')[0])
+        .filter(Boolean);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -52,8 +53,8 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
     });
 
     const canEditDelete = (item) => {
-        if (isGestor || globalUser?.role === 'ENCARREGADO') return true;
-        if (isVendedor && item.vendedor === globalUser?.name) return true;
+        if (isGerente || globalUser?.role === 'SENIOR') return true;
+        if (isVendedor && (item.vendedor === globalUser?.name || item.vendedor === globalUser?.name.split(' ')[0])) return true;
         return false;
     };
 
@@ -62,7 +63,7 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
         setEditingId(null);
         setFormData({
             data: getTodaySP(),
-            vendedor: (isVendedor && globalUser) ? globalUser.name : '',
+            vendedor: (isVendedor && globalUser) ? globalUser.name.split(' ')[0] : '',
             produto: '',
             motivo: '',
             cliente: '',
@@ -160,11 +161,11 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
                             <input type="text" placeholder="Buscar Cliente, CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-56 pl-9 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm outline-none focus:bg-white focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all" />
                         </div>
                         <div className="flex w-full sm:w-auto gap-2">
-                        <div className="relative flex flex-1 items-center gap-2 bg-neutral-50 border border-neutral-200 px-3 py-1.5 rounded-xl hover:bg-neutral-100 transition-colors cursor-pointer">
-                            <Calendar size={16} className="text-neutral-500" />
-                            <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="text-sm text-neutral-700 outline-none bg-transparent font-medium cursor-pointer w-full" title="Filtrar por data" />
-                        </div>
-                        <button onClick={openModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-2 whitespace-nowrap"><Plus size={16} /> Novo Registro</button>
+                            <div className="relative flex flex-1 items-center gap-2 bg-neutral-50 border border-neutral-200 px-3 py-1.5 rounded-xl hover:bg-neutral-100 transition-colors cursor-pointer">
+                                <Calendar size={16} className="text-neutral-500" />
+                                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="text-sm text-neutral-700 outline-none bg-transparent font-medium cursor-pointer w-full" title="Filtrar por data" />
+                            </div>
+                            <button onClick={openModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-2 whitespace-nowrap"><Plus size={16} /> Novo Registro</button>
                         </div>
                     </div>
                 </div>
