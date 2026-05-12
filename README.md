@@ -22,7 +22,7 @@ A plataforma é dividida em módulos estratégicos baseados no Controle de Acess
 ### 1. Vendas
 O coração da operação. Permite o lançamento de vendas de aparelhos, acessórios, planos móveis e banda larga.
 - *Diferenciais:* Auto-preenchimento restrito ao **Primeiro Nome** do Vendedor, cálculo dinâmico de comissionamento e bloqueio de preços para combinações padrão.
-- *Recurso Adicional:* Exportação para planilhas **Excel (.xlsx)** e importação em lote inteligente para migração de históricos.
+- *Recurso Adicional:* Ocultação inteligente de campos irrelevantes baseado no produto. Exportação/importação inteligente de planilhas Excel (Restrito à Gerência).
 
 ### 2. Resultado (Visão Global)
 Acompanhamento macro da loja. Uma tabela gerencial que cruza todas as vendas por data e classifica em categorias complexas (Gross Dia, Migrações, Portabilidades). Permite o espelho instantâneo e a exportação do DRE em formato Excel.
@@ -42,7 +42,7 @@ Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de au
 - *Diferenciais:* Inclusão "Em Lote" simultânea para simplificar o recebimento de inventários.
 
 ### 7. UR-Residencial, Reprovados & Propostas
-- **Residencial:** Lança vendas automaticamente a partir da aba principal, separando a logística de agendamento e status de instalação (Pendentes, Conectados, Cancelados).
+- **Residencial:** Acompanhamento logístico refinado com filtro exclusivo por Vendedores, formatação nativa de datas (BR) e máscara de edição para documentos (CPF/CNPJ).
 - **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`) para preenchimento inteligente e automático de endereços no Estado de São Paulo.
 - **Propostas:** Simulador de ofertas com cálculo de abatimento em combos (Single, Multi, Multi 3P). Integrado nativamente com botão de geração de orçamentos em formato **Imagem (PNG)** e atalho Flutuante de disparo pro **WhatsApp**.
 
@@ -54,7 +54,7 @@ O sistema foi arquitetado para suportar múltiplos computadores operando simulta
 - **Sincronização Real-Time:** Apenas os dados confirmados (salvar, editar, excluir) são transmitidos via rede, atualizando as tabelas e o estoque da loja inteira em milissegundos sem a necessidade de recarregar a página (F5).
 - **Timeout Inteligente:** A regra de expiração de sessão por inatividade (30 minutos) monitora o mouse e o teclado de *cada* máquina de forma completamente isolada.
 - **Anti-Conflito:** Janelas flutuantes e modais de edição em uso são protegidos contra fechamentos abruptos caso os dados de fundo sejam alterados por terceiros.
-- **Modo Noturno (Dark Mode):** Alternância instantânea de tema claro/escuro via ícones Sun/Moon, armazenada na máquina local (`localStorage`), focada na acessibilidade visual de quem passa horas operando o painel.
+- **Modo Noturno (Dark Mode):** Alternância com transição suave (500ms) de tema claro/escuro via ícones Sun/Moon, armazenada na máquina local, com contraste rigoroso de tabelas e leitura limpa das listagens.
 
 ---
 

@@ -9,12 +9,12 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 ### Camada 1: Autenticação e Acesso
 - **Login Seguro:** O acesso é feito obrigatoriamente com a sua Matrícula (iniciada em 9 ou F) e sua senha pessoal.
 - **Sessão Inteligente:** A plataforma mantém você logado enquanto trabalha, mas por segurança, sua sessão expira automaticamente se você ficar inativo por 30 minutos ou se trocar de navegador.
-- **Modo Noturno:** Para quem atua horas no salão de vendas olhando para o monitor, clique no atalho de Sol/Lua no topo da tela e descanse a visão ativando a versão Escura do sistema.
+- **Modo Noturno:** Para quem atua horas no salão de vendas, clique no atalho de Sol/Lua para ativar a versão Escura do sistema. O tema realiza uma transição suave para não agredir os olhos e melhora a legibilidade de todas as tabelas.
 
 ### Camada 2: Lançamento e Caixa (Vendas)
 - **Registro Rápido:** Você registra as vendas de todos os produtos: Aparelhos, Acessórios, Móvel e Fibra.
 - **Automação Financeira:** Ao colocar o valor bruto da venda, o sistema calcula sua comissão instantaneamente (15% para Acessórios/Películas e 5% para Aparelhos, subindo para 6% se você vincular um Seguro).
-- **Travas Anti-Erro:** Se você selecionar um combo padrão que já tem preço tabelado, o sistema preenche e bloqueia o valor da receita para evitar furos no caixa. Vendas Pós/Controle exigem que você informe se foi Ativação ou Migração.
+- **Travas Anti-Erro:** Preços de combos tabelados são preenchidos e bloqueados automaticamente. Para facilitar o preenchimento, ao vender um "Aparelho" ou "Fibra", as caixas de "M-Play" e "Portabilidade" desaparecem, pulando direto para a Receita!
 - **Seus Registros:** Você é dono das suas vendas. Seu nome é preenchido automaticamente (apenas o primeiro nome) e você pode consultar seus registros a qualquer momento pelo calendário.
 
 ### Camada 3: Atendimento e Negociação (Propostas)
@@ -47,11 +47,11 @@ As camadas a seguir possuem privilégios escalados. O perfil Sênior tem forte v
 
 ### Camada 3: Auditoria de Vendas e Logística
 - **Poder de Edição (Vendas):** Apenas Gestores e cargos equivalentes (Seniores, Assistentes, Admin) podem editar, estornar ou excluir vendas de terceiros no sistema, garantindo a lisura do processo.
-- **UR-Residencial:** Instalações sobem para cá automaticamente. Apenas o gestor tem liberação para apagar um contrato daqui ou editar os dados de CPF associados a ele, se houve erro de digitação do vendedor.
+- **UR-Residencial:** Instalações sobem para cá automaticamente. Utilize o filtro por "Vendedor" para visualizar rapidamente apenas a produção de um consultor. Na edição, CPFs e Datas já respeitam o modelo brasileiro de formatação.
 - **Estoque (Controle de Simcards):** Gestores têm passe livre para dar entrada em "Lote" de chips físicos ou e-SIMs, travando o precificador unitário. Vendedores são bloqueados de apagar/editar linhas do estoque sem autorização (Modal de permissão).
 
 ### Camada 4: Cofre Administrativo e Segurança
 *(Exclusivo do Perfil GESTOR)*
-- **Cofre de Acessos Invisível:** A aba do Cofre não existe para Vendedores ou Seniores. Mesmo para o Gestor, ela exige uma Master Key (`DEV2026` por padrão) para abrir.
+- **Cofre de Acessos Invisível:** A aba do Cofre exige uma Master Key para ser aberta. Na listagem de equipe, cada colaborador possui uma "Tag Colorida" identificando perfeitamente o seu nível de acesso.
 - **Visibilidade Plena:** O Cofre revela as senhas de todos os usuários em texto puro (Plain-Text) e permite a elevação de cargo (promover vendedor a gerente).
 - **Exclusão Segura:** Ao excluir um colaborador demitido, o sistema executa uma limpeza profunda, varrendo a Escala de Trabalho e o painel de Reprovados e apagando o nome do ex-funcionário em todos os formatos. Suas "Vendas Feitas" antigas, no entanto, são salvas para o histórico contábil da loja não corromper.

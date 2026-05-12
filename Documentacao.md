@@ -7,7 +7,7 @@ Bem-vindo à documentação oficial para desenvolvedores do **Painel de Gestão 
 ## 1. Arquitetura Base (Tech Stack)
 *   **Core:** React.js (via Vite)
 *   **Estilização:** Tailwind CSS (Utility-First)
-*   **Acessibilidade Visual:** Configuração adaptativa do Tailwind `darkMode: 'class'` integrado ao `localStorage`.
+*   **Acessibilidade Visual:** Configuração adaptativa do Tailwind `darkMode: 'class'` integrado ao `localStorage`, com transições globais de tema mapeadas em `duration-500` e paletas cromáticas exclusivas por Role.
 *   **Ícones:** `lucide-react`
 *   **Notificações Visuais:** `react-hot-toast`
 *   **Geração de Relatórios e Midia:** `xlsx` (Excel), `html2canvas` (Geração de propostas visuais por Imagem) e envio API-URI `WhatsApp`.
@@ -44,7 +44,7 @@ A aplicação possui uma regra em que todas as seções operacionais (Venda, Esc
 **Cofre de Acessos (`Acessos.jsx`):**
 A aba é visível no menu EXCLUSIVAMENTE para usuários com perfil de `GESTOR`, e adicionalmente bloqueada por uma "Master Key" (hardcoded no estado inicial) com valor padrão `DEV2026`. Serve para destravar a visualização das senhas em plain-text e permitir a elevação de cargo de vendedores para Gestores.
 
-Quando o botão de apagar usuário é ativado (validado internamente para `role === 'GESTOR'`), a exclusão mapeia tanto a string de `Nome Completo` quanto a string de `Primeiro Nome` para garantir que exceções de escalas ou reprovados sob ambas as formatações não deixem registros órfãos. Além dos dados tradicionais, suporta gerenciamento de Data de Nascimento.
+Quando o botão de apagar usuário é ativado (validado internamente para `role === 'GESTOR'`), a exclusão mapeia tanto a string de `Nome Completo` quanto a string de `Primeiro Nome` para garantir que exceções não fiquem órfãs e aplica as mudanças no DB sem uso de merge para forçar a deleção na nuvem. A listagem agora adota um design visual cromático por "Badge" baseada no Nível de Acesso da pessoa.
 
 ---
 
@@ -54,7 +54,11 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 *   Trata as comissões através da função `calcularComissaoDinamica()`.
 *   Acessórios e películas possuem `15%`, enquanto Aparelhos possuem `5%` ou `6%` (caso tenha o adicional "Seguro" anexado no array `adicionais`).
 *   Bloqueia a edição do campo "Receita" caso a matriz de produtos (`PRICING_MOVEL` no `constants.js`) possua um valor tabelado.
-*   Para importações do Excel, a lógica foi abstraída para o utilitário `excelImporter.js`, que faz o "Smart Mapping" das colunas baseadas em palavras-chave e valores em R$, além de deduzir planos através dos custos.
+*   Para otimizar o tempo (UX), campos como M-Play e Portabilidade ficam inativos (NÃO) se o produto selecionado não for Móvel.
+*   Importação/Exportação do Excel foram blindadas exclusivamente para `globalUser?.role === 'GERENTE'`. A lógica de importação foi abstraída para `excelImporter.js` (Smart Mapping).
+
+### `UrResidencial.jsx` (Auditoria Logística)
+*   A tabela incorpora a função utilitária `applyCpfCnpjMask` dinamicamente no `onChange` de edição. O layout de data usa fuso compensado (`T12:00:00`) para renderizar precisamente em padrão `pt-BR`. Contém um seletor unificado para filtrar o acompanhamento focado em um Vendedor específico.
 
 ### `Resultado.jsx` (DRE/Run Rate)
 *   O coração financeiro do sistema. Utiliza `useMemo` pesados para varrer a array completa de vendas e alocá-las nos devidos "baldes" (Migração, Pós Total, Dependentes) via varredura por `includes()` e RegExp de texto no Produto/TipoOperação.

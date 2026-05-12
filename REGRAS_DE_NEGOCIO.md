@@ -14,6 +14,7 @@
 - **REGRA 5:** O VENDEDOR possui o menor nível de acesso. Não pode excluir vendas, não edita estoque, não visualiza a aba de Metas Globais e, na aba de equipe, é bloqueado de visualizar os resultados numéricos de outros vendedores.
 - **REGRA 6:** A área "Cofre de Acessos" é oculta ativamente da barra lateral para perfis de Vendedor e Sênior. Somente o usuário GESTOR consegue visualizar a seção e, ainda assim, o sistema exige obrigatoriamente a credencial de desenvolvedor para desbloquear a tela.
 - **REGRA 6.1:** Ao apagar um usuário registrado através do Cofre de Acessos (ação permitida apenas ao GESTOR), o sistema deve remover integralmente seu nome das listagens e limpar seus registros nas seções de Escala de Trabalho e Reprovados (buscando tanto pelo Nome Completo quanto pelo Primeiro Nome). O sistema DEVE manter exclusivamente o histórico de vendas atrelado a ele, para não corromper os registros contábeis da operação. A data de nascimento dos usuários também pode ser gerida por este módulo.
+- **REGRA 6.2:** O Cofre de Acessos conta com identificação cromática onde cada um dos 7 níveis de acesso (Gerente, Sênior, Assistente, Administração, Jovem Aprendiz, Geek e Vendedor) possui uma "tag" de cor exclusiva para rápido reconhecimento visual da hierarquia.
 
 ## 2. MÓDULO DE VENDAS
 
@@ -23,8 +24,8 @@
 - **REGRA 10:** A Receita (preço) é preenchida e bloqueada automaticamente se a combinação de Produto + Tipo de Combo + Especificação for encontrada na tabela de preços do sistema. Caso contrário, o campo fica livre para digitação.
 - **REGRA 11:** Vendas de produtos móveis (Pós, Controle, etc.) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração), além dos campos de "M-Play" e "Portabilidade". Para outros produtos (Aparelhos, Acessórios, Fibra), esses campos são ocultos da interface e gravados automaticamente como "NÃO" para facilitar o lançamento.
 - **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, aos perfis de liderança/backoffice (SÊNIOR e equivalentes) ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado).
-- **REGRA 13:** A tabela de visualização de vendas diárias sempre carrega por padrão as vendas correspondentes ao dia atual. Para consultar o histórico ou localizar registros específicos, o usuário deve utilizar o calendário combinado com a barra de pesquisa inteligente. O usuário também tem a opção de exportar os relatórios filtrados para **Excel**.
-- **REGRA 13.1:** A importação de vendas em lote através de planilhas Excel é suportada. O sistema possui uma inteligência de mapeamento que converte automaticamente formatações antigas e lê datas seriais do Excel, vinculando as receitas e comissões corretamente.
+- **REGRA 13:** A tabela de visualização de vendas diárias sempre carrega por padrão as vendas correspondentes ao dia atual. Para consultar o histórico ou localizar registros específicos, o usuário deve utilizar o calendário combinado com a barra de pesquisa inteligente. O usuário também tem a opção de exportar os relatórios filtrados para Excel.
+- **REGRA 13.1:** A importação e exportação de vendas em lote através de planilhas Excel são suportadas, porém os botões de ação são **exclusivos do perfil GESTOR** para proteção dos dados da loja. O sistema possui uma inteligência de mapeamento (Smart Mapper) que converte automaticamente formatações antigas e lê datas seriais, vinculando as receitas corretamente.
 
 ## 3. MÓDULO UR-RESIDENCIAL (ACOMPANHAMENTO)
 
@@ -32,7 +33,7 @@
 - **REGRA 15:** O campo "Data de Instalação" é o único calendário em todo o sistema liberado para selecionar datas futuras.
 - **REGRA 16:** O campo "Status" possui 3 opções exclusivas e coloridas: PEND.DE INSTALAÇÃO (Amarelo), CONECTADO (Verde) ou CANCELADO (Vermelho). O campo "Agendamento" restringe-se a faixas (08:00 A 12:00, 12:00 A 15:00, 15:00 A 18:00). O campo "Ação" restringe-se a (REAGENDADO, RETENÇÃO EM FALTA, DESISTIU).
 - **REGRA 17:** O GESTOR GERAL é o único perfil autorizado a apagar um registro de venda ou a modificar os dados do "Contrato" e do "CPF/CNPJ" do cliente por esta tela. Perfis menores encontram esses campos bloqueados (Cursor Not Allowed) e não visualizam o botão de apagar.
-- **REGRA 18:** Os campos de "Produto" e "Vendedor" no acompanhamento residencial são travados com opções de escolha restritas espelhadas do sistema base (listando os vendedores pelo Primeiro Nome).
+- **REGRA 18:** Os campos de "Produto" e "Vendedor" são travados com opções restritas. A aba conta com um filtro rápido por "Vendedor", formatação de CPF/CNPJ automática durante a edição e leitura de datas forçada no padrão brasileiro (DD/MM/AAAA).
 - **REGRA 19:** A aba carrega dinamicamente as vendas do dia 1 a 30/31 do mês vigente. Após a virada do mês, o sistema salva as informações que podem ser consultadas a qualquer momento através do botão/filtro de meses salvo na página.
 
 ## 4. MÓDULO CONTROLE DE SIMCARDS E ESTOQUE
@@ -97,4 +98,4 @@
 - **REGRA 46:** As propostas podem ser renderizadas localmente e baixadas como Imagens de alta resolução (via html2canvas) ou enviadas diretamente via WhatsApp contendo uma formatação de texto comercial amigável.
 
 ## 11. INTERFACE E ACESSIBILIDADE
-- **REGRA 47:** O sistema possui suporte nativo ao Modo Noturno (Dark Mode). A preferência do usuário é salva no `localStorage` do navegador e aplica um CSS adaptativo em todas as telas, modais e caixas de seleção, preservando a visibilidade de formulários de acordo com o contraste do sistema.
+- **REGRA 47:** O sistema possui suporte nativo ao Modo Noturno (Dark Mode) com transição de cores suave (500ms). A preferência do usuário é salva no `localStorage` do navegador e aplica um CSS adaptativo em todas as telas, rodapés de tabelas de resultado, modais e caixas de seleção, preservando a visibilidade e o conforto visual.
