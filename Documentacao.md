@@ -35,8 +35,8 @@ O sistema não utiliza o Firebase Authentication por padrão para dar flexibilid
 
 **Níveis de Acesso:**
 *   `GESTOR`: Acesso irrestrito (CRUD total em todos os módulos).
-*   `SENIOR`: Acesso avançado com permissões semelhantes ao Gestor para manuseio da Escala e do Estoque.
-*   `VENDEDOR`: Leitura/Escrita limitada aos próprios registros. Vendedores não podem excluir os próprios lançamentos de vendas, necessitando estornar a operação fisicamente com a gestão.
+*   `SENIOR` (e equivalentes: ASSISTENTE RELACIONAMENTO, ADMINISTRAÇÃO, JOVEM APRENDIZ, GEEK): Acesso avançado com permissões semelhantes ao Gestor para manuseio da Escala, Metas e do Estoque, bem como exclusão de vendas de terceiros.
+*   `VENDEDOR`: Leitura/Escrita limitada aos próprios registros. Podem editar ou excluir exclusivamente as vendas onde eles são os autores (via verificação de nome).
 
 **Filtros de Exibição de Nomes:**
 A aplicação possui uma regra em que todas as seções operacionais (Venda, Escala, Reprovados) extraem apenas o `name.split(' ')[0]` (Primeiro Nome) do usuário. Apenas os painéis de "Colaboradores" e "Cofre" mantêm a renderização dos Nomes Completos. Além disso, as opções de Vendedores nas selects das telas operacionais filtram ativamente `role === 'VENDEDOR'`, ocultando os cargos superiores.
@@ -44,7 +44,7 @@ A aplicação possui uma regra em que todas as seções operacionais (Venda, Esc
 **Cofre de Acessos (`Acessos.jsx`):**
 A aba é visível no menu EXCLUSIVAMENTE para usuários com perfil de `GESTOR`, e adicionalmente bloqueada por uma "Master Key" (hardcoded no estado inicial) com valor padrão `DEV2026`. Serve para destravar a visualização das senhas em plain-text e permitir a elevação de cargo de vendedores para Gestores.
 
-Quando o botão de apagar usuário é ativado, a exclusão mapeia tanto a string de `Nome Completo` quanto a string de `Primeiro Nome` para garantir que exceções de escalas ou reprovados sob ambas as formatações não deixem registros órfãos.
+Quando o botão de apagar usuário é ativado (validado internamente para `role === 'GESTOR'`), a exclusão mapeia tanto a string de `Nome Completo` quanto a string de `Primeiro Nome` para garantir que exceções de escalas ou reprovados sob ambas as formatações não deixem registros órfãos. Além dos dados tradicionais, suporta gerenciamento de Data de Nascimento.
 
 ---
 
@@ -54,6 +54,7 @@ Quando o botão de apagar usuário é ativado, a exclusão mapeia tanto a string
 *   Trata as comissões através da função `calcularComissaoDinamica()`.
 *   Acessórios e películas possuem `15%`, enquanto Aparelhos possuem `5%` ou `6%` (caso tenha o adicional "Seguro" anexado no array `adicionais`).
 *   Bloqueia a edição do campo "Receita" caso a matriz de produtos (`PRICING_MOVEL` no `constants.js`) possua um valor tabelado.
+*   Para importações do Excel, a lógica foi abstraída para o utilitário `excelImporter.js`, que faz o "Smart Mapping" das colunas baseadas em palavras-chave e valores em R$, além de deduzir planos através dos custos.
 
 ### `Resultado.jsx` (DRE/Run Rate)
 *   O coração financeiro do sistema. Utiliza `useMemo` pesados para varrer a array completa de vendas e alocá-las nos devidos "baldes" (Migração, Pós Total, Dependentes) via varredura por `includes()` e RegExp de texto no Produto/TipoOperação.

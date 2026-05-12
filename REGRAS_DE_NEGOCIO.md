@@ -7,13 +7,13 @@
 - **REGRA 1.2:** A sessão de usuário sobrevive a recarregamentos de página (F5) mantendo a permanência na tela principal (Vendas). Ela expira em exatos 30 minutos ou se houver troca de navegador, obrigando novo login.
 - **REGRA 1.3:** Para um registro bem-sucedido, a matrícula informada pelo colaborador DEVE obrigatoriamente iniciar com o número "9" ou com a letra "F".
 - **REGRA 1.4:** O cadastro de novos usuários exige que o e-mail informado pertença obrigatoriamente à companhia, terminando com o domínio "@claro.com.br".
-- **REGRA 2:** O sistema possui perfis de hierarquia de acesso: GESTOR, SENIOR e VENDEDOR.
+- **REGRA 2:** O sistema possui perfis de hierarquia de acesso: GESTOR, SENIOR (e equivalentes: ASSISTENTE RELACIONAMENTO, ADMINISTRAÇÃO, JOVEM APRENDIZ, GEEK) e VENDEDOR.
 - **REGRA 2.1:** Nas telas operacionais (Venda, Controle Simcard, Reprovados, UR-Residencial), as listas de colaboradores exibem apenas o PRIMEIRO NOME do usuário e ocultam ativamente os usuários com cargos de GESTOR e SÊNIOR (exibindo apenas os Vendedores).
 - **REGRA 3:** O GESTOR GERAL possui acesso irrestrito a todos os módulos, podendo editar, excluir e sobrepor qualquer dado do sistema.
-- **REGRA 4:** O ENCARREGADO possui nível de supervisão, com acesso livre ao controle de estoque de chips e visualização da equipe, mas sem permissão para alterar Metas ou a Escala de Trabalho.
+- **REGRA 4:** Os perfis SÊNIOR e equivalentes possuem nível de supervisão e backoffice, com acesso livre ao controle de estoque, edição de escalas, definição de metas e exclusão de vendas de terceiros, não tendo acesso apenas ao Cofre de Acessos.
 - **REGRA 5:** O VENDEDOR possui o menor nível de acesso. Não pode excluir vendas, não edita estoque, não visualiza a aba de Metas Globais e, na aba de equipe, é bloqueado de visualizar os resultados numéricos de outros vendedores.
 - **REGRA 6:** A área "Cofre de Acessos" é oculta ativamente da barra lateral para perfis de Vendedor e Sênior. Somente o usuário GESTOR consegue visualizar a seção e, ainda assim, o sistema exige obrigatoriamente a credencial de desenvolvedor para desbloquear a tela.
-- **REGRA 6.1:** Ao apagar um usuário registrado através do Cofre de Acessos, o sistema deve remover integralmente seu nome das listagens e limpar seus registros nas seções de Escala de Trabalho e Reprovados (buscando tanto pelo Nome Completo quanto pelo Primeiro Nome). O sistema DEVE manter exclusivamente o histórico de vendas atrelado a ele, para não corromper os registros contábeis da operação.
+- **REGRA 6.1:** Ao apagar um usuário registrado através do Cofre de Acessos (ação permitida apenas ao GESTOR), o sistema deve remover integralmente seu nome das listagens e limpar seus registros nas seções de Escala de Trabalho e Reprovados (buscando tanto pelo Nome Completo quanto pelo Primeiro Nome). O sistema DEVE manter exclusivamente o histórico de vendas atrelado a ele, para não corromper os registros contábeis da operação. A data de nascimento dos usuários também pode ser gerida por este módulo.
 
 ## 2. MÓDULO DE VENDAS
 
@@ -22,8 +22,9 @@
 - **REGRA 9:** Se a venda envolver produtos comissionados, o campo "Receita" muda sua lógica para ler o "Valor Bruto" da venda. A comissão é fracionada dinamicamente: 5% para Aparelhos Celulares (subindo para 6% se o adicional de "Seguro" estiver vinculado) e 15% para Acessórios e Películas. Serviços de Telecom (Pós, Controle, Fibra) computam 100% do valor para o Run Rate.
 - **REGRA 10:** A Receita (preço) é preenchida e bloqueada automaticamente se a combinação de Produto + Tipo de Combo + Especificação for encontrada na tabela de preços do sistema. Caso contrário, o campo fica livre para digitação.
 - **REGRA 11:** Vendas de produtos móveis (Pós e Controle) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração).
-- **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, ao ENCARREGADO ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado).
+- **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, aos perfis de liderança/backoffice (SÊNIOR e equivalentes) ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado).
 - **REGRA 13:** A tabela de visualização de vendas diárias sempre carrega por padrão as vendas correspondentes ao dia atual. Para consultar o histórico ou localizar registros específicos, o usuário deve utilizar o calendário combinado com a barra de pesquisa inteligente. O usuário também tem a opção de exportar os relatórios filtrados para **Excel**.
+- **REGRA 13.1:** A importação de vendas em lote através de planilhas Excel é suportada. O sistema possui uma inteligência de mapeamento que converte automaticamente formatações antigas e lê datas seriais do Excel, vinculando as receitas e comissões corretamente.
 
 ## 3. MÓDULO UR-RESIDENCIAL (ACOMPANHAMENTO)
 
@@ -36,7 +37,7 @@
 
 ## 4. MÓDULO CONTROLE DE SIMCARDS E ESTOQUE
 
-- **REGRA 20:** Apenas contas de GESTOR ou ENCARREGADO podem excluir uma linha inteira da planilha de chips ou editar os campos de número de série (Físico ou E-SIM). Se um vendedor tentar clicar nessas áreas, um modal será aberto exigindo que um superior autorize a edição.
+- **REGRA 20:** Apenas contas de GESTOR ou SÊNIOR (e equivalentes) podem excluir uma linha inteira da planilha de chips ou editar os campos de número de série (Físico ou E-SIM). Se um vendedor tentar clicar nessas áreas, um modal será aberto exigindo que um superior autorize a edição.
 - **REGRA 21:** Na inclusão de Lote, os ICCIDs de chip Físico e E-SIM inseridos simultaneamente ocupam a mesma linha de cadastro se suas quebras de linha forem correspondentes.
 - **REGRA 22:** Todo novo lote de chip criado carrega a regra automática de precificação unitária base padronizada e travada (valor fixo inserido por padrão no banco).
 - **REGRA 23:** O campo de "Plano" exibe em cascata exatamente as mesmas opções cadastradas ativamente nas tabelas da loja (Móveis, Dependentes, Flex, etc).

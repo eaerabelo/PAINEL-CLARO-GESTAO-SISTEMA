@@ -17,12 +17,12 @@ Este sistema foi desenvolvido como uma Single Page Application (SPA) para revolu
 
 ## 📌 Módulos do Sistema
 
-A plataforma é dividida em módulos estratégicos baseados no Controle de Acesso Baseado em Função (RBAC - Gestor, Encarregado e Vendedor).
+A plataforma é dividida em módulos estratégicos baseados no Controle de Acesso Baseado em Função (RBAC - Gestor, Sênior/Equivalentes e Vendedor).
 
 ### 1. Vendas
 O coração da operação. Permite o lançamento de vendas de aparelhos, acessórios, planos móveis e banda larga.
 - *Diferenciais:* Auto-preenchimento restrito ao **Primeiro Nome** do Vendedor, cálculo dinâmico de comissionamento e bloqueio de preços para combinações padrão.
-- *Recurso Adicional:* Botão nativo para exportação das vendas filtradas diretamente para planilhas **Excel (.xlsx)**.
+- *Recurso Adicional:* Exportação para planilhas **Excel (.xlsx)** e importação em lote inteligente para migração de históricos.
 
 ### 2. Resultado (Visão Global)
 Acompanhamento macro da loja. Uma tabela gerencial que cruza todas as vendas por data e classifica em categorias complexas (Gross Dia, Migrações, Portabilidades). Permite o espelho instantâneo e a exportação do DRE em formato Excel.

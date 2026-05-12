@@ -46,7 +46,7 @@ As camadas a seguir possuem privilégios escalados. O perfil Sênior tem forte v
 - **Controle de Ponto (Escala):** Controle flexível das horas. Acesse um dia no calendário do mês para apontar faltas, férias, atestados ou utilizar os botões velozes: "Apagar Horário" para limpar a caixinha completamente, ou "Voltar ao Padrão" para cancelar um atestado já salvo e reativar a jornada fixa da semana.
 
 ### Camada 3: Auditoria de Vendas e Logística
-- **Poder de Edição (Vendas):** Apenas Gestores e Seniores podem editar, estornar ou excluir vendas de terceiros no sistema, garantindo a lisura do processo.
+- **Poder de Edição (Vendas):** Apenas Gestores e cargos equivalentes (Seniores, Assistentes, Admin) podem editar, estornar ou excluir vendas de terceiros no sistema, garantindo a lisura do processo.
 - **UR-Residencial:** Instalações sobem para cá automaticamente. Apenas o gestor tem liberação para apagar um contrato daqui ou editar os dados de CPF associados a ele, se houve erro de digitação do vendedor.
 - **Estoque (Controle de Simcards):** Gestores têm passe livre para dar entrada em "Lote" de chips físicos ou e-SIMs, travando o precificador unitário. Vendedores são bloqueados de apagar/editar linhas do estoque sem autorização (Modal de permissão).
 
