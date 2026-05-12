@@ -4,10 +4,10 @@ import { applyCurrencyMask } from '../utils/masks';
 export const ProgressBar = ({ label, realizado, meta, isDark = false, isCurrency = false }) => {
     const metaVal = Number(meta) || 0;
     const pct = metaVal > 0 ? Math.min(Math.round((realizado / metaVal) * 100), 100) : 0;
-    const bgBar = isDark ? 'bg-neutral-800' : 'bg-neutral-100';
+    const bgBar = isDark ? 'bg-neutral-800 dark:bg-neutral-700' : 'bg-neutral-100 dark:bg-neutral-800';
     const fillBar = pct >= 100 ? 'bg-green-500' : 'bg-[#E3000F]';
-    const textMain = isDark ? 'text-white' : 'text-neutral-800';
-    const textSub = isDark ? 'text-neutral-400' : 'text-neutral-500';
+    const textMain = isDark ? 'text-white' : 'text-neutral-800 dark:text-neutral-100';
+    const textSub = isDark ? 'text-neutral-400' : 'text-neutral-500 dark:text-neutral-400';
     const formattedRealizado = isCurrency ? applyCurrencyMask(realizado) : realizado;
     const formattedMeta = isCurrency ? applyCurrencyMask(metaVal) : (Number.isInteger(metaVal) ? metaVal : metaVal.toFixed(1));
 

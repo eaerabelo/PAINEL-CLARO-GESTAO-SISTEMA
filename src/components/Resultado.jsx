@@ -208,26 +208,26 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
     };
 
     return (
-        <div className="h-full flex flex-col bg-white rounded-2xl shadow-sm border border-neutral-200 overflow-hidden animate-fade-in">
+        <div className="h-full flex flex-col bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-fade-in transition-colors">
             {/* CABEÇALHO */}
-            <div className="p-4 border-b border-neutral-100 flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center bg-neutral-50/80 shrink-0">
+            <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center bg-neutral-50/80 dark:bg-neutral-900/80 shrink-0">
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="w-10 h-10 rounded-xl bg-[#E3000F]/10 flex items-center justify-center text-[#E3000F]">
                         <BarChart3 size={22} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-neutral-800">Resultado Consolidado</h2>
-                        <p className="text-xs text-neutral-500 font-medium flex items-center gap-1"><TrendingUp size={12} /> Acompanhamento Mensal e Run Rate (Somente Leitura)</p>
+                        <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100">Resultado Consolidado</h2>
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium flex items-center gap-1"><TrendingUp size={12} /> Acompanhamento Mensal e Run Rate (Somente Leitura)</p>
                     </div>
                 </div>
                 <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-2">
-                    <div className="flex items-center gap-3 bg-white p-1.5 rounded-xl border border-neutral-200 shadow-sm w-full sm:w-auto justify-between sm:justify-start">
+                    <div className="flex items-center gap-3 bg-white dark:bg-neutral-800 p-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm w-full sm:w-auto justify-between sm:justify-start">
                         <Calendar size={16} className="text-neutral-400 ml-2" />
                         <input 
                             type="month" 
                             value={monthFilter} 
                             onChange={(e) => setMonthFilter(e.target.value)}
-                            className="bg-transparent text-sm font-bold text-neutral-700 outline-none pr-2 cursor-pointer focus:text-[#E3000F] w-full sm:w-auto text-right sm:text-left"
+                            className="bg-transparent text-sm font-bold text-neutral-700 dark:text-neutral-100 outline-none pr-2 cursor-pointer focus:text-[#E3000F] w-full sm:w-auto text-right sm:text-left"
                         />
                     </div>
                     <button onClick={handleExportExcel} className="w-full sm:w-auto px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 justify-center flex">
@@ -237,47 +237,47 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
             </div>
 
             {/* TABELA ESTILO EXCEL */}
-            <div className="flex-1 overflow-auto bg-white scrollbar-thin">
+            <div className="flex-1 overflow-auto bg-white dark:bg-neutral-900 scrollbar-thin">
                 <table className="w-full text-center border-collapse text-[10px] whitespace-nowrap min-w-max">
-                    <thead className="bg-neutral-800 text-white uppercase tracking-wider sticky top-0 z-20">
+                    <thead className="bg-neutral-800 dark:bg-neutral-950 text-white uppercase tracking-wider sticky top-0 z-20">
                         <tr>
-                            <th className="border border-neutral-700 px-3 py-2.5 font-bold sticky left-0 bg-neutral-900 shadow-[2px_0_5px_rgba(0,0,0,0.2)] z-30">DATA</th>
+                            <th className="border border-neutral-700 dark:border-neutral-800 px-3 py-2.5 font-bold sticky left-0 bg-neutral-900 dark:bg-neutral-950 shadow-[2px_0_5px_rgba(0,0,0,0.2)] z-30">DATA</th>
                             {COLUMNS.map(col => (
-                                <th key={col.key} className={`border border-neutral-700 px-3 py-2.5 font-bold ${col.highlight ? 'bg-neutral-900 text-yellow-500' : ''}`}>
+                                <th key={col.key} className={`border border-neutral-700 dark:border-neutral-800 px-3 py-2.5 font-bold ${col.highlight ? 'bg-neutral-900 dark:bg-black text-yellow-500' : ''}`}>
                                     {col.label}
                                 </th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-neutral-200 text-neutral-700 font-medium">
+                    <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800 text-neutral-700 dark:text-neutral-300 font-medium">
                         {rows.map((row, idx) => (
-                            <tr key={idx} className="hover:bg-neutral-50 transition-colors">
-                                <td className="border border-neutral-200 px-3 py-1.5 sticky left-0 bg-white font-bold text-neutral-900 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">{row.data}</td>
+                            <tr key={idx} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                                <td className="border border-neutral-200 dark:border-neutral-800 px-3 py-1.5 sticky left-0 bg-white dark:bg-neutral-900 font-bold text-neutral-900 dark:text-neutral-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-10">{row.data}</td>
                                 {COLUMNS.map(col => (
-                                    <td key={col.key} className={`border border-neutral-200 px-3 py-1.5 ${col.highlight ? 'bg-yellow-50/30 font-bold' : ''}`}>
+                                    <td key={col.key} className={`border border-neutral-200 dark:border-neutral-800 px-3 py-1.5 ${col.highlight ? 'bg-yellow-50/30 dark:bg-yellow-900/10 font-bold' : ''}`}>
                                         {renderValue(row[col.key], col.isCurrency)}
                                     </td>
                                 ))}
                             </tr>
                         ))}
                     </tbody>
-                    <tfoot className="bg-neutral-50 sticky bottom-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                    <tfoot className="bg-neutral-50 dark:bg-neutral-900 sticky bottom-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
                         {/* LINHA DE TOTAIS REALIZADOS */}
                         <tr className="text-neutral-900 font-black uppercase text-[11px]">
-                            <td className="border-t-2 border-b border-neutral-300 px-3 py-3 sticky left-0 bg-neutral-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-[#E3000F]">TOTAL</td>
+                            <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 sticky left-0 bg-neutral-100 dark:bg-neutral-800 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-[#E3000F]">TOTAL</td>
                             {COLUMNS.map(col => (
-                                <td key={col.key} className={`border-t-2 border-b border-neutral-300 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50' : 'bg-neutral-50'}`}>
+                                <td key={col.key} className={`border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : 'bg-neutral-50 dark:bg-neutral-900'}`}>
                                     {renderValue(totals[col.key], col.isCurrency)}
                                 </td>
                             ))}
                         </tr>
                         {/* LINHA DE METAS LOJA */}
-                        <tr className="text-neutral-900 font-black uppercase text-[11px]">
-                            <td className="border-b border-neutral-300 px-3 py-3 sticky left-0 bg-neutral-100 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-blue-600">META LOJA</td>
+                        <tr className="text-neutral-900 dark:text-neutral-100 font-black uppercase text-[11px]">
+                            <td className="border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 sticky left-0 bg-neutral-100 dark:bg-neutral-800 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-blue-600">META LOJA</td>
                             {COLUMNS.map(col => {
                                 const hasMeta = metaLoja[col.key] !== undefined && metaLoja[col.key] > 0;
                                 return (
-                                    <td key={`meta-${col.key}`} className={`border-b border-neutral-300 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50' : 'bg-neutral-50'}`}>
+                                    <td key={`meta-${col.key}`} className={`border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : 'bg-neutral-50 dark:bg-neutral-900'}`}>
                                         {hasMeta ? renderValue(metaLoja[col.key], col.isCurrency) : <span className="text-neutral-300">-</span>}
                                     </td>
                                 );

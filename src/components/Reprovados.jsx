@@ -144,37 +144,37 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
 
     return (
         <>
-            <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden flex flex-col h-full animate-fade-in">
-                <div className="p-4 border-b border-neutral-100 flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center bg-white shrink-0">
+            <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden flex flex-col h-full animate-fade-in transition-colors">
+                <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col lg:flex-row gap-3 justify-between items-start lg:items-center bg-white dark:bg-neutral-900 shrink-0">
                     <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-[#E3000F]">
+                        <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-[#E3000F]/10 flex items-center justify-center text-[#E3000F]">
                             <AlertOctagon size={22} />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-neutral-800">Inviabilidade Residencial (Reprovados)</h2>
-                            <p className="text-xs text-neutral-500 font-medium">Controle de vendas perdidas por problemas técnicos ou de crédito.</p>
+                            <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100">Inviabilidade Residencial (Reprovados)</h2>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Controle de vendas perdidas por problemas técnicos ou de crédito.</p>
                         </div>
                     </div>
                     <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center w-full lg:w-auto">
                         <div className="relative w-full sm:w-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
-                            <input type="text" placeholder="Buscar Cliente, CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-56 pl-9 pr-4 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-sm outline-none focus:bg-white focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
+                            <input type="text" placeholder="Buscar Cliente, CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-56 pl-9 pr-4 py-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 rounded-xl text-sm outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all" />
                         </div>
                         <div className="flex w-full sm:w-auto gap-2">
-                            <div className="relative flex flex-1 items-center gap-2 bg-neutral-50 border border-neutral-200 px-3 py-1.5 rounded-xl hover:bg-neutral-100 transition-colors cursor-pointer">
+                            <div className="relative flex flex-1 items-center gap-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
                                 <Calendar size={16} className="text-neutral-500" />
-                                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="text-sm text-neutral-700 outline-none bg-transparent font-medium cursor-pointer w-full" title="Filtrar por data" />
+                                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full" title="Filtrar por data" />
                             </div>
                             <button onClick={openModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-2 whitespace-nowrap"><Plus size={16} /> Novo Registro</button>
                         </div>
                     </div>
                 </div>
                 
-                <div className="flex-1 overflow-auto bg-neutral-50/50 p-4">
-                    <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="flex-1 overflow-auto bg-neutral-50/50 dark:bg-neutral-950/50 p-4">
+                    <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
                         <div className="overflow-x-auto min-h-[400px]">
                             <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
-                                <thead className="bg-[#E3000F] text-white">
+                                <thead className="bg-[#E3000F] dark:bg-red-900 text-white">
                                     <tr>
                                         <th className="px-4 py-3 font-bold uppercase tracking-wider border-r border-red-500/30">Data</th>
                                         <th className="px-4 py-3 font-bold uppercase tracking-wider border-r border-red-500/30">Vendedor</th>
@@ -191,28 +191,28 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
                                 </thead>
                                 <tbody>
                                     {filteredData.length === 0 ? (
-                                        <tr><td colSpan="11" className="px-4 py-8 text-center text-neutral-400 bg-white">Nenhum registro reprovado encontrado.</td></tr>
+                                        <tr><td colSpan="11" className="px-4 py-8 text-center text-neutral-400 dark:text-neutral-500 bg-white dark:bg-neutral-900">Nenhum registro reprovado encontrado.</td></tr>
                                     ) : (
                                         filteredData.map(item => (
-                                            <tr key={item.id} className="hover:bg-neutral-50 transition-colors bg-white border-b border-neutral-100">
-                                                <td className="px-4 py-3 text-neutral-600 font-medium">{item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</td>
-                                                <td className="px-4 py-3 font-bold text-neutral-800">{item.vendedor}</td>
-                                                <td className="px-4 py-3 text-neutral-700">{item.produto}</td>
-                                                <td className="px-4 py-3"><span className="bg-red-50 text-[#E3000F] border border-red-100 px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase">{item.motivo}</span></td>
-                                                <td className="px-4 py-3 text-neutral-800">{item.cliente}</td>
-                                                <td className="px-4 py-3 font-mono text-neutral-500">{item.cpf || '-'}</td>
-                                                <td className="px-4 py-3 font-mono text-neutral-600">{item.cep}</td>
-                                                <td className="px-4 py-3 text-neutral-600 max-w-[200px] truncate" title={item.logradouro}>{item.logradouro}</td>
-                                                <td className="px-4 py-3 font-bold text-neutral-800">{item.numero || 'S/N'}</td>
-                                                <td className="px-4 py-3 text-neutral-500 max-w-[150px] truncate" title={item.obs}>{item.obs || '-'}</td>
-                                                <td className="px-4 py-2 text-center sticky right-0 shadow-[-4px_0_10px_rgba(0,0,0,0.03)] bg-white z-10">
+                                            <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
+                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400 font-medium">{item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</td>
+                                                <td className="px-4 py-3 font-bold text-neutral-800 dark:text-neutral-200">{item.vendedor}</td>
+                                                <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{item.produto}</td>
+                                                <td className="px-4 py-3"><span className="bg-red-50 dark:bg-red-900/20 text-[#E3000F] border border-red-100 dark:border-red-900/30 px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase">{item.motivo}</span></td>
+                                                <td className="px-4 py-3 text-neutral-800 dark:text-neutral-200">{item.cliente}</td>
+                                                <td className="px-4 py-3 font-mono text-neutral-500 dark:text-neutral-400">{item.cpf || '-'}</td>
+                                                <td className="px-4 py-3 font-mono text-neutral-600 dark:text-neutral-400">{item.cep}</td>
+                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400 max-w-[200px] truncate" title={item.logradouro}>{item.logradouro}</td>
+                                                <td className="px-4 py-3 font-bold text-neutral-800 dark:text-neutral-200">{item.numero || 'S/N'}</td>
+                                                <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 max-w-[150px] truncate" title={item.obs}>{item.obs || '-'}</td>
+                                                <td className="px-4 py-2 text-center sticky right-0 shadow-[-4px_0_10px_rgba(0,0,0,0.03)] dark:shadow-[-4px_0_10px_rgba(0,0,0,0.2)] bg-white dark:bg-neutral-900 z-10">
                                                     {canEditDelete(item) ? (
                                                         <div className="flex items-center justify-center gap-2">
-                                                            <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Edit3 size={16} /></button>
-                                                            <button onClick={() => handleDelete(item.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                                                            <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"><Edit3 size={16} /></button>
+                                                            <button onClick={() => handleDelete(item.id)} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-neutral-300 flex justify-center"><Lock size={14} /></span>
+                                                        <span className="text-neutral-300 dark:text-neutral-600 flex justify-center"><Lock size={14} /></span>
                                                     )}
                                                 </td>
                                             </tr>
@@ -223,34 +223,35 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
                         </div>
                     </div>
                 </div>
-            </div>
+            </div >
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 no-print flex items-center justify-center">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl animate-fade-in flex flex-col">
-                        <div className="p-6 border-b border-neutral-100 flex justify-between items-center shrink-0">
-                            <div><h2 className="text-xl font-bold text-neutral-800">{editingId ? 'Editar Registro Reprovado' : 'Lançar Inviabilidade (Reprovado)'}</h2><p className="text-sm text-neutral-500 mt-1">Busque o logradouro de forma automática digitando o CEP.</p></div>
-                            <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-full transition-colors"><X size={18} /></button>
+                <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center no-print">
+                    <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-4xl animate-fade-in flex flex-col transition-colors">
+                        <div className="p-6 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center shrink-0">
+                            <div><h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100">{editingId ? 'Editar Registro Reprovado' : 'Lançar Inviabilidade (Reprovado)'}</h2><p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Busque o logradouro de forma automática digitando o CEP.</p></div>
+                            <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-full transition-colors"><X size={18} /></button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[80vh]">
-                            {formError && (<div className="bg-red-50 border border-red-200 text-[#E3000F] px-4 py-3 rounded-lg text-sm font-medium animate-fade-in">{formError}</div>)}
+                            {formError && (<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[#E3000F] px-4 py-3 rounded-lg text-sm font-medium animate-fade-in">{formError}</div>)}
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" value={formData.data} onChange={handleFormChange} max={getTodaySP()} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
-                                <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full px-3 py-2.5 rounded-lg outline-none text-sm border ${isVendedor ? 'bg-neutral-100 border-neutral-200 text-[#E3000F] cursor-not-allowed font-bold' : 'bg-neutral-50 border-neutral-200 text-neutral-800 focus:ring-1 focus:ring-[#E3000F]'}`}><option value="">Selecione</option>{safeVendedores.map(v => <option key={v} value={v}>{v}</option>)}</select></div>
-                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Produto <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option value="">Selecione</option>{RESIDENTIAL_PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
-                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Motivo de Recusa <span className="text-[#E3000F]">*</span></label><select name="motivo" value={formData.motivo} onChange={handleFormChange} className="w-full bg-red-50/50 border border-red-200 text-neutral-800 font-semibold px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option value="">Selecione</option>{MOTIVOS_OPTIONS.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Nome do Cliente <span className="text-[#E3000F]">*</span></label><input type="text" name="cliente" value={formData.cliente} onChange={handleFormChange} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" placeholder="Nome completo" /></div>
-                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">CPF / CNPJ</label><input type="text" name="cpf" value={formData.cpf} onChange={handleFormChange} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono" placeholder="Opcional" /></div>
-                                <div className="space-y-1.5 md:col-span-1 relative"><label className="text-xs font-bold text-[#E3000F] uppercase tracking-wider flex items-center gap-1"><MapPin size={12} /> CEP (Busca Automática) <span className="text-[#E3000F]">*</span></label><input type="text" name="cep" value={formData.cep} onChange={handleCepChange} maxLength="9" className={`w-full bg-white border border-[#E3000F]/30 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono shadow-sm ${isFetchingCep ? 'opacity-50' : ''}`} placeholder="00000-000" /></div>
-                                <div className="space-y-1.5 md:col-span-2"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Logradouro <span className="text-[#E3000F]">*</span></label><input type="text" name="logradouro" value={formData.logradouro} onChange={handleFormChange} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium" placeholder="Preenchido via CEP..." /></div>
-                                <div className="space-y-1.5 md:col-span-1"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Número <span className="text-[#E3000F]">*</span></label><input type="text" name="numero" value={formData.numero} onChange={handleFormChange} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" placeholder="Nº ou S/N" /></div>
-                                <div className="space-y-1.5 md:col-span-2"><label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Observações Extras</label><input type="text" name="obs" value={formData.obs} onChange={handleFormChange} className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" placeholder="Opcional. Ex: Faltou poste na rua..." /></div>
+                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" value={formData.data} onChange={handleFormChange} max={getTodaySP()} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full px-3 py-2.5 rounded-lg outline-none text-sm border ${isVendedor ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-[#E3000F] cursor-not-allowed font-bold' : 'bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 focus:ring-1 focus:ring-[#E3000F]'}`}><option className="bg-white dark:bg-neutral-900" value="">Selecione</option>{safeVendedores.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select></div>
+                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option>{RESIDENTIAL_PRODUCTS.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
+                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Motivo de Recusa <span className="text-[#E3000F]">*</span></label><select name="motivo" value={formData.motivo} onChange={handleFormChange} className="w-full bg-red-50/50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-neutral-800 dark:text-neutral-100 font-semibold px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option>{MOTIVOS_OPTIONS.map(m => <option className="bg-white dark:bg-neutral-900" key={m} value={m}>{m}</option>)}</select></div>
+                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Nome do Cliente <span className="text-[#E3000F]">*</span></label><input type="text" name="cliente" value={formData.cliente} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" placeholder="Nome completo" /></div>
+                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">CPF / CNPJ</label><input type="text" name="cpf" value={formData.cpf} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono" placeholder="Opcional" /></div>
+                                <div className="space-y-1.5 md:col-span-1 relative"><label className="text-xs font-bold text-[#E3000F] uppercase tracking-wider flex items-center gap-1"><MapPin size={12} /> CEP (Busca Automática) <span className="text-[#E3000F]">*</span></label><input type="text" name="cep" value={formData.cep} onChange={handleCepChange} maxLength="9" className={`w-full bg-white dark:bg-neutral-900 border border-[#E3000F]/30 dark:border-[#E3000F]/50 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono shadow-sm ${isFetchingCep ? 'opacity-50' : ''}`} placeholder="00000-000" /></div>
+                                <div className="space-y-1.5 md:col-span-2"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Logradouro <span className="text-[#E3000F]">*</span></label><input type="text" name="logradouro" value={formData.logradouro} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium" placeholder="Preenchido via CEP..." /></div>
+                                <div className="space-y-1.5 md:col-span-1"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Número <span className="text-[#E3000F]">*</span></label><input type="text" name="numero" value={formData.numero} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" placeholder="Nº ou S/N" /></div>
+                                <div className="space-y-1.5 md:col-span-2"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Observações Extras</label><input type="text" name="obs" value={formData.obs} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" placeholder="Opcional. Ex: Faltou poste na rua..." /></div>
                             </div>
-                            <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 mt-6"><button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-2.5 border border-neutral-200 text-neutral-600 font-medium rounded-lg hover:bg-neutral-50 transition-colors">Cancelar</button><button type="submit" className="w-full sm:w-auto px-8 py-2.5 bg-[#E3000F] text-white font-medium rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">{editingId ? 'Salvar Edição' : 'Confirmar Lançamento'}</button></div>
+                            <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 dark:border-neutral-800 mt-6"><button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cancelar</button><button type="submit" className="w-full sm:w-auto px-8 py-2.5 bg-[#E3000F] text-white font-medium rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">{editingId ? 'Salvar Edição' : 'Confirmar Lançamento'}</button></div>
                         </form>
                     </div>
                 </div>
-            )}
+            )
+            }
         </>
     );
 } 

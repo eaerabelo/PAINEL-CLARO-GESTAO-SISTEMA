@@ -12,7 +12,7 @@
 - **REGRA 3:** O GESTOR GERAL possui acesso irrestrito a todos os módulos, podendo editar, excluir e sobrepor qualquer dado do sistema.
 - **REGRA 4:** O ENCARREGADO possui nível de supervisão, com acesso livre ao controle de estoque de chips e visualização da equipe, mas sem permissão para alterar Metas ou a Escala de Trabalho.
 - **REGRA 5:** O VENDEDOR possui o menor nível de acesso. Não pode excluir vendas, não edita estoque, não visualiza a aba de Metas Globais e, na aba de equipe, é bloqueado de visualizar os resultados numéricos de outros vendedores.
-- **REGRA 6:** A área "Cofre de Acessos" é visível na barra lateral para todos os perfis. No entanto, o sistema exige obrigatoriamente a credencial de desenvolvedor para desbloquear a tela e permitir a visualização ou gestão dos dados vitais.
+- **REGRA 6:** A área "Cofre de Acessos" é oculta ativamente da barra lateral para perfis de Vendedor e Sênior. Somente o usuário GESTOR consegue visualizar a seção e, ainda assim, o sistema exige obrigatoriamente a credencial de desenvolvedor para desbloquear a tela.
 - **REGRA 6.1:** Ao apagar um usuário registrado através do Cofre de Acessos, o sistema deve remover integralmente seu nome das listagens e limpar seus registros nas seções de Escala de Trabalho e Reprovados (buscando tanto pelo Nome Completo quanto pelo Primeiro Nome). O sistema DEVE manter exclusivamente o histórico de vendas atrelado a ele, para não corromper os registros contábeis da operação.
 
 ## 2. MÓDULO DE VENDAS
@@ -23,7 +23,7 @@
 - **REGRA 10:** A Receita (preço) é preenchida e bloqueada automaticamente se a combinação de Produto + Tipo de Combo + Especificação for encontrada na tabela de preços do sistema. Caso contrário, o campo fica livre para digitação.
 - **REGRA 11:** Vendas de produtos móveis (Pós e Controle) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração).
 - **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, ao ENCARREGADO ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado).
-- **REGRA 13:** A tabela de visualização de vendas diárias sempre carrega por padrão as vendas correspondentes ao dia atual. Para consultar o histórico ou localizar registros específicos, o usuário deve utilizar o calendário combinado com a barra de pesquisa inteligente (que filtra em tempo real por Vendedor ou Produto).
+- **REGRA 13:** A tabela de visualização de vendas diárias sempre carrega por padrão as vendas correspondentes ao dia atual. Para consultar o histórico ou localizar registros específicos, o usuário deve utilizar o calendário combinado com a barra de pesquisa inteligente. O usuário também tem a opção de exportar os relatórios filtrados para **Excel**.
 
 ## 3. MÓDULO UR-RESIDENCIAL (ACOMPANHAMENTO)
 
@@ -55,6 +55,7 @@
 - **REGRA 30:** Qualquer perfil possui autorização de leitura da escala (Somente Leitura) para checar seus dias de trabalho.
 - **REGRA 31:** Somente o perfil de GESTOR detém o privilégio de edição (clique ativo nas células) para sobrepor horários, cadastrar folgas, férias ou atestados médicos de qualquer colaborador.
 - **REGRA 31.1:** A Escala exibe todos os colaboradores registrados (incluindo Gestores e Seniores), mas formata a listagem utilizando apenas o Primeiro Nome para deixar a interface enxuta.
+- **REGRA 31.2:** Ao editar um dia no mês, a Gestão possui dois atalhos rápidos: "Apagar Horário" (salva a célula como vazia) e "Voltar ao Padrão" (remove a exceção e resgata automaticamente a regra fixa semanal atrelada àquele dia da semana).
 - **REGRA 31.1:** O calendário de exceções do mês sobrepõe a regra padrão semanal sempre que status como "FALTA", "ATESTADO", "FÉRIAS", "FERIADO" ou "FOLGA" são informados. O sistema pinta essas ocorrências com cores de alerta específicas.
 
 ## 7. BANCO DE DADOS E ARMAZENAMENTO
@@ -85,10 +86,14 @@
   - **REC. ACESSÓRIOS / REC. APARELHOS:** Consolida a receita exata proveniente dessas categorias (com ou sem seguro).
   - **BL:** Soma todas as vendas correspondentes a BL ou BANDA LARGA.
   - **GROSS DIA:** Calcula todos os serviços móveis do dia (Pós, Controle, Dependentes, Flex, Banda Larga e PME), sem misturar com Residencial ou Aparelhos.
-- **REGRA 42:** No rodapé do módulo, duas linhas fixas ("TOTAL" e "META LOJA") consolidam os resultados totais do mês corrente, estabelecendo um espelho comparativo em tempo real para acompanhamento gerencial.
+- **REGRA 42:** No rodapé do módulo, duas linhas fixas ("TOTAL" e "META LOJA") consolidam os resultados totais do mês corrente. A visão completa pode ser exportada para um arquivo nativo `.xlsx` (Excel) para controle de diretoria.
 
 ## 10. MÓDULO DE PROPOSTAS (SIMULADOR)
 
 - **REGRA 43:** A aba de propostas atua como uma "Calculadora de Combos" para o Vendedor realizar orçamentos rápidos para os clientes.
 - **REGRA 44:** O cálculo identifica automaticamente o modelo do combo: SINGLE (um único serviço), MULTI (Móvel + 1 Serviço Residencial) ou MULTI 3P (Móvel + 2 Serviços Residenciais).
 - **REGRA 45:** O Simulador utiliza gatilhos visuais de conversão. Se uma proposta forma um pacote MULTI, o sistema assume que o preço tabelado solto seria 35% mais caro e multiplica a diferença projetada por 12 meses, emitindo o alerta "Economia de R$ X ao ano!".
+- **REGRA 46:** As propostas podem ser renderizadas localmente e baixadas como Imagens de alta resolução (via html2canvas) ou enviadas diretamente via WhatsApp contendo uma formatação de texto comercial amigável.
+
+## 11. INTERFACE E ACESSIBILIDADE
+- **REGRA 47:** O sistema possui suporte nativo ao Modo Noturno (Dark Mode). A preferência do usuário é salva no `localStorage` do navegador e aplica um CSS adaptativo em todas as telas, modais e caixas de seleção, preservando a visibilidade de formulários de acordo com o contraste do sistema.

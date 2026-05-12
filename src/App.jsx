@@ -3,7 +3,7 @@ import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown, Undo
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon
 } from 'lucide-react';
 
 import toast, { Toaster } from 'react-hot-toast';
@@ -38,6 +38,27 @@ const safeAppUsers = APP_USERS || {};
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
   const [activeTab, setActiveTab] = useState('VENDA');
+
+  // --- TEMA (LIGHT/DARK) ---
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme-preference');
+      if (savedTheme) return savedTheme;
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') root.classList.add('dark');
+    else root.classList.remove('dark');
+    localStorage.setItem('theme-preference', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // --- ESTADOS DO SISTEMA DE LOGIN GLOBAL ---
   const [globalUser, setGlobalUser] = useState(() => {
@@ -413,9 +434,9 @@ export default function App() {
   // =========================================================
   if (!isFirebaseReady) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-neutral-100 font-sans flex-col gap-4">
+      <div className="flex h-screen w-screen items-center justify-center bg-neutral-100 dark:bg-neutral-900 font-sans flex-col gap-4">
         <div className="w-12 h-12 border-4 border-[#E3000F] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-neutral-500 font-medium text-sm animate-pulse">Conectando ao Firebase e Sincronizando com a Nuvem...</p>
+        <p className="text-neutral-500 dark:text-neutral-400 font-medium text-sm animate-pulse">Conectando ao Firebase e Sincronizando com a Nuvem...</p>
       </div>
     );
   }
@@ -441,30 +462,31 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen bg-[#F5F5F5] font-sans overflow-hidden print:overflow-visible print:h-auto print:block text-neutral-800 print:bg-white">
+    <div className="flex h-screen bg-[#F5F5F5] dark:bg-neutral-950 font-sans overflow-hidden print:overflow-visible print:h-auto print:block text-neutral-800 dark:text-neutral-100 print:bg-white transition-colors">
       <Toaster position="top-right" />
 
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/20 z-20 md:hidden animate-fade-in backdrop-blur-sm no-print" onClick={() => setIsSidebarOpen(false)} />
       )}
 
-      <aside className={`${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:w-0 md:translate-x-0'} no-print overflow-hidden shrink-0 transition-all duration-300 ease-in-out bg-white border-r border-neutral-200 flex flex-col z-30 fixed md:relative top-0 left-0 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)]`}>
-        <div className="h-16 flex items-center px-6 border-b border-neutral-100 min-w-[16rem] shrink-0">
+      <aside className={`${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:w-0 md:translate-x-0'} no-print overflow-hidden shrink-0 transition-all duration-300 ease-in-out bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col z-30 fixed md:relative top-0 left-0 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-none`}>
+        <div className="h-16 flex items-center px-6 border-b border-neutral-100 dark:border-neutral-800 min-w-[16rem] shrink-0">
           <div className="flex items-center gap-2 text-[#E3000F] font-bold text-xl tracking-tight">
             <div className="w-6 h-6 rounded-full bg-[#E3000F] flex items-center justify-center text-white text-xs">C</div>
             Painel Gestão
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-4 min-w-[16rem] scrollbar-hide">
-          <div className="px-4 mb-2 text-xs font-semibold text-neutral-400 tracking-wider">MÓDULOS (A-Z)</div>
+          <div className="px-4 mb-2 text-xs font-semibold text-neutral-400 dark:text-neutral-500 tracking-wider">MÓDULOS (A-Z)</div>
           <ul className="space-y-1 px-3">
             {sidebarSections.map((section) => {
               if (section.name === 'META' && !hasMetaAccess) return null;
               if (section.name === 'ESCALA DE TRABALHO' && !hasScheduleAccess) return null;
+              if (section.name === 'ACESSOS' && !isGerente) return null;
 
               return (
                 <li key={section.name}>
-                  <button onClick={() => { setActiveTab(section.name); if (window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === section.name ? 'bg-red-50 text-[#E3000F]' : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'}`}>
+                  <button onClick={() => { setActiveTab(section.name); if (window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === section.name ? 'bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F]' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'}`}>
                     <div className="flex items-center gap-3"><span className={`${activeTab === section.name ? 'text-[#E3000F]' : 'text-neutral-400'}`}>{section.icon}</span>{section.name}</div>
                     {activeTab === section.name && <ChevronRight size={14} />}
                   </button>
@@ -475,45 +497,49 @@ export default function App() {
         </nav>
       </aside>
 
-      <main className="flex-1 flex flex-col h-full overflow-hidden print:overflow-visible print:h-auto print:block bg-white">
+      <main className="flex-1 flex flex-col h-full overflow-hidden print:overflow-visible print:h-auto print:block bg-white dark:bg-neutral-950">
 
-        <header className="h-16 bg-white border-b border-neutral-200 flex items-center justify-between px-4 lg:px-8 shrink-0 no-print">
+        <header className="h-16 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-4 lg:px-8 shrink-0 no-print">
           <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-neutral-100 rounded-md text-neutral-500 transition-colors"><Menu size={20} /></button>
-            <h1 className="text-lg font-medium text-neutral-800 hidden sm:block">{activeTab}</h1>
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md text-neutral-500 dark:text-neutral-400 transition-colors"><Menu size={20} /></button>
+            <h1 className="text-lg font-medium text-neutral-800 dark:text-neutral-100 hidden sm:block">{activeTab}</h1>
           </div>
           <div className="flex items-center gap-5">
             {undoStack.length > 0 && (
               <button 
                 onClick={handleUndo} 
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-neutral-600 rounded-lg text-sm font-medium transition-colors animate-fade-in"
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-300 rounded-lg text-sm font-medium transition-colors animate-fade-in"
                 title="Desfazer exclusão (Ctrl+Z)"
               >
                 <Undo size={16} /> Desfazer
               </button>
             )}
 
+            <button onClick={toggleTheme} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-neutral-500 dark:text-neutral-400 transition-colors" title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}>
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
             <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
-              <input type="text" placeholder="Buscar CPF ou Contrato..." className="pl-9 pr-4 py-1.5 bg-neutral-100 border-transparent rounded-full text-sm focus:bg-white focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all w-64 outline-none" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
+              <input type="text" placeholder="Buscar CPF ou Contrato..." className="pl-9 pr-4 py-1.5 bg-neutral-100 dark:bg-neutral-800 border-transparent rounded-full text-sm focus:bg-white dark:focus:bg-neutral-900 focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all w-64 outline-none dark:text-neutral-100" />
             </div>
 
             <div className="hidden sm:flex items-center justify-center mx-2">
               <div className="text-[#E3000F] font-black text-xl tracking-tighter uppercase">CLARO UNIÃO OSASCO - AT1M</div>
             </div>
 
-            <div className="pl-4 border-l border-neutral-200">
+            <div className="pl-4 border-l border-neutral-200 dark:border-neutral-800">
               {globalUser && (
                 <div className="flex items-center gap-3 group">
                   <div className="text-right hidden sm:block">
-                    <div className="text-sm font-bold text-neutral-800 leading-tight">{globalUser.name}</div>
-                    <div className="text-[10px] text-neutral-500 uppercase tracking-wide font-medium">{globalUser.role}</div>
+                    <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight">{globalUser.name}</div>
+                    <div className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase tracking-wide font-medium">{globalUser.role}</div>
                   </div>
                   <div className="relative cursor-pointer">
-                    <div className="w-10 h-10 bg-red-50 text-[#E3000F] rounded-full flex items-center justify-center border border-red-100 group-hover:bg-[#E3000F] group-hover:text-white transition-colors">
+                    <div className="w-10 h-10 bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F] rounded-full flex items-center justify-center border border-red-100 dark:border-[#E3000F]/20 group-hover:bg-[#E3000F] group-hover:text-white transition-colors">
                       {isGerente ? <Crown size={18} /> : <UserCircle size={22} />}
                     </div>
-                    <div onClick={handleLogout} className="absolute top-12 right-0 bg-white border border-neutral-200 shadow-xl rounded-xl py-2 w-32 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex items-center justify-center gap-2 text-sm font-bold text-red-600 hover:bg-red-50 z-50">
+                    <div onClick={handleLogout} className="absolute top-12 right-0 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-xl rounded-xl py-2 w-32 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all flex items-center justify-center gap-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 z-50">
                       <LogOut size={16} /> Sair
                     </div>
                   </div>
@@ -523,7 +549,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto print:overflow-visible print:h-auto print:block print:p-0 print:bg-white p-2 sm:p-4 lg:p-8 bg-neutral-50 print-area-wrapper">
+        <div className="flex-1 overflow-auto print:overflow-visible print:h-auto print:block print:p-0 print:bg-white p-2 sm:p-4 lg:p-8 bg-neutral-50 dark:bg-neutral-950 print-area-wrapper">
 
           {activeTab === 'META' ? (
             <Meta hasAccess={hasMetaAccess} setAuthModal={setAuthModal} goalsDB={goalsDB} setGoalsDB={setGoalsDB} currentYYYYMM={currentYYYYMM} usersDB={usersDB} />
@@ -538,7 +564,7 @@ export default function App() {
           ) : activeTab === 'SISTEMAS CLARO' ? (
             <SistemasClaro />
           ) : activeTab === 'ACESSOS' ? (
-            <Acessos usersDB={usersDB} setUsersDB={setUsersDB} setScheduleData={setScheduleData} setMonthlyOverrides={setMonthlyOverrides} setReprovadosData={handleSetReprovadosData} />
+            <Acessos usersDB={usersDB} setUsersDB={setUsersDB} setScheduleData={setScheduleData} setMonthlyOverrides={setMonthlyOverrides} setReprovadosData={handleSetReprovadosData} globalUser={globalUser} />
           ) : activeTab === 'UR-RESIDENCIAL' ? (
             <UrResidencial salesData={salesData} setSalesData={handleSetSalesData} globalUser={globalUser} isGerente={isGerente} usersDB={usersDB} />
           ) : activeTab === 'PROPOSTA' ? (
@@ -548,16 +574,16 @@ export default function App() {
           ) : activeTab === 'RESULTADO' ? (
             <Resultado salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-neutral-400 animate-fade-in border-2 border-dashed border-neutral-200 rounded-xl bg-white/50">
+            <div className="h-full flex flex-col items-center justify-center text-neutral-400 dark:text-neutral-500 animate-fade-in border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50">
               <Database size={48} className="mb-4 text-neutral-300" />
-              <h2 className="text-xl font-medium text-neutral-600 mb-2">Módulo {activeTab}</h2>
+              <h2 className="text-xl font-medium text-neutral-600 dark:text-neutral-400 mb-2">Módulo {activeTab}</h2>
             </div>
           )}
         </div>
 
-        <footer className="w-full bg-white border-t border-neutral-200 py-3 shrink-0 no-print flex items-center justify-center">
+        <footer className="w-full bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 py-3 shrink-0 no-print flex items-center justify-center">
           <p className="text-[10px] sm:text-xs text-neutral-400 font-semibold tracking-widest uppercase text-center px-4">
-            &copy; {new Date().getFullYear()} Todos os direitos reservados <span className="text-[#E3000F] mx-1">-</span> Desenvolvido por Matheus Rabelo <span className="text-[#E3000F] mx-1">-</span> Developer Front-End
+            &copy; {new Date().getFullYear()} Todos os direitos reservados <span className="text-[#E3000F] mx-1">-</span> Sistema de Gestão Claro
           </p>
         </footer>
       </main>
@@ -570,16 +596,16 @@ export default function App() {
       {authModal.isOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 no-print">
           <div className="flex min-h-full items-center justify-center">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm animate-fade-in">
-              <div className="p-6 border-b border-neutral-100 flex justify-between items-center bg-neutral-50 rounded-t-2xl">
+            <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-sm animate-fade-in">
+              <div className="p-6 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center bg-neutral-50 dark:bg-neutral-800 rounded-t-2xl">
                 <div>
-                  <h2 className="text-lg font-bold text-neutral-800 flex items-center gap-2"><Lock size={18} className="text-[#E3000F]" /> Login do Sistema</h2>
+                  <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2"><Lock size={18} className="text-[#E3000F]" /> Login do Sistema</h2>
                 </div>
-                <button onClick={() => setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null })} className="w-8 h-8 flex items-center justify-center bg-white border border-neutral-200 hover:bg-neutral-100 text-neutral-600 rounded-full transition-colors"><X size={18} /></button>
+                <button onClick={() => setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null })} className="w-8 h-8 flex items-center justify-center bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-300 rounded-full transition-colors"><X size={18} /></button>
               </div>
 
-              <form onSubmit={handleAuthSubmit} className="p-6 space-y-4">
-                <div className="text-sm text-neutral-500 mb-4 leading-relaxed">
+              <form onSubmit={handleAuthSubmit} className="p-6 space-y-4 bg-white dark:bg-neutral-900 rounded-b-2xl">
+                <div className="text-sm text-neutral-500 dark:text-neutral-400 mb-4 leading-relaxed">
                   Acesse o painel para liberar permissões e customizar seu perfil de visualização de acordo com sua função.
                 </div>
 
@@ -590,22 +616,22 @@ export default function App() {
                 )}
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Matrícula / Usuário</label>
+                  <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Matrícula / Usuário</label>
                   <input
                     type="text"
                     value={authCredentials.user}
                     onChange={e => setAuthCredentials({ ...authCredentials, user: e.target.value })}
-                    className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] font-mono"
+                    className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] font-mono"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-neutral-500 uppercase tracking-wider">Senha</label>
+                  <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Senha</label>
                   <input
                     type="password"
                     value={authCredentials.password}
                     onChange={e => setAuthCredentials({ ...authCredentials, password: e.target.value })}
-                    className="w-full bg-neutral-50 border border-neutral-200 text-neutral-800 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] tracking-widest"
+                    className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] tracking-widest"
                   />
                 </div>
 

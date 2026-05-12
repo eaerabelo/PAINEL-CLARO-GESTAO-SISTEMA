@@ -7,9 +7,10 @@ Bem-vindo à documentação oficial para desenvolvedores do **Painel de Gestão 
 ## 1. Arquitetura Base (Tech Stack)
 *   **Core:** React.js (via Vite)
 *   **Estilização:** Tailwind CSS (Utility-First)
+*   **Acessibilidade Visual:** Configuração adaptativa do Tailwind `darkMode: 'class'` integrado ao `localStorage`.
 *   **Ícones:** `lucide-react`
 *   **Notificações Visuais:** `react-hot-toast`
-*   **Geração de Relatórios:** `xlsx` (Excel) e funções nativas de impressão do browser (PDF).
+*   **Geração de Relatórios e Midia:** `xlsx` (Excel), `html2canvas` (Geração de propostas visuais por Imagem) e envio API-URI `WhatsApp`.
 *   **Banco de Dados:** Firebase Firestore (NoSQL, Client-Side).
 
 ---
@@ -41,7 +42,7 @@ O sistema não utiliza o Firebase Authentication por padrão para dar flexibilid
 A aplicação possui uma regra em que todas as seções operacionais (Venda, Escala, Reprovados) extraem apenas o `name.split(' ')[0]` (Primeiro Nome) do usuário. Apenas os painéis de "Colaboradores" e "Cofre" mantêm a renderização dos Nomes Completos. Além disso, as opções de Vendedores nas selects das telas operacionais filtram ativamente `role === 'VENDEDOR'`, ocultando os cargos superiores.
 
 **Cofre de Acessos (`Acessos.jsx`):**
-A aba é visível no menu de todos os usuários, mas bloqueada por uma "Master Key" (hardcoded no estado inicial) com valor padrão `DEV2026`. Serve para destravar a visualização das senhas em plain-text e permitir a elevação de cargo de vendedores para Gestores.
+A aba é visível no menu EXCLUSIVAMENTE para usuários com perfil de `GESTOR`, e adicionalmente bloqueada por uma "Master Key" (hardcoded no estado inicial) com valor padrão `DEV2026`. Serve para destravar a visualização das senhas em plain-text e permitir a elevação de cargo de vendedores para Gestores.
 
 Quando o botão de apagar usuário é ativado, a exclusão mapeia tanto a string de `Nome Completo` quanto a string de `Primeiro Nome` para garantir que exceções de escalas ou reprovados sob ambas as formatações não deixem registros órfãos.
 
@@ -63,7 +64,7 @@ Quando o botão de apagar usuário é ativado, a exclusão mapeia tanto a string
 *   Regra vital: Se houver Móvel + Fibra/TV, o `comboType` transita de `SINGLE` para `MULTI`, ativando gatilhos comerciais na tela e renderizando um ticket otimizado via CSS puro (`@media print`).
 
 ### `EscalaTrabalho.jsx` (Gestão de RH)
-*   Mantém 2 arrays de estados. `scheduleData` é o espelho padrão da semana fixa. `monthlyOverrides` são as chaves de exceção. Se o colaborador tirou atestado numa Terça-feira específica, o override sobrepõe o `scheduleData` sem destruir a regra matriz da pessoa.
+*   Mantém 2 dicionários de estados. `scheduleData` é o espelho padrão da semana fixa. `monthlyOverrides` hospeda as exceções do mês. O botão de exclusão injeta um fallback de controle `__DEFAULT__`, que serve para deletar a chave correspondente do Override, permitindo que a regra semanal volte a ditar o horário daquele dia sem sobras no backend.
 
 ### `Reprovados.jsx` (Integração)
 *   Contém a única requisição HTTP (Fetch API) externa do projeto. Consome a API pública `ViaCEP` para validação e preenchimento de inviabilidades de endereço, focando na UF SP.

@@ -22,9 +22,10 @@ A plataforma é dividida em módulos estratégicos baseados no Controle de Acess
 ### 1. Vendas
 O coração da operação. Permite o lançamento de vendas de aparelhos, acessórios, planos móveis e banda larga.
 - *Diferenciais:* Auto-preenchimento restrito ao **Primeiro Nome** do Vendedor, cálculo dinâmico de comissionamento e bloqueio de preços para combinações padrão.
+- *Recurso Adicional:* Botão nativo para exportação das vendas filtradas diretamente para planilhas **Excel (.xlsx)**.
 
 ### 2. Resultado (Visão Global)
-Acompanhamento macro da loja. Uma tabela em estilo Excel que cruza todas as vendas por data e classifica em categorias complexas como Gross Dia, Migrações, Portabilidades e Total Residencial. Calcula e distribui automaticamente a meta diária (peso em dobro nos finais de semana).
+Acompanhamento macro da loja. Uma tabela gerencial que cruza todas as vendas por data e classifica em categorias complexas (Gross Dia, Migrações, Portabilidades). Permite o espelho instantâneo e a exportação do DRE em formato Excel.
 
 ### 3. Colaboradores (Dashboards Individuais)
 Mostra relatórios automáticos (Meta vs Realizado) da produção diária e mensal de cada vendedor em tempo real. Esta aba retém a visualização do **Nome Completo** para fins gerenciais.
@@ -34,7 +35,7 @@ Módulo exclusivo da gerência para distribuir os alvos financeiros e quantitati
 
 ### 5. Escala de Trabalho
 Gerenciamento duplo (Semanal Fixo x Calendário Dinâmico) de horários, exibindo todos os usuários do sistema apenas pelo **Primeiro Nome** para visualização otimizada.
-- *Diferenciais:* Cores de alerta automáticas para marcações de exceção como FALTA, ATESTADO, FÉRIAS, FERIADO e FOLGA.
+- *Diferenciais:* Cores de alerta para marcações de exceção como FALTA, ATESTADO, FÉRIAS, FERIADO e FOLGA. Dispõe de atalhos rápidos na edição como "Apagar Horário" ou "Voltar ao Padrão".
 
 ### 6. Controle Simcard (Estoque)
 Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de autorização, dados de cliente, e regras rígidas contra exclusões não autorizadas (Modal de Cofre Master).
@@ -43,7 +44,7 @@ Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de au
 ### 7. UR-Residencial, Reprovados & Propostas
 - **Residencial:** Lança vendas automaticamente a partir da aba principal, separando a logística de agendamento e status de instalação (Pendentes, Conectados, Cancelados).
 - **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`) para preenchimento inteligente e automático de endereços no Estado de São Paulo.
-- **Propostas:** Simulador de ofertas com cálculo de abatimento em combos (Single, Multi, Multi 3P) com gatilhos de "Economia Anual".
+- **Propostas:** Simulador de ofertas com cálculo de abatimento em combos (Single, Multi, Multi 3P). Integrado nativamente com botão de geração de orçamentos em formato **Imagem (PNG)** e atalho Flutuante de disparo pro **WhatsApp**.
 
 ---
 
@@ -53,6 +54,7 @@ O sistema foi arquitetado para suportar múltiplos computadores operando simulta
 - **Sincronização Real-Time:** Apenas os dados confirmados (salvar, editar, excluir) são transmitidos via rede, atualizando as tabelas e o estoque da loja inteira em milissegundos sem a necessidade de recarregar a página (F5).
 - **Timeout Inteligente:** A regra de expiração de sessão por inatividade (30 minutos) monitora o mouse e o teclado de *cada* máquina de forma completamente isolada.
 - **Anti-Conflito:** Janelas flutuantes e modais de edição em uso são protegidos contra fechamentos abruptos caso os dados de fundo sejam alterados por terceiros.
+- **Modo Noturno (Dark Mode):** Alternância instantânea de tema claro/escuro via ícones Sun/Moon, armazenada na máquina local (`localStorage`), focada na acessibilidade visual de quem passa horas operando o painel.
 
 ---
 
