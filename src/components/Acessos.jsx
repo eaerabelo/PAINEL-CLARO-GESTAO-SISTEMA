@@ -175,6 +175,9 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
         );
     }
 
+    const totalFuncionarios = Object.keys(usersDB || {}).length;
+    const totalVendedores = Object.values(usersDB || {}).filter(u => u.role === 'VENDEDOR').length;
+
     // --- TELA DO COFRE DESBLOQUEADO (TABELA E EDIÇÃO) ---
     return (
         <div className="h-full flex flex-col bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-fade-in transition-colors">
@@ -188,7 +191,17 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                         <p className="text-xs text-neutral-400 font-medium">Gestão de Usuários, Senhas e Lideranças</p>
                     </div>
                 </div>
-                <div className="flex flex-col sm:flex-row w-full md:w-auto gap-3">
+                <div className="flex flex-col sm:flex-row items-center w-full md:w-auto gap-3">
+                    <div className="flex gap-3 w-full sm:w-auto justify-between sm:justify-start sm:mr-2">
+                        <div className="flex-1 sm:flex-none bg-neutral-800 dark:bg-neutral-900 px-4 py-1.5 rounded-lg border border-neutral-700 flex flex-col items-center justify-center shadow-sm">
+                            <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider mb-0.5">Equipe</span>
+                            <span className="text-sm font-black text-white leading-none">{totalFuncionarios}</span>
+                        </div>
+                        <div className="flex-1 sm:flex-none bg-neutral-800 dark:bg-neutral-900 px-4 py-1.5 rounded-lg border border-neutral-700 flex flex-col items-center justify-center shadow-sm">
+                            <span className="text-[9px] text-neutral-400 font-bold uppercase tracking-wider mb-0.5">Vendedores</span>
+                            <span className="text-sm font-black text-white leading-none">{totalVendedores}</span>
+                        </div>
+                    </div>
                     <button onClick={() => openModal()} className="w-full sm:w-auto justify-center px-4 py-2 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 text-sm font-bold rounded-xl hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors shadow-sm flex items-center gap-2">
                         <UserPlus size={16} /> Criar Conta de Liderança
                     </button>
