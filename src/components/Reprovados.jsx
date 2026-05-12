@@ -53,7 +53,7 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
     });
 
     const canEditDelete = (item) => {
-        if (isGerente || globalUser?.role === 'SENIOR') return true;
+        if (isGerente || ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(globalUser?.role)) return true;
         if (isVendedor && (item.vendedor === globalUser?.name || item.vendedor === globalUser?.name.split(' ')[0])) return true;
         return false;
     };

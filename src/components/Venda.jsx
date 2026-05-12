@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Plus, MonitorPlay, AlertCircle, X, Check, Lock, Briefcase, Trash2, Edit3, Calendar, Search } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Plus, MonitorPlay, AlertCircle, X, Check, Lock, Briefcase, Trash2, Edit3, Calendar, Search, Upload, FileDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { PRICING_MOVEL, FIBRA_OPTIONS, TV_BOX_OPTIONS, FIXO_OPTIONS, MESH_OPTIONS, SEGURO_OPTIONS, DEPENDENTE_OPTIONS, PRODUTOS_CONTRATO_OBRIGATORIO, PRODUTOS } from '../utils/constants';
 import { applyCpfCnpjMask, applyContratoMask, applyCurrencyMask, parseCurrencyToFloat, getTodaySP } from '../utils/masks';
+import { parseExcelSales } from '../utils/excelImporter';
 
 const safeProdutos = Array.isArray(PRODUTOS) ? PRODUTOS : [];
 
@@ -17,6 +18,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     const [filterDate, setFilterDate] = useState(getTodaySP());
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const fileInputRef = useRef(null);
     const [formData, setFormData] = useState({
         vendedor: '', data: getTodaySP(), qtda: 1, portabilidade: '',
         combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false,
@@ -197,6 +199,49 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         toast.success('Relatório exportado com sucesso!');
     };
 
+    const handleDownloadTemplate = () => {
+        const templateData = [{
+            'Data': '20/12/2024',
+            'Vendedor': 'NOME (Apenas o 1º Nome)',
+            'Produto': 'POS 50GB',
+            'Tipo': 'SINGLE (Ou MULTI)',
+            'Quantidade': 1,
+            'Portabilidade': 'NÃO',
+            'Receita (R$)': 124.90,
+            'CPF/CNPJ': '000.000.000-00',
+            'Contrato': 'Opcional',
+            'M-Play': 'NÃO',
+            'Adicionais': 'SEGURO, TROCAFY',
+            'Operação': 'ATIVAÇÃO'
+        }];
+        const worksheet = XLSX.utils.json_to_sheet(templateData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo_Importacao");
+        XLSX.writeFile(workbook, "Modelo_Importacao_Vendas.xlsx");
+        toast.success('Planilha modelo baixada com sucesso!');
+    };
+
+    const handleImportExcelClick = () => {
+        fileInputRef.current.click();
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        parseExcelSales(file)
+            .then(newSales => {
+                setSalesData(prev => [...newSales, ...prev]);
+                toast.success(`${newSales.length} vendas importadas com sucesso!`);
+            })
+            .catch(error => {
+                toast.error(error.message);
+            })
+            .finally(() => {
+                e.target.value = null; // Limpa o input para poder importar o mesmo arquivo novamente
+            });
+    };
+
     return (
         <>
             <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden flex flex-col h-full animate-fade-in transition-colors">
@@ -225,7 +270,12 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                             />
                         </div>
                         <div className="flex gap-2 w-full sm:w-auto">
-                            <button onClick={handleExportExcel} className="flex-1 sm:flex-none px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 justify-center flex items-center whitespace-nowrap">Exportar Excel</button>
+                            {/* Input Oculto e Botão de Importar */}
+                            <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
+                            <button onClick={handleDownloadTemplate} className="flex-1 sm:flex-none px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors shadow-sm justify-center flex items-center whitespace-nowrap gap-1" title="Baixar Planilha Modelo"><FileDown size={16} /> Modelo</button>
+                            <button onClick={handleImportExcelClick} className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors shadow-sm shadow-blue-700/30 justify-center flex items-center whitespace-nowrap gap-1"><Upload size={16} /> Importar</button>
+                            
+                            <button onClick={handleExportExcel} className="flex-1 sm:flex-none px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 justify-center flex items-center whitespace-nowrap gap-1">Exportar</button>
                             <button onClick={openNovaVendaModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-1 whitespace-nowrap"><Plus size={16} /> Nova Venda</button>
                         </div>
                     </div>

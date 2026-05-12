@@ -239,9 +239,21 @@ export default function App() {
     if (!isFirebaseReady) return;
     const timeoutId = setTimeout(async () => {
       try {
-        const batch = writeBatch(db);
+        let batches = [writeBatch(db)];
+        let currentBatch = 0;
+        let opsCount = 0; 
         let hasChanges = false;
-        let opsCount = 0; // Limite do batch do Firebase é 500 operações por vez
+
+        const getBatch = () => {
+          if (opsCount >= 490) {
+            batches.push(writeBatch(db));
+            currentBatch++;
+            opsCount = 0;
+          }
+          hasChanges = true;
+          opsCount++;
+          return batches[currentBatch];
+        };
 
         const safeStr = (obj) => JSON.stringify(obj || {});
 
@@ -252,22 +264,16 @@ export default function App() {
 
           // 1. Identificar Novas inserções ou Edições feitas pelo usuário
           localMap.forEach((item, id) => {
-            if (opsCount >= 490) return;
             const cloudItem = cloudMap.get(id);
             if (!cloudItem || safeStr(item) !== safeStr(cloudItem)) {
-              batch.set(doc(db, collectionName, id), item);
-              hasChanges = true;
-              opsCount++;
+              getBatch().set(doc(db, collectionName, id), item);
             }
           });
 
           // 2. Identificar Exclusões (Botão de Excluir da Tabela)
           cloudMap.forEach((item, id) => {
-            if (opsCount >= 490) return;
             if (!localMap.has(id)) {
-              batch.delete(doc(db, collectionName, id));
-              hasChanges = true;
-              opsCount++;
+              getBatch().delete(doc(db, collectionName, id));
             }
           });
         };
@@ -279,16 +285,17 @@ export default function App() {
         // 3. Salva Configurações Globais apenas se houver mudança nos privilégios
         const currentConfigStr = safeStr({ usersDB, goalsDB, scheduleData, monthlyOverrides });
         if (currentConfigStr !== cloudRefs.current.config) {
-          batch.set(doc(db, 'lojas', 'uniao_osasco_config'), {
+          getBatch().set(doc(db, 'lojas', 'uniao_osasco_config'), {
             usersDB, goalsDB, scheduleData, monthlyOverrides
-          }, { merge: true });
-          hasChanges = true;
+          }); // Removido { merge: true } para garantir que exclusões do painel reflitam no banco
           cloudRefs.current.config = currentConfigStr;
         }
 
         // 4. Dispara todas as diferenças para a nuvem de uma vez só!
         if (hasChanges) {
-          await batch.commit();
+          for (const b of batches) {
+            await b.commit();
+          }
           cloudRefs.current.sales = [...salesData];
           cloudRefs.current.simcards = [...simcardsData];
           cloudRefs.current.reprovados = [...reprovadosData];
@@ -296,7 +303,7 @@ export default function App() {
       } catch (error) {
         console.error("Erro no Auto-Save (Smart Diff):", error);
       }
-    }, 1200); 
+    }, 1500); 
     return () => clearTimeout(timeoutId);
   }, [salesData, simcardsData, reprovadosData, goalsDB, scheduleData, monthlyOverrides, usersDB, isFirebaseReady]);
 
@@ -383,10 +390,11 @@ export default function App() {
 
   // --- REGRAS DE HIERARQUIA DERIVADAS DO LOGIN ---
   const isGerente = globalUser?.role === 'GERENTE';
-  const canModifySimcard = isGerente || globalUser?.role === 'SENIOR';
-  const canEditSchedule = isGerente || globalUser?.role === 'SENIOR';
-  const hasScheduleAccess = isGerente || globalUser?.role === 'SENIOR';
-  const hasMetaAccess = isGerente || globalUser?.role === 'SENIOR';
+  const isSeniorEquivalent = ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(globalUser?.role);
+  const canModifySimcard = isGerente || isSeniorEquivalent;
+  const canEditSchedule = isGerente || isSeniorEquivalent;
+  const hasScheduleAccess = isGerente || isSeniorEquivalent;
+  const hasMetaAccess = isGerente || isSeniorEquivalent;
   const isVendedor = globalUser?.role === 'VENDEDOR';
 
   // --- LÓGICA DE LOGIN ---
@@ -395,8 +403,8 @@ export default function App() {
     const userMatched = usersDB[authCredentials.user] || safeAppUsers[authCredentials.user];
     if (userMatched && userMatched.pass === authCredentials.password) {
       if (authModal.requiredRole && authModal.requiredRole !== userMatched.role) {
-        if (authModal.requiredRole === 'SENIOR' && !['GERENTE', 'SENIOR'].includes(userMatched.role)) {
-          setAuthError('Acesso negado. Requer permissão de Sênior ou Gerente.');
+        if (authModal.requiredRole === 'SENIOR' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userMatched.role)) {
+          setAuthError('Acesso negado. Requer permissão de Sênior ou superior.');
           return;
         }
         if (authModal.requiredRole === 'GERENTE' && userMatched.role !== 'GERENTE') {
@@ -409,13 +417,13 @@ export default function App() {
       localStorage.setItem('sessionUser', JSON.stringify(userWithTime));
       setAuthError('');
       if (userMatched.role === 'VENDEDOR') setSelectedSeller(userMatched.name);
-      if (authModal.pendingAction === 'DELETE' && authModal.pendingId !== null && (userMatched.role === 'GERENTE' || userMatched.role === 'SENIOR')) {
+      if (authModal.pendingAction === 'DELETE' && authModal.pendingId !== null && (userMatched.role === 'GERENTE' || ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userMatched.role))) {
         handleSetSimcardsData(prev => prev.filter(item => item.id !== authModal.pendingId));
       }
       setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
       setAuthCredentials({ user: '', password: '' });
-      if (activeTab === 'META' && !['GERENTE', 'SENIOR'].includes(userMatched.role)) setActiveTab('VENDA');
-      if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR'].includes(userMatched.role)) setActiveTab('VENDA');
+      if (activeTab === 'META' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userMatched.role)) setActiveTab('VENDA');
+      if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userMatched.role)) setActiveTab('VENDA');
     } else {
       setAuthError('Usuário ou senha incorretos. Acesso negado.');
     }
@@ -453,8 +461,8 @@ export default function App() {
             setGlobalUser(userWithTime);
             localStorage.setItem('sessionUser', JSON.stringify(userWithTime));
             if (userData.role === 'VENDEDOR') setSelectedSeller(userData.name);
-            if (activeTab === 'META' && !['GERENTE', 'SENIOR'].includes(userData.role)) setActiveTab('VENDA');
-            if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR'].includes(userData.role)) setActiveTab('VENDA');
+            if (activeTab === 'META' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userData.role)) setActiveTab('VENDA');
+            if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userData.role)) setActiveTab('VENDA');
           }} 
         />
       </>
@@ -531,8 +539,9 @@ export default function App() {
             <div className="pl-4 border-l border-neutral-200 dark:border-neutral-800">
               {globalUser && (
                 <div className="flex items-center gap-3 group">
-                  <div className="text-right hidden sm:block">
-                    <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight">{globalUser.name}</div>
+                  <div className="text-right flex flex-col justify-center">
+                    <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight hidden sm:block">{globalUser.name}</div>
+                    <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight sm:hidden">{globalUser.name.split(' ')[0]}</div>
                     <div className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase tracking-wide font-medium">{globalUser.role}</div>
                   </div>
                   <div className="relative cursor-pointer">
@@ -582,8 +591,9 @@ export default function App() {
         </div>
 
         <footer className="w-full bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 py-3 shrink-0 no-print flex items-center justify-center">
-          <p className="text-[10px] sm:text-xs text-neutral-400 font-semibold tracking-widest uppercase text-center px-4">
-            &copy; {new Date().getFullYear()} Todos os direitos reservados <span className="text-[#E3000F] mx-1">-</span> Sistema de Gestão Claro
+          <p className="text-[10px] sm:text-xs text-neutral-400 font-semibold tracking-widest uppercase text-center px-4 whitespace-nowrap">
+            <span className="hidden sm:inline">&copy; {new Date().getFullYear()} Todos os direitos reservados <span className="text-[#E3000F] mx-1">-</span> Desenvolvido por Matheus Rabelo <span className="text-[#E3000F] mx-1">-</span> Developer Front-End</span>
+            <span className="sm:hidden">&copy; {new Date().getFullYear()} Dev: Matheus Rabelo</span>
           </p>
         </footer>
       </main>

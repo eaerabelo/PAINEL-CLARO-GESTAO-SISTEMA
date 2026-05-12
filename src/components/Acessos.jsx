@@ -8,7 +8,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
     const [showPassword, setShowPassword] = useState({});
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUsername, setEditingUsername] = useState(null);
-    const [formData, setFormData] = useState({ name: '', username: '', password: '', role: 'GERENTE', phone: '', email: '' });
+    const [formData, setFormData] = useState({ name: '', username: '', password: '', role: 'GERENTE', phone: '', email: '', birthDate: '' });
 
     const handleUnlock = (e) => {
         e.preventDefault();
@@ -33,15 +33,20 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
     const openModal = (userKey = null) => {
         if (userKey) {
             setEditingUsername(userKey);
-            setFormData({ ...usersDB[userKey], username: userKey, password: usersDB[userKey].pass, email: usersDB[userKey].email || '' });
+            setFormData({ ...usersDB[userKey], username: userKey, password: usersDB[userKey].pass, email: usersDB[userKey].email || '', birthDate: usersDB[userKey].birthDate || '' });
         } else {
             setEditingUsername(null);
-            setFormData({ name: '', username: '', password: '', role: 'GERENTE', phone: '', email: '' });
+            setFormData({ name: '', username: '', password: '', role: 'GERENTE', phone: '', email: '', birthDate: '' });
         }
         setIsModalOpen(true);
     };
 
     const handleDelete = (userKey) => {
+        if (globalUser?.role !== 'GERENTE') {
+            toast.error('Ação bloqueada. Apenas o Gerente possui permissão para excluir usuários.');
+            return;
+        }
+
         const userToDelete = usersDB[userKey];
         const userName = userToDelete?.name;
         const firstName = userName?.split(' ')[0];
@@ -106,7 +111,8 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                 role: formData.role,
                 pass: formData.password,
                 phone: formData.phone || '',
-                email: formData.email.toLowerCase()
+                email: formData.email.toLowerCase(),
+                birthDate: formData.birthDate || ''
             };
             return newDb;
         });
@@ -180,9 +186,9 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto p-6 bg-neutral-50/50 dark:bg-neutral-950/50">
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
-                    <table className="w-full text-left whitespace-nowrap text-sm">
+            <div className="flex-1 overflow-auto p-4 sm:p-6 bg-neutral-50/50 dark:bg-neutral-950/50">
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-x-auto shadow-sm">
+                    <table className="w-full text-left whitespace-nowrap text-sm min-w-max">
                         <thead className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 font-bold uppercase text-[10px] tracking-wider">
                             <tr>
                                 <th className="px-6 py-4">Nome Completo</th>
@@ -191,6 +197,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                                 <th className="px-6 py-4">Senha</th>
                                 <th className="px-6 py-4">Função / Nível</th>
                                 <th className="px-6 py-4">Celular</th>
+                                <th className="px-6 py-4">Nascimento</th>
                                 <th className="px-6 py-4 text-center">Ações</th>
                             </tr>
                         </thead>
@@ -217,13 +224,14 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                                         </td>
                                         <td className="px-6 py-3">
                                             <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${user.role === 'GERENTE' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
-                                                user.role === 'SENIOR' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
+                                                ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(user.role) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
                                                     'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
                                                 }`}>
                                                 {user.role}
                                             </span>
                                         </td>
                                         <td className="px-6 py-3 font-mono text-neutral-500 dark:text-neutral-400">{user.phone || '-'}</td>
+                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">{user.birthDate ? new Date(user.birthDate + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</td>
                                         <td className="px-6 py-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 <button onClick={() => openModal(username)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"><Edit3 size={16} /></button>
@@ -268,12 +276,20 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                                 <select value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900 font-bold">
                                     <option className="bg-white dark:bg-neutral-900" value="GERENTE">GERENTE</option>
                                     <option className="bg-white dark:bg-neutral-900" value="SENIOR">SÊNIOR</option>
+                                    <option className="bg-white dark:bg-neutral-900" value="ASSISTENTE RELACIONAMENTO">ASSISTENTE RELACIONAMENTO</option>
+                                    <option className="bg-white dark:bg-neutral-900" value="ADMINISTRAÇÃO">ADMINISTRAÇÃO</option>
+                                    <option className="bg-white dark:bg-neutral-900" value="JOVEM APRENDIZ">JOVEM APRENDIZ</option>
+                                    <option className="bg-white dark:bg-neutral-900" value="GEEK">GEEK</option>
                                     <option className="bg-white dark:bg-neutral-900" value="VENDEDOR">VENDEDOR</option>
                                 </select>
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Celular (Opcional)</label>
                                 <input type="text" maxLength={15} value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900 font-mono" placeholder="+5511900000000" />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data de Nascimento (Opcional)</label>
+                                <input type="date" value={formData.birthDate} onChange={e => setFormData({ ...formData, birthDate: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2 rounded-lg outline-none focus:ring-1 focus:ring-neutral-900" />
                             </div>
                             <div className="pt-4 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 dark:border-neutral-800 mt-2">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cancelar</button>

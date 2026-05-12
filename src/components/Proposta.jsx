@@ -474,8 +474,21 @@ export function Proposta({ globalUser }) {
                                 )}
                             </div>
 
+                            {/* QR Code Avaliação Google */}
+                            <div className="mt-6 p-4 bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 flex flex-col items-center text-center shadow-sm">
+                                <p className="text-xs font-bold text-neutral-800 dark:text-neutral-100 mb-1 flex items-center justify-center gap-1.5">
+                                    <Star size={14} className="text-yellow-500 fill-yellow-500" /> Avalie nosso atendimento!
+                                </p>
+                                <p className="text-[9px] text-neutral-500 dark:text-neutral-400 mb-3 leading-tight max-w-[200px]">
+                                    Como foi sua experiência na loja? Escaneie com a câmera do seu celular e deixe sua avaliação no Google.
+                                </p>
+                                <div className="p-1 bg-white rounded-lg border border-neutral-200 shadow-sm shrink-0">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://maps.app.goo.gl/HkndtA47p8XvStCN9&margin=0" alt="QR Code Avaliação Google" className="w-16 h-16 object-contain" crossOrigin="anonymous" />
+                                </div>
+                            </div>
+
                             {/* Assinatura do Consultor (Visível apenas na impressão/PDF) */}
-                            <div className="mt-8 text-center pt-4 border-t border-neutral-200 dark:border-neutral-800 hidden print:block">
+                            <div className="mt-6 text-center pt-4 border-t border-neutral-200 dark:border-neutral-800 hidden print:block">
                                 <div className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1">Consultor de Vendas</div>
                                 <div className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{globalUser?.name ? globalUser.name.split(' ')[0] : 'Consultor Claro'}</div>
                                 <div className="text-[10px] text-neutral-500 dark:text-neutral-400">Shopping União Osasco - Claro</div>
