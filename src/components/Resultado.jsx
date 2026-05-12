@@ -154,7 +154,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
     ];
 
     const renderValue = (val, isCurrency) => {
-        if (val === 0) return <span className="text-neutral-300">-</span>;
+        if (val === 0) return <span className="text-neutral-400 dark:text-neutral-600">-</span>;
         return isCurrency ? applyCurrencyMask(val) : val;
     };
 
@@ -263,7 +263,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
                     </tbody>
                     <tfoot className="bg-neutral-50 dark:bg-neutral-900 sticky bottom-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
                         {/* LINHA DE TOTAIS REALIZADOS */}
-                        <tr className="text-neutral-900 font-black uppercase text-[11px]">
+                        <tr className="text-neutral-900 dark:text-neutral-100 font-black uppercase text-[11px]">
                             <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 sticky left-0 bg-neutral-100 dark:bg-neutral-800 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-[#E3000F]">TOTAL</td>
                             {COLUMNS.map(col => (
                                 <td key={col.key} className={`border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : 'bg-neutral-50 dark:bg-neutral-900'}`}>
@@ -278,7 +278,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
                                 const hasMeta = metaLoja[col.key] !== undefined && metaLoja[col.key] > 0;
                                 return (
                                     <td key={`meta-${col.key}`} className={`border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : 'bg-neutral-50 dark:bg-neutral-900'}`}>
-                                        {hasMeta ? renderValue(metaLoja[col.key], col.isCurrency) : <span className="text-neutral-300">-</span>}
+                                        {hasMeta ? renderValue(metaLoja[col.key], col.isCurrency) : <span className="text-neutral-400 dark:text-neutral-600">-</span>}
                                     </td>
                                 );
                             })}

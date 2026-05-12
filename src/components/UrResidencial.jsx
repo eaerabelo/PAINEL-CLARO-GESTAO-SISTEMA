@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Edit2, Save, X, Search, Calendar, Filter, Trash2, Home } from 'lucide-react';
+import { Edit2, Save, X, Search, Calendar, Filter, Trash2, Home, User } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { applyCpfCnpjMask } from '../utils/masks';
 
 export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, usersDB = {} }) {
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
+    const [sellerFilter, setSellerFilter] = useState('');
   
     // Filtro de mês que funciona também como "Botão de Consulta" para o histórico fechado do mês
     const [monthFilter, setMonthFilter] = useState(() => {
@@ -44,6 +46,10 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
             }
         }
 
+        if (sellerFilter && item.vendedor !== sellerFilter) {
+            return false;
+        }
+
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (
@@ -78,7 +84,9 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     const handleCancel = () => setEditingId(null);
 
     const handleChange = (e, field) => {
-        setEditForm(prev => ({ ...prev, [field]: e.target.value }));
+        let value = e.target.value;
+        if (field === 'cpf') value = applyCpfCnpjMask(value);
+        setEditForm(prev => ({ ...prev, [field]: value }));
     };
 
     const getStatusStyle = (status) => {
@@ -114,6 +122,17 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full sm:w-56 pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
                         />
+                    </div>
+                    <div className="relative w-full sm:w-auto flex items-center bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 focus-within:border-[#E3000F] focus-within:ring-1 focus-within:ring-[#E3000F] transition-all">
+                        <Filter className="text-neutral-400 dark:text-neutral-500 shrink-0" size={16} />
+                        <select
+                            value={sellerFilter}
+                            onChange={(e) => setSellerFilter(e.target.value)}
+                            className="w-full sm:w-40 bg-transparent py-2 pl-2 pr-1 text-sm text-neutral-800 dark:text-neutral-100 outline-none cursor-pointer"
+                        >
+                            <option className="bg-white dark:bg-neutral-900" value="">Todos Vendedores</option>
+                            {VENDEDORES_OPTIONS.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}
+                        </select>
                     </div>
                     <div className="relative w-full sm:w-auto">
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
@@ -171,10 +190,10 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                                                     {isEditing ? <input type="text" value={editForm.cidade || ''} onChange={(e) => handleChange(e, 'cidade')} className="w-24 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.cidade || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
-                                                    {isEditing ? <input type="text" value={editForm.data || ''} onChange={(e) => handleChange(e, 'data')} className="w-24 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-600 dark:text-neutral-400">{item.data}</span>}
+                                                    {isEditing ? <input type="date" value={editForm.data || ''} onChange={(e) => handleChange(e, 'data')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-600 dark:text-neutral-400">{item.data && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
-                                                    {isEditing ? <input type="date" value={editForm.dataInstalacao || ''} onChange={(e) => handleChange(e, 'dataInstalacao')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none cursor-pointer focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.dataInstalacao ? new Date(item.dataInstalacao).toLocaleDateString('pt-BR') : '-'}</span>}
+                                                    {isEditing ? <input type="date" value={editForm.dataInstalacao || ''} onChange={(e) => handleChange(e, 'dataInstalacao')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none cursor-pointer focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.dataInstalacao ? new Date(item.dataInstalacao + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
                                                     {isEditing ? <select value={editForm.vendedor || ''} onChange={(e) => handleChange(e, 'vendedor')} className="w-28 px-1 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none"><option className="bg-white dark:bg-neutral-900" value="">Selecione...</option>{VENDEDORES_OPTIONS.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select> : <span className="font-medium text-neutral-800 dark:text-neutral-200">{item.vendedor}</span>}

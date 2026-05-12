@@ -121,6 +121,18 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
         setIsModalOpen(false);
     };
 
+    const getRoleStyle = (role) => {
+        switch (role) {
+            case 'GERENTE': return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+            case 'SENIOR': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400';
+            case 'ASSISTENTE RELACIONAMENTO': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400';
+            case 'ADMINISTRAÇÃO': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400';
+            case 'JOVEM APRENDIZ': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
+            case 'GEEK': return 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400';
+            default: return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400';
+        }
+    };
+
     // --- BARREIRA DE SEGURANÇA (Apenas Gestor) ---
     if (globalUser?.role !== 'GERENTE') {
         return (
@@ -223,10 +235,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                                             </div>
                                         </td>
                                         <td className="px-6 py-3">
-                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${user.role === 'GERENTE' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' :
-                                                ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(user.role) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' :
-                                                    'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'
-                                                }`}>
+                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${getRoleStyle(user.role)}`}>
                                                 {user.role}
                                             </span>
                                         </td>

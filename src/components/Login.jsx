@@ -212,7 +212,7 @@ export function Login({ usersDB, setUsersDB, onLogin }) {
     const holidayMessage = getHolidayMessage();
 
     return (
-        <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 flex flex-col items-center justify-center p-4 transition-colors">
+        <div className="min-h-screen bg-neutral-100 dark:bg-neutral-950 flex flex-col items-center justify-center p-4 transition-colors duration-500">
             {holidayMessage && (
                 <div className="w-full max-w-md mb-6 bg-gradient-to-br from-[#E3000F] to-red-800 text-white p-6 rounded-2xl shadow-xl border border-red-500/50 animate-fade-in text-center relative overflow-hidden">
                     <div className="absolute -right-6 -top-6 opacity-10 text-8xl transform rotate-12 pointer-events-none">
@@ -228,7 +228,7 @@ export function Login({ usersDB, setUsersDB, onLogin }) {
                 </div>
             )}
 
-            <div className="bg-white dark:bg-neutral-900 w-full max-w-md rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden transition-colors">
+            <div className="bg-white dark:bg-neutral-900 w-full max-w-md rounded-2xl shadow-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden transition-colors duration-500">
                 <div className="bg-[#E3000F] p-6 text-center relative overflow-hidden">
                     <div className="w-16 h-16 bg-white rounded-full mx-auto mb-4 flex items-center justify-center shadow-lg">
                         <img src={viteLogo} alt="Logo" className="w-10 h-10 object-contain" />
