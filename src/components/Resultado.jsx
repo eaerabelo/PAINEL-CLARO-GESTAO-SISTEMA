@@ -5,9 +5,9 @@ import * as XLSX from 'xlsx';
 import { getTodaySP, applyCurrencyMask } from '../utils/masks';
 import { METAS_PADRAO } from '../utils/constants';
 
-export function Resultado({ salesData, goalsDB, usersDB = {} }) {
-    const currentYYYYMM = getTodaySP().slice(0, 7);
-    const [monthFilter, setMonthFilter] = useState(currentYYYYMM);
+export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGlobalMonth }) {
+    const monthFilter = globalMonth;
+    const setMonthFilter = setGlobalMonth;
 
     const activeMetas = goalsDB[monthFilter] || METAS_PADRAO || {};
     const safeVendedores = Object.values(usersDB)
@@ -22,17 +22,11 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthStr, 10);
         const daysInMonth = new Date(year, month, 0).getDate();
-        const metaGross = (Number(activeMetas.posTotal) || 0) + (Number(activeMetas.controle) || 0); // Agora é a meta global direta
-
-        let totalWeights = 0;
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateObj = new Date(year, month - 1, d);
-            const dayOfWeek = dateObj.getDay();
-            totalWeights += (dayOfWeek === 0 || dayOfWeek === 6) ? 2 : 1; // Sábado (6) e Domingo (0) com peso 2
-        }
+        // Pós Total já representa o Gross da loja, não devemos somar com Controle senão a meta dobra.
+        const metaGross = Number(activeMetas.posTotal) || 0; 
 
         let remainingMeta = metaGross;
-        let remainingWeights = totalWeights;
+        let remainingDays = daysInMonth;
 
         const generatedRows = [];
         let accumulatedGross = 0;
@@ -48,15 +42,11 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
             const dateIso = `${yearStr}-${monthStr}-${dayStr}`;
             const dateBr = `${dayStr}/${monthStr}/${yearStr}`;
 
-            const dateObj = new Date(year, month - 1, d);
-            const dayOfWeek = dateObj.getDay();
-            const weight = (dayOfWeek === 0 || dayOfWeek === 6) ? 2 : 1; // Dobro do alvo para o final de semana
-            
             let metaDia = 0;
-            if (remainingWeights > 0) {
-                metaDia = Math.round((remainingMeta / remainingWeights) * weight);
+            if (remainingDays > 0) {
+                metaDia = Math.ceil(remainingMeta / remainingDays);
                 remainingMeta -= metaDia;
-                remainingWeights -= weight;
+                remainingDays -= 1;
             }
 
             const dailySales = salesData.filter(s => {
@@ -110,7 +100,6 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
                 else if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { acessorio += q; receitaAcessorio += rec; }
                 else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { pelicula += q; receitaAcessorio += rec; }
 
-                if (adds.includes('SEGURO')) seguro += 1;
                 if (adds.includes('TROCAFY')) trocafy += 1;
                 if (adds.includes('CLARO UP')) claroUp += 1;
                 if (sale.mplay === 'SIM') mplay += 1;
@@ -158,7 +147,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {} }) {
         return isCurrency ? applyCurrencyMask(val) : val;
     };
 
-    const metaGrossTotal = (Number(activeMetas.posTotal) || 0) + (Number(activeMetas.controle) || 0);
+    const metaGrossTotal = Number(activeMetas.posTotal) || 0;
     const metaLoja = {
         grossDia: metaGrossTotal,
         metaDia: metaGrossTotal,

@@ -21,9 +21,15 @@ export const StreamingBadges = () => (
 export function Proposta({ globalUser }) {
     const [cliente, setCliente] = useState('');
     const [movel, setMovel] = useState('');
+    const [dependente, setDependente] = useState('');
+    const [qtdDependente, setQtdDependente] = useState(1);
     const [fibra, setFibra] = useState('');
+    const [qtdFibra, setQtdFibra] = useState(1);
     const [tv, setTv] = useState('');
+    const [pontoAdicional, setPontoAdicional] = useState('');
+    const [qtdPontoAdicional, setQtdPontoAdicional] = useState(1);
     const [fixo, setFixo] = useState('');
+    const [qtdFixo, setQtdFixo] = useState(1);
     const [mesh, setMesh] = useState('');
     const [aparelhoValor, setAparelhoValor] = useState('');
     const [aparelhoNome, setAparelhoNome] = useState('');
@@ -31,8 +37,6 @@ export function Proposta({ globalUser }) {
 
     // Extraindo as listas das constantes de forma segura
     const mobilePlans = Object.keys(PRICING_MOVEL || {});
-    const fibraPlans = FIBRA_OPTIONS || [];
-    const tvPlans = TV_BOX_OPTIONS || [];
     const fixoPlans = FIXO_OPTIONS || [];
     const meshPlans = MESH_OPTIONS || [];
     const seguroPlans = [
@@ -41,6 +45,42 @@ export function Proposta({ globalUser }) {
         { label: 'SEGURO R$ 55,00', prices: { UNICO: 55.00 } },
         { label: 'SEGURO R$ 60,00', prices: { UNICO: 60.00 } }
     ];
+
+    const dependentePlans = [
+        { label: 'DEPENDENTE PAGO', prices: { UNICO: 55.00 } },
+        { label: 'DEPENDENTE INCLUSO', prices: { UNICO: 0.00 } },
+        { label: 'DEP BANDA-LARGA', prices: { UNICO: 29.90 } }
+    ];
+
+    const pontoAdicionalPlans = [
+        { label: 'PONTO TV BOX STREAMING', prices: { UNICO: 69.90 } },
+        { label: 'PONTO TV BOX A CABO', prices: { UNICO: 69.90 } },
+        { label: 'PONTO TV SOUNDBOX', prices: { UNICO: 99.90 } },
+        { label: 'PONTO TV TOP (RENT)', prices: { UNICO: 10.00 } }
+    ];
+
+    const fibraPlansOverrides = {
+        '350 MEGA': { SINGLE: 99.90, MULTI: 79.90, 'MULTI 3P': 79.90 },
+        '600 MEGA': { SINGLE: 119.90, MULTI: 99.90, 'MULTI 3P': 99.90 },
+        '750 MEGA': { SINGLE: 149.90, MULTI: 129.90, 'MULTI 3P': 129.90 }
+    };
+    const extendedFibraPlans = [];
+    let found350 = false, found600 = false, found750 = false;
+    (FIBRA_OPTIONS || []).forEach(p => {
+        if (p.label === '350 MEGA') { extendedFibraPlans.push({ label: '350 MEGA', prices: fibraPlansOverrides['350 MEGA'] }); found350 = true; }
+        else if (p.label === '600 MEGA') { extendedFibraPlans.push({ label: '600 MEGA', prices: fibraPlansOverrides['600 MEGA'] }); found600 = true; }
+        else if (p.label === '750 MEGA') { extendedFibraPlans.push({ label: '750 MEGA', prices: fibraPlansOverrides['750 MEGA'] }); found750 = true; }
+        else { extendedFibraPlans.push(p); }
+    });
+    if (!found350) extendedFibraPlans.push({ label: '350 MEGA', prices: fibraPlansOverrides['350 MEGA'] });
+    if (!found600) extendedFibraPlans.push({ label: '600 MEGA', prices: fibraPlansOverrides['600 MEGA'] });
+    if (!found750) extendedFibraPlans.push({ label: '750 MEGA', prices: fibraPlansOverrides['750 MEGA'] });
+    extendedFibraPlans.sort((a, b) => (parseInt(a.label) * (a.label.includes('GIGA') || a.label.includes('GB') ? 1000 : 1)) - (parseInt(b.label) * (b.label.includes('GIGA') || b.label.includes('GB') ? 1000 : 1)));
+
+    const extendedTvPlans = [...(TV_BOX_OPTIONS || [])];
+    const idxTvTop = extendedTvPlans.findIndex(p => p.label === 'TV TOP (RENT)');
+    if (idxTvTop >= 0) extendedTvPlans[idxTvTop] = { label: 'TV TOP (RENT)', prices: { SINGLE: 110.00, MULTI: 110.00, 'MULTI 3P': 110.00 } };
+    else extendedTvPlans.push({ label: 'TV TOP (RENT)', prices: { SINGLE: 110.00, MULTI: 110.00, 'MULTI 3P': 110.00 } });
 
     // --- LÓGICA DE CÁLCULO E COMBO ---
     // Define o tipo de combo baseado na combinação de produtos selecionados
@@ -54,8 +94,10 @@ export function Proposta({ globalUser }) {
     const getPrice = (cat, item) => {
         if (!item) return 0;
         if (cat === 'MOVEL') return PRICING_MOVEL[item]?.[comboType] || PRICING_MOVEL[item]?.['MULTI'] || PRICING_MOVEL[item]?.['SINGLE'] || 0;
-        if (cat === 'FIBRA') return fibraPlans.find(o => o.label === item)?.prices?.[comboType] || fibraPlans.find(o => o.label === item)?.prices?.['MULTI'] || fibraPlans.find(o => o.label === item)?.prices?.['SINGLE'] || fibraPlans.find(o => o.label === item)?.prices?.UNICO || 0;
-        if (cat === 'TV') return tvPlans.find(o => o.label === item)?.prices?.[comboType] || tvPlans.find(o => o.label === item)?.prices?.['MULTI'] || tvPlans.find(o => o.label === item)?.prices?.['SINGLE'] || tvPlans.find(o => o.label === item)?.prices?.UNICO || 0;
+        if (cat === 'DEPENDENTE') return dependentePlans.find(o => o.label === item)?.prices?.UNICO || 0;
+        if (cat === 'FIBRA') return extendedFibraPlans.find(o => o.label === item)?.prices?.[comboType] || extendedFibraPlans.find(o => o.label === item)?.prices?.['MULTI'] || extendedFibraPlans.find(o => o.label === item)?.prices?.['SINGLE'] || extendedFibraPlans.find(o => o.label === item)?.prices?.UNICO || 0;
+        if (cat === 'TV') return extendedTvPlans.find(o => o.label === item)?.prices?.[comboType] || extendedTvPlans.find(o => o.label === item)?.prices?.['MULTI'] || extendedTvPlans.find(o => o.label === item)?.prices?.['SINGLE'] || extendedTvPlans.find(o => o.label === item)?.prices?.UNICO || 0;
+        if (cat === 'PONTO_ADICIONAL') return pontoAdicionalPlans.find(o => o.label === item)?.prices?.UNICO || 0;
         if (cat === 'FIXO') return fixoPlans.find(o => o.label === item)?.prices?.UNICO || 0;
         if (cat === 'MESH') return meshPlans.find(o => o.label === item)?.prices?.UNICO || 0;
         if (cat === 'SEGURO') return seguroPlans.find(o => o.label === item)?.prices?.UNICO || 0;
@@ -63,12 +105,14 @@ export function Proposta({ globalUser }) {
     };
 
     const valMovel = getPrice('MOVEL', movel);
-    const valFibra = getPrice('FIBRA', fibra);
+    const valDependente = getPrice('DEPENDENTE', dependente) * (parseInt(qtdDependente, 10) || 1);
+    const valFibra = getPrice('FIBRA', fibra) * (parseInt(qtdFibra, 10) || 1);
     const valTv = getPrice('TV', tv);
-    const valFixo = getPrice('FIXO', fixo);
+    const valPontoAdicional = getPrice('PONTO_ADICIONAL', pontoAdicional) * (parseInt(qtdPontoAdicional, 10) || 1);
+    const valFixo = getPrice('FIXO', fixo) * (parseInt(qtdFixo, 10) || 1);
     const valMesh = getPrice('MESH', mesh);
     const valSeguro = getPrice('SEGURO', seguro);
-    const valorTotal = valMovel + valFibra + valTv + valFixo + valMesh + valSeguro;
+    const valorTotal = valMovel + valDependente + valFibra + valTv + valPontoAdicional + valFixo + valMesh + valSeguro;
     
     const valAparelho = parseCurrencyToFloat(aparelhoValor);
     const parcela12x = valAparelho / 12;
@@ -84,9 +128,11 @@ export function Proposta({ globalUser }) {
         
         text += `*RESUMO DOS SERVIÇOS:*\n`;
         if (movel) text += `📱 *Móvel:* ${movel} - ${applyCurrencyMask(valMovel)}\n`;
-        if (fibra) text += `🌐 *Fibra:* ${fibra} - ${applyCurrencyMask(valFibra)}\n`;
+        if (dependente) text += `👥 *Dependente:* ${qtdDependente > 1 ? `${qtdDependente}x ` : ''}${dependente} - ${applyCurrencyMask(valDependente)}\n`;
+        if (fibra) text += `🌐 *Fibra:* ${qtdFibra > 1 ? `${qtdFibra}x ` : ''}${fibra} - ${applyCurrencyMask(valFibra)}\n`;
         if (tv) text += `📺 *TV:* ${tv} - ${applyCurrencyMask(valTv)}\n`;
-        if (fixo) text += `📞 *Fixo:* ${fixo} - ${applyCurrencyMask(valFixo)}\n`;
+        if (pontoAdicional) text += `📺 *Ponto Adicional:* ${qtdPontoAdicional > 1 ? `${qtdPontoAdicional}x ` : ''}${pontoAdicional} - ${applyCurrencyMask(valPontoAdicional)}\n`;
+        if (fixo) text += `📞 *Fixo:* ${qtdFixo > 1 ? `${qtdFixo}x ` : ''}${fixo} - ${applyCurrencyMask(valFixo)}\n`;
         if (mesh) text += `📶 *Mesh:* ${mesh} - ${applyCurrencyMask(valMesh)}\n`;
         if (seguro) text += `🛡️ *Seguro:* ${seguro} - ${applyCurrencyMask(valSeguro)}\n`;
         
@@ -172,10 +218,19 @@ export function Proposta({ globalUser }) {
             }
         }
         
+        if (dependente) {
+            const d = dependente.toUpperCase();
+            if (d.includes('BANDA-LARGA')) {
+                bens.push({ icon: <Wifi size={14} />, title: 'Dependente Banda-Larga', desc: 'Compartilha a franquia de internet móvel com roteador.' });
+            } else {
+                bens.push({ icon: <User size={14} />, title: 'Linha Dependente', desc: 'Compartilha a internet do plano titular com ligações ilimitadas.' });
+            }
+        }
+
         if (fibra) {
             const f = fibra.toUpperCase();
             bens.push({ icon: <MonitorPlay size={14} />, title: 'Globoplay Premium', desc: 'Assinatura inclusa no plano.' });
-            if (f.includes('1 GIGA') || f.includes('1GB') || f.includes('1GIGA') || f.includes('5GB') || f.includes('5GIGA') || f.includes('10GB') || f.includes('10GIGA')) {
+            if (f.includes('1 GIGA') || f.includes('1GB') || f.includes('1GIGA') || f.includes('5GB') || f.includes('5GIGA') || f.includes('10GB') || f.includes('10GIGA') || f.includes('600 MEGA') || f.includes('750 MEGA')) {
                 bens.push({ icon: <Wifi size={14} />, title: 'Wi-Fi 6', desc: 'Tecnologia de última geração com mais velocidade.' });
             } else {
                 bens.push({ icon: <Wifi size={14} />, title: 'Wi-Fi 5', desc: 'Modem de alta performance.' });
@@ -197,6 +252,14 @@ export function Proposta({ globalUser }) {
             }
         }
         
+        if (pontoAdicional) {
+            const pa = pontoAdicional.toUpperCase();
+            bens.push({ icon: <Tv size={14} />, title: 'Ponto Adicional', desc: 'Acesso completo a grade de canais na segunda TV.' });
+            if (pa.includes('SOUNDBOX')) {
+                bens.push({ icon: <Zap size={14} />, title: 'Som Premium', desc: 'Qualidade de áudio Soundbox no ponto adicional.' });
+            }
+        }
+
         if (fixo) {
             const fx = fixo.toUpperCase();
             if (fx.includes('MUNDO')) {
@@ -269,27 +332,63 @@ export function Proposta({ globalUser }) {
                         </div>
 
                         <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><User size={14} className="text-[#E3000F]" /> Dependentes Móvel / Banda-Larga</label>
+                            <div className="flex gap-2">
+                                <select value={dependente} onChange={(e) => setDependente(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
+                                    <option className="bg-white dark:bg-neutral-900" value="">Nenhum dependente selecionado</option>
+                                    {dependentePlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
+                                </select>
+                                {dependente && (
+                                    <input type="number" min="1" value={qtdDependente} onChange={(e) => setQtdDependente(e.target.value)} className="w-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-center" title="Quantidade" />
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
                             <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><Wifi size={14} className="text-[#E3000F]" /> Banda Larga (Fibra)</label>
-                            <select value={fibra} onChange={(e) => setFibra(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
-                                <option className="bg-white dark:bg-neutral-900" value="">Nenhuma internet selecionada</option>
-                                {fibraPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
-                            </select>
+                            <div className="flex gap-2">
+                                <select value={fibra} onChange={(e) => setFibra(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
+                                    <option className="bg-white dark:bg-neutral-900" value="">Nenhuma internet selecionada</option>
+                                    {extendedFibraPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
+                                </select>
+                                {fibra && (
+                                    <input type="number" min="1" value={qtdFibra} onChange={(e) => setQtdFibra(e.target.value)} className="w-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-center" title="Quantidade" />
+                                )}
+                            </div>
                         </div>
 
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><Tv size={14} className="text-[#E3000F]" /> Claro TV+</label>
                             <select value={tv} onChange={(e) => setTv(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
                                 <option className="bg-white dark:bg-neutral-900" value="">Nenhum plano de TV selecionado</option>
-                                {tvPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
+                                {extendedTvPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
                             </select>
                         </div>
 
                         <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><Tv size={14} className="text-[#E3000F]" /> Ponto Adicional de TV</label>
+                            <div className="flex gap-2">
+                                <select value={pontoAdicional} onChange={(e) => setPontoAdicional(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
+                                    <option className="bg-white dark:bg-neutral-900" value="">Nenhum ponto adicional selecionado</option>
+                                    {pontoAdicionalPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
+                                </select>
+                                {pontoAdicional && (
+                                    <input type="number" min="1" value={qtdPontoAdicional} onChange={(e) => setQtdPontoAdicional(e.target.value)} className="w-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-center" title="Quantidade" />
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
                             <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><Phone size={14} className="text-[#E3000F]" /> Fixo / Adicionais</label>
-                            <select value={fixo} onChange={(e) => setFixo(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
-                                <option className="bg-white dark:bg-neutral-900" value="">Nenhum serviço adicional</option>
-                                {fixoPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
-                            </select>
+                            <div className="flex gap-2">
+                                <select value={fixo} onChange={(e) => setFixo(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
+                                    <option className="bg-white dark:bg-neutral-900" value="">Nenhum serviço adicional</option>
+                                    {fixoPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
+                                </select>
+                                {fixo && (
+                                    <input type="number" min="1" value={qtdFixo} onChange={(e) => setQtdFixo(e.target.value)} className="w-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-center" title="Quantidade" />
+                                )}
+                            </div>
                         </div>
 
                         <div className="space-y-1.5">
@@ -352,12 +451,12 @@ export function Proposta({ globalUser }) {
                         
                         {/* Coluna 1: Cliente e Resumo de Serviços (Lado Esquerdo) */}
                         <div className="md:col-span-7 lg:col-span-7 print:col-span-7 p-6 print:p-5 flex flex-col border-b md:border-b-0 md:border-r border-neutral-100 dark:border-neutral-800 print:border-r print:border-neutral-200">
-                            <div className="mb-6 pb-5 border-b border-neutral-100 dark:border-neutral-800 border-dashed">
+                            <div className="mb-4 pb-4 border-b border-neutral-100 dark:border-neutral-800 border-dashed">
                                 <div className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-0.5">Proposta para</div>
                                 <div className="text-lg font-bold text-neutral-800 dark:text-neutral-100 leading-tight">{cliente || 'Cliente Não Informado'}</div>
                             </div>
 
-                            <div className="space-y-3.5 mb-6 flex-1">
+                            <div className="space-y-2 mb-4">
                                 <div className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-1">Resumo dos Serviços</div>
                                 
                                 {movel && (
@@ -366,9 +465,15 @@ export function Proposta({ globalUser }) {
                                         <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valMovel)}</span>
                                     </div>
                                 )}
+                                {dependente && (
+                                    <div className="flex justify-between items-center group">
+                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><User size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{qtdDependente > 1 ? `${qtdDependente}x ` : ''}{dependente}</span></div>
+                                        <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valDependente)}</span>
+                                    </div>
+                                )}
                                 {fibra && (
                                     <div className="flex justify-between items-center group">
-                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><Wifi size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">Fibra {fibra}</span></div>
+                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><Wifi size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{qtdFibra > 1 ? `${qtdFibra}x ` : ''}Fibra {fibra}</span></div>
                                         <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valFibra)}</span>
                                     </div>
                                 )}
@@ -378,9 +483,15 @@ export function Proposta({ globalUser }) {
                                         <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valTv)}</span>
                                     </div>
                                 )}
+                                {pontoAdicional && (
+                                    <div className="flex justify-between items-center group">
+                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><Tv size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{qtdPontoAdicional > 1 ? `${qtdPontoAdicional}x ` : ''}{pontoAdicional}</span></div>
+                                        <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valPontoAdicional)}</span>
+                                    </div>
+                                )}
                                 {fixo && (
                                     <div className="flex justify-between items-center group">
-                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><Phone size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{fixo}</span></div>
+                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><Phone size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{qtdFixo > 1 ? `${qtdFixo}x ` : ''}{fixo}</span></div>
                                         <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valFixo)}</span>
                                     </div>
                                 )}
@@ -420,31 +531,31 @@ export function Proposta({ globalUser }) {
                             </div>
 
                             {valAparelho > 0 && (
-                                <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-neutral-800 border-dashed">
-                                    <div className="mb-3">
+                                <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-800 border-dashed">
+                                    <div className="mb-2">
                                         <span className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest block mb-0.5">Oferta Exclusiva de Aparelho</span>
                                         <h4 className="text-sm font-black text-neutral-800 dark:text-neutral-100 uppercase">{aparelhoNome || 'Aparelho Celular'}</h4>
                                     </div>
                                     
                                     <div className="grid grid-cols-2 gap-2 mb-2">
-                                        <div className="bg-neutral-50 dark:bg-neutral-800 p-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 flex flex-col items-center text-center justify-center">
-                                            <span className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400 uppercase">Valor À Vista</span>
+                                        <div className="bg-neutral-50 dark:bg-neutral-800 p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 flex flex-col items-center text-center justify-center">
+                                            <span className="text-[9px] font-bold text-neutral-500 dark:text-neutral-400 uppercase">Valor À Vista</span>
                                             <span className="text-sm font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valAparelho)}</span>
                                         </div>
-                                        <div className="bg-neutral-50 dark:bg-neutral-800 p-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 flex flex-col items-center text-center justify-center">
-                                            <span className="text-[10px] font-bold text-neutral-500 dark:text-neutral-400 uppercase">12x Sem Juros</span>
+                                        <div className="bg-neutral-50 dark:bg-neutral-800 p-2 rounded-lg border border-neutral-200 dark:border-neutral-700 flex flex-col items-center text-center justify-center">
+                                            <span className="text-[9px] font-bold text-neutral-500 dark:text-neutral-400 uppercase">12x Sem Juros</span>
                                             <span className="text-sm font-black text-neutral-900 dark:text-white">12x de {applyCurrencyMask(parcela12x)}</span>
                                         </div>
                                     </div>
 
-                                    <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/10 p-3 rounded-lg border border-red-100 dark:border-red-900/30 mt-2">
+                                    <div className="flex justify-between items-center bg-red-50 dark:bg-red-900/10 p-2 rounded-lg border border-red-100 dark:border-red-900/30 mt-2">
                                         <div className="flex flex-col pr-2">
-                                            <span className="text-xs font-bold text-red-800 dark:text-red-400 uppercase tracking-wide">21x Sem Juros</span>
-                                            <span className="text-[9px] text-red-600 dark:text-red-500 mt-0.5 leading-tight max-w-[200px]">Exclusivo para Multi nos cartões: Bradesco, Santander, Itaú, Caixa, C6 Bank, PicPay, BB e Original.</span>
+                                            <span className="text-[10px] font-bold text-red-800 dark:text-red-400 uppercase tracking-wide">21x Sem Juros</span>
+                                            <span className="text-[8px] text-red-600 dark:text-red-500 mt-0.5 leading-tight max-w-[200px]">Exclusivo para Multi nos cartões: Bradesco, Santander, Itaú, Caixa, C6 Bank, PicPay, BB e Original.</span>
                                         </div>
                                         <div className="text-right whitespace-nowrap flex flex-col items-end">
-                                            <span className="text-base font-black text-[#E3000F]">21x de {applyCurrencyMask(parcela21x)}</span>
-                                            {comboType === 'SINGLE' && <span className="text-[9px] font-bold text-[#E3000F] uppercase mt-0.5"> *SOMENTE COMBO MULTI</span>}
+                                            <span className="text-sm font-black text-[#E3000F]">21x de {applyCurrencyMask(parcela21x)}</span>
+                                            {comboType === 'SINGLE' && <span className="text-[8px] font-bold text-[#E3000F] uppercase mt-0.5"> *SOMENTE COMBO MULTI</span>}
                                         </div>
                                     </div>
                                 </div>
@@ -457,7 +568,7 @@ export function Proposta({ globalUser }) {
                                 <ShieldCheck size={16} className="text-green-600" /> Benefícios Inclusos
                             </h3>
                             
-                            <div className="space-y-4 flex-1">
+                            <div className="space-y-3 flex-1">
                                 {beneficios.length === 0 ? (
                                     <p className="text-xs text-neutral-400 dark:text-neutral-500 text-center mt-10">Adicione produtos para ver as vantagens.</p>
                                 ) : (
@@ -475,7 +586,7 @@ export function Proposta({ globalUser }) {
                             </div>
 
                             {/* QR Code Avaliação Google */}
-                            <div className="mt-6 p-4 bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 flex flex-col items-center text-center shadow-sm">
+                            <div className="mt-4 p-4 bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 flex flex-col items-center text-center shadow-sm">
                                 <p className="text-xs font-bold text-neutral-800 dark:text-neutral-100 mb-1 flex items-center justify-center gap-1.5">
                                     <Star size={14} className="text-yellow-500 fill-yellow-500" /> Avalie nosso atendimento!
                                 </p>
@@ -488,7 +599,7 @@ export function Proposta({ globalUser }) {
                             </div>
 
                             {/* Assinatura do Consultor (Visível apenas na impressão/PDF) */}
-                            <div className="mt-6 text-center pt-4 border-t border-neutral-200 dark:border-neutral-800 hidden print:block">
+                            <div className="mt-4 text-center pt-3 border-t border-neutral-200 dark:border-neutral-800 hidden print:block">
                                 <div className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mb-1">Consultor de Vendas</div>
                                 <div className="text-xs font-bold text-neutral-800 dark:text-neutral-200">{globalUser?.name ? globalUser.name.split(' ')[0] : 'Consultor Claro'}</div>
                                 <div className="text-[10px] text-neutral-500 dark:text-neutral-400">Shopping União Osasco - Claro</div>

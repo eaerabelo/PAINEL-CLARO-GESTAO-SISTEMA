@@ -22,10 +22,11 @@
 - **REGRA 8:** Ao abrir o modal de "Nova Venda" com um usuário VENDEDOR logado, o campo "Vendedor" deve ser preenchido automaticamente com seu PRIMEIRO NOME e travado para edição.
 - **REGRA 9:** Se a venda envolver produtos comissionados, o campo "Receita" muda sua lógica para ler o "Valor Bruto" da venda. A comissão é fracionada dinamicamente: 5% para Aparelhos Celulares (subindo para 6% se o adicional de "Seguro" estiver vinculado) e 15% para Acessórios e Películas. Serviços de Telecom (Pós, Controle, Fibra) computam 100% do valor para o Run Rate.
 - **REGRA 10:** A Receita (preço) é preenchida e bloqueada automaticamente se a combinação de Produto + Tipo de Combo + Especificação for encontrada na tabela de preços do sistema. Caso contrário, o campo fica livre para digitação.
-- **REGRA 11:** Vendas de produtos móveis (Pós, Controle, etc.) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração), além dos campos de "M-Play" e "Portabilidade". Para outros produtos (Aparelhos, Acessórios, Fibra), esses campos são ocultos da interface e gravados automaticamente como "NÃO" para facilitar o lançamento.
+- **REGRA 11:** Vendas de produtos móveis (Pós, Controle, etc.) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração), além dos campos de "M-Play" e "Portabilidade". Para serviços residenciais, o campo de "M-Play" também é exibido para preenchimento. Para produtos físicos (Aparelhos, Acessórios), esses campos são ocultos da interface. A tabela de listagem exibe a coluna "Operação".
+- **REGRA 11.1:** Na venda de um "APARELHO", caso o adicional "SEGURO" seja marcado, o sistema obriga a seleção do plano do seguro e, ao salvar, desmembra a venda registrando automaticamente uma linha adicional individual para o produto "SEGURO". A comissão de 6% sobre o aparelho original é preservada.
 - **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, aos perfis de liderança/backoffice (SÊNIOR e equivalentes) ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado).
-- **REGRA 13:** A tabela de visualização de vendas diárias sempre carrega por padrão as vendas correspondentes ao dia atual. Para consultar o histórico ou localizar registros específicos, o usuário deve utilizar o calendário combinado com a barra de pesquisa inteligente. O usuário também tem a opção de exportar os relatórios filtrados para Excel.
-- **REGRA 13.1:** A importação e exportação de vendas em lote através de planilhas Excel são suportadas, porém os botões de ação são **exclusivos do perfil GESTOR** para proteção dos dados da loja. O sistema possui uma inteligência de mapeamento (Smart Mapper) que converte automaticamente formatações antigas e lê datas seriais, vinculando as receitas corretamente.
+- **REGRA 13:** A tabela de visualização exibe as vendas pertencentes ao Mês Selecionado no seletor global do sistema. A barra de pesquisa possui uma inteligência abrangente para filtrar as vendas listadas por Vendedor, Produto, CPF/CNPJ, Adicionais (ex: Trocafy, Seguro), Portabilidade, M-Play e Tipo de Operação.
+- **REGRA 13.1:** A importação e exportação em Excel são **exclusivos do perfil GESTOR** para proteção dos dados da loja. O sistema possui uma inteligência de mapeamento (Smart Mapper) que converte automaticamente formatações antigas e lê datas seriais.
 
 ## 3. MÓDULO UR-RESIDENCIAL (ACOMPANHAMENTO)
 
@@ -65,7 +66,8 @@
 - **REGRA 32:** O sistema utiliza o Firebase Firestore (Google) como Banco de Dados NoSQL em nuvem. A arquitetura é dividida em múltiplas coleções (`vendas_uniao_osasco`, `estoque_uniao_osasco`, `reprovados_uniao_osasco`) para garantir escalabilidade infinita e evitar o limite estrutural de 1 Megabyte.
 - **REGRA 33:** As ações de salvar, editar e excluir disparam a função de autossave para a nuvem. Há um sistema de "Smart Diff com Debounce" que aguarda 1,2 segundos de inatividade, compara as mudanças locais com a nuvem, e envia apenas as atualizações exatas em lotes (`writeBatch`) para economizar drasticamente as requisições de rede.
 - **REGRA 34:** A plataforma opera com Sincronização em Tempo Real (onSnapshot). Qualquer alteração feita por um vendedor na loja é propagada automaticamente e instantaneamente para a tela do Gestor e dos outros computadores conectados.
-- **REGRA 35:** Ao ser carregado, o sistema bloqueia a interface de login até que a resposta da nuvem seja concluída, garantindo que o colaborador nunca trabalhe sobre tabelas em branco ou dados desatualizados.
+- **REGRA 35:** A captura dos dados implementa um **Carregamento Sob Demanda**. Para otimizar a cota de leitura do banco e evitar custos ou interrupções, o sistema restringe o carregamento de "Vendas" e "Reprovados" exclusivamente aos registros do mês selecionado pelo seletor de Mês Global localizado no topo da interface.
+- **REGRA 35.1:** A ordenação dos dados baixados do banco emprega uma "Inteligência Cronológica", ordenando os itens primariamente pela data física registrada pelo usuário, e utilizando a Ordem de Lançamento (ID) apenas como método de desempate, impedindo assim o embaralhamento da tabela com lançamentos retroativos.
 
 ## 8. MÓDULO DE REPROVADOS (RESIDENCIAL)
 
@@ -98,4 +100,11 @@
 - **REGRA 46:** As propostas podem ser renderizadas localmente e baixadas como Imagens de alta resolução (via html2canvas) ou enviadas diretamente via WhatsApp contendo uma formatação de texto comercial amigável.
 
 ## 11. INTERFACE E ACESSIBILIDADE
-- **REGRA 47:** O sistema possui suporte nativo ao Modo Noturno (Dark Mode) com transição de cores suave (500ms). A preferência do usuário é salva no `localStorage` do navegador e aplica um CSS adaptativo em todas as telas, rodapés de tabelas de resultado, modais e caixas de seleção, preservando a visibilidade e o conforto visual.
+- **REGRA 47:** O sistema possui suporte nativo ao Modo Noturno (Dark Mode) com transição de cores suave (500ms). A preferência do usuário é salva no `localStorage` do navegador e aplica um CSS adaptativo em todas as telas, preservando a visibilidade e o conforto visual.
+
+## 12. MÓDULO DE PARCIAL E FECHAMENTO
+
+- **REGRA 48:** A seção de Parcial & Fechamento possui **Acesso Estrito à Gerência**. Outros perfis verão a página bloqueada.
+- **REGRA 49:** O módulo possui integração de dados fluída, varrendo as vendas do dia e categorizando-as perfeitamente em Gross (Titulares, Dependentes Pagos, Banda Larga, Flex), Gross PME, Convergência Residencial, Aparelhos, Portabilidade, Ativações e Migrações.
+- **REGRA 50:** O sistema calcula de forma autônoma Indicadores-Chave de Desempenho (KPIs): Ticket Médio de Acessórios, Taxa de Anexação (%) sobre aparelhos e Taxa de Conversão de Seguro (%).
+- **REGRA 51:** A tela possui botões de exportação (One-Click Share) que mesclam as automações calculadas com os dados inseridos manualmente pelo Gestor (Fluxo de Senhas, Boost, Churn) num template de texto formatado, invocando a Web API do WhatsApp instantaneamente.

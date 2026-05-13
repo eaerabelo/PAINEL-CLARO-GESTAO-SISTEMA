@@ -3,17 +3,14 @@ import { Edit2, Save, X, Search, Calendar, Filter, Trash2, Home, User } from 'lu
 import toast from 'react-hot-toast';
 import { applyCpfCnpjMask } from '../utils/masks';
 
-export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, usersDB = {} }) {
+export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, usersDB = {}, globalMonth, setGlobalMonth }) {
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
     const [sellerFilter, setSellerFilter] = useState('');
   
-    // Filtro de mês que funciona também como "Botão de Consulta" para o histórico fechado do mês
-    const [monthFilter, setMonthFilter] = useState(() => {
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    });
+    const monthFilter = globalMonth;
+    const setMonthFilter = setGlobalMonth;
 
     // OPÇÕES TRAVADAS DO SISTEMA
     const STATUS_OPTIONS = ['PEND.DE INSTALAÇÃO', 'CONECTADO', 'CANCELADO'];
@@ -27,6 +24,16 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
         'FIBRA 350 MEGAS', 'FIBRA 500 MEGAS', 'FIBRA 750 MEGAS', 'FIBRA 1 GIGA',
         'CLARO TV+', 'FIXO ILIMITADO BRASIL', 'PONTO ADICIONAL', 'MESH', 'EXTENSOR WIFI'
     ];
+
+    const getCidadePorContrato = (contrato) => {
+        if (!contrato || contrato === '-') return '';
+        const prefix = String(contrato).replace(/\D/g, '').substring(0, 3);
+        if (prefix === '924') return 'OSASCO';
+        if (prefix === '003') return 'SÃO PAULO';
+        if (prefix === '443') return 'BARUERI';
+        if (prefix === '533') return 'CARAPICUIBA';
+        return '';
+    };
 
     // Identifica automaticamente se a venda possui caráter residencial
     const isResidential = (produto = '') => {
@@ -64,7 +71,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
 
     const handleEdit = (item) => {
         setEditingId(item.id);
-        setEditForm({ ...item });
+        setEditForm({ ...item, cidade: item.cidade || getCidadePorContrato(item.contrato) });
     };
 
     const handleSave = () => {
@@ -86,7 +93,17 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     const handleChange = (e, field) => {
         let value = e.target.value;
         if (field === 'cpf') value = applyCpfCnpjMask(value);
-        setEditForm(prev => ({ ...prev, [field]: value }));
+        
+        setEditForm(prev => {
+            const nextForm = { ...prev, [field]: value };
+            if (field === 'contrato') {
+                const autoCidade = getCidadePorContrato(value);
+                if (autoCidade) {
+                    nextForm.cidade = autoCidade;
+                }
+            }
+            return nextForm;
+        });
     };
 
     const getStatusStyle = (status) => {
@@ -187,7 +204,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                                                     {isEditing ? <input type="text" value={editForm.contrato || ''} onChange={(e) => handleChange(e, 'contrato')} disabled={!isGerente} className={`w-28 px-2 py-1 border rounded ${!isGerente ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-neutral-500 dark:text-neutral-400 border-transparent' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 border-neutral-200 dark:border-neutral-700 focus:border-[#E3000F] outline-none'}`} /> : <span className="font-mono text-neutral-700 dark:text-neutral-300">{item.contrato || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
-                                                    {isEditing ? <input type="text" value={editForm.cidade || ''} onChange={(e) => handleChange(e, 'cidade')} className="w-24 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.cidade || '-'}</span>}
+                                                    {isEditing ? <input type="text" value={editForm.cidade || ''} onChange={(e) => handleChange(e, 'cidade')} className="w-24 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.cidade || getCidadePorContrato(item.contrato) || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
                                                     {isEditing ? <input type="date" value={editForm.data || ''} onChange={(e) => handleChange(e, 'data')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-600 dark:text-neutral-400">{item.data && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</span>}

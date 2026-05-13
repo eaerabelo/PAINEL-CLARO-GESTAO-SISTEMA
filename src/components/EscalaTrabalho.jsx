@@ -86,7 +86,7 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                 <div className="bg-white dark:bg-neutral-900 p-8 rounded-3xl shadow-lg border border-neutral-200 dark:border-neutral-800 max-w-sm text-center">
                     <Lock size={40} className="text-[#E3000F] mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100 mb-2">Acesso Restrito</h2>
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">Apenas contas de Gerente ou Sênior têm autorização para visualizar e editar a escala de trabalho.</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6">Apenas contas de Gerente ou Sênior têm autorização para visualizar a escala de trabalho. (Edição restrita à Gerência).</p>
                     <button onClick={() => setAuthModal({ isOpen: true, pendingAction: null, pendingId: null, requiredRole: 'SENIOR' })} className="px-6 py-2.5 bg-[#E3000F] text-white font-medium rounded-xl hover:bg-red-700 transition-colors">Autenticar</button>
                 </div>
             </div>

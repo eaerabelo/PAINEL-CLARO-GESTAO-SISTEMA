@@ -53,6 +53,11 @@ export function Login({ usersDB, setUsersDB, onLogin }) {
         const user = loginUser.toUpperCase();
         if (usersDB[user] && usersDB[user].pass === loginPass) {
             const userData = usersDB[user];
+            
+            if (userData.role === 'SUSPENDER') {
+                toast.error('Conta suspensa temporariamente. Procure seu Gestor.');
+                return;
+            }
             let isBirthday = false;
             
             if (userData.birthDate) {

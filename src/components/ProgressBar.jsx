@@ -13,14 +13,14 @@ export const ProgressBar = ({ label, realizado, meta, isDark = false, isCurrency
 
     return (
         <div className="mb-4 last:mb-0">
-            <div className="flex justify-between items-end mb-1.5">
+            <div className="flex justify-between items-end mb-1.5 gap-2">
                 <span className={`text-xs font-bold uppercase tracking-wider ${textSub}`}>{label}</span>
-                <div className="text-right">
-                    <span className={`text-lg font-black ${textMain}`}>{formattedRealizado}</span>
-                    <span className={`text-xs ml-1 ${textSub}`}>/ {formattedMeta}</span>
+                <div className="text-right shrink-0">
+                    <span className={`text-2xl font-black ${textMain}`}>{formattedRealizado}</span>
+                    <span className={`text-sm font-bold ml-1.5 ${textSub}`}>/ {formattedMeta}</span>
                 </div>
             </div>
-            <div className={`w-full ${bgBar} rounded-full h-1.5 overflow-hidden`}>
+            <div className={`w-full ${bgBar} rounded-full h-2 overflow-hidden`}>
                 <div className={`${fillBar} h-full rounded-full transition-all duration-1000`} style={{ width: `${pct}%` }}></div>
             </div>
         </div>

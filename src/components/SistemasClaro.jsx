@@ -3,8 +3,16 @@ import { Globe, ExternalLink } from 'lucide-react';
 import { SISTEMAS_LINKS } from '../utils/constants';
 
 export const SistemasClaro = () => {
-    // Failsafe: Garante que o painel não quebre se a lista não vier do constants.js
-    const linksSeguros = Array.isArray(SISTEMAS_LINKS) ? SISTEMAS_LINKS : [];
+    const baseLinks = Array.isArray(SISTEMAS_LINKS) ? SISTEMAS_LINKS : [];
+    
+    const extraLinks = [
+        { name: 'PORTAL CLARO', url: 'http://portalclarobrasil/' },
+        { name: 'CEMI', url: 'https://cemi/mudancastatus/jsp/login.jsp' },
+        { name: 'RH SOLUTIONS', url: 'https://portalrh.claro.com.br/ords/rhportal/rhlgweb.show' }
+    ];
+
+    // Junta os links dinamicamente garantindo que não existam duplicados
+    const linksSeguros = [...baseLinks, ...extraLinks.filter(ext => !baseLinks.some(base => base.name === ext.name))];
 
     return (
         <div className="h-full flex flex-col animate-fade-in transition-colors">

@@ -5,35 +5,33 @@ import { ProgressBar } from './ProgressBar.jsx';
 import toast from 'react-hot-toast';
 import { METAS_PADRAO } from '../utils/constants';
 
-export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, globalUser, salesData, goalsDB = {}, usersDB = {}, setAuthModal }) => {
+export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, globalUser, salesData, goalsDB = {}, usersDB = {}, setAuthModal, globalMonth, setGlobalMonth }) => {
     const safeVendedores = Object.values(usersDB)
         .filter(u => !u.role || u.role === 'VENDEDOR')
         .map(u => u.name)
         .filter(Boolean);
 
-    const [monthFilter, setMonthFilter] = useState(() => {
-        const today = new Date();
-        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    });
+    const monthFilter = globalMonth;
+    const setMonthFilter = setGlobalMonth;
 
     const activeMetas = goalsDB[monthFilter] || METAS_PADRAO || {};
     const numSellers = safeVendedores.length || 1;
     
     const individualMetas = {
         receita: (Number(activeMetas.receita) || 0) / numSellers,
-        posTotal: (Number(activeMetas.posTotal) || 0) / numSellers,
-        posPago: (Number(activeMetas.posPago) || 0) / numSellers,
-        controle: (Number(activeMetas.controle) || 0) / numSellers,
-        urTotal: (Number(activeMetas.urTotal) || 0) / numSellers,
-        fibra: (Number(activeMetas.fibra) || 0) / numSellers,
-        tv: (Number(activeMetas.tv) || 0) / numSellers,
-        aparelho: (Number(activeMetas.aparelho) || 0) / numSellers,
-        acessorio: (Number(activeMetas.acessorio) || 0) / numSellers,
-        pelicula: (Number(activeMetas.pelicula) || 0) / numSellers,
-        seguro: (Number(activeMetas.seguro) || 0) / numSellers,
-        mplay: (Number(activeMetas.mplay) || 0) / numSellers,
-        trocafy: (Number(activeMetas.trocafy) || 0) / numSellers,
-        mesh: (Number(activeMetas.mesh) || 0) / numSellers,
+        posTotal: Math.ceil((Number(activeMetas.posTotal) || 0) / numSellers),
+        posPago: Math.ceil((Number(activeMetas.posPago) || 0) / numSellers),
+        controle: Math.ceil((Number(activeMetas.controle) || 0) / numSellers),
+        urTotal: Math.ceil((Number(activeMetas.urTotal) || 0) / numSellers),
+        fibra: Math.ceil((Number(activeMetas.fibra) || 0) / numSellers),
+        tv: Math.ceil((Number(activeMetas.tv) || 0) / numSellers),
+        aparelho: Math.ceil((Number(activeMetas.aparelho) || 0) / numSellers),
+        acessorio: Math.ceil((Number(activeMetas.acessorio) || 0) / numSellers),
+        pelicula: Math.ceil((Number(activeMetas.pelicula) || 0) / numSellers),
+        seguro: Math.ceil((Number(activeMetas.seguro) || 0) / numSellers),
+        mplay: Math.ceil((Number(activeMetas.mplay) || 0) / numSellers),
+        trocafy: Math.ceil((Number(activeMetas.trocafy) || 0) / numSellers),
+        mesh: Math.ceil((Number(activeMetas.mesh) || 0) / numSellers),
     };
 
     const getSellerMetrics = (sellerName) => {
@@ -59,7 +57,6 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
             if (p.includes('PELICULA')) metrics.volPelicula += qtda;
             if (p.includes('MESH')) metrics.volMesh += qtda;
             if (p.includes('SEGURO')) metrics.volSeguro += qtda;
-            if (sale.adicionais && sale.adicionais.includes('SEGURO')) metrics.volSeguro += 1;
             if (sale.adicionais && sale.adicionais.includes('TROCAFY')) metrics.volTrocafy += 1;
             if (sale.mplay === 'SIM') metrics.volMPlay += 1;
         });
@@ -129,13 +126,19 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
                                             </div>
                                         ) : (
                                             <>
-                                                <div className="flex justify-between items-end">
-                                                    <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Receita (Mês)</span>
-                                                    <span className="font-bold text-neutral-800 dark:text-neutral-100">{applyCurrencyMask(metrics.totalReceita)}</span>
+                                                <div className="flex justify-between items-end mb-2 gap-2">
+                                                    <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase">Receita (Mês)</span>
+                                                    <div className="text-right shrink-0">
+                                                        <span className="text-xl font-bold text-neutral-800 dark:text-neutral-100">{applyCurrencyMask(metrics.totalReceita)}</span>
+                                                        <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500 ml-1">/ {applyCurrencyMask(individualMetas.receita)}</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex justify-between items-end">
-                                                    <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Pós Total</span>
-                                                    <span className="font-bold text-neutral-800 dark:text-neutral-100">{metrics.volPosTotal} pts</span>
+                                                <div className="flex justify-between items-end gap-2">
+                                                    <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase">Pós Total</span>
+                                                    <div className="text-right shrink-0">
+                                                        <span className="text-xl font-bold text-neutral-800 dark:text-neutral-100">{metrics.volPosTotal}</span>
+                                                        <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500 ml-1">/ {Number.isInteger(individualMetas.posTotal) ? individualMetas.posTotal : individualMetas.posTotal.toFixed(1)}</span>
+                                                    </div>
                                                 </div>
                                             </>
                                         )}
@@ -157,8 +160,8 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
                                 <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Acompanhamento detalhado de Meta x Realizado.</p>
                             </div>
                         </div>
-                        <div className="md:min-w-[300px]">
-                            <ProgressBar label="Receita Total Acumulada" realizado={getSellerMetrics(selectedSeller).totalReceita} meta={individualMetas.receita} isCurrency={true} isDark={false} />
+                        <div className="md:min-w-[300px] lg:min-w-[340px] w-full md:w-auto mt-2 md:mt-0">
+                            <ProgressBar label="RECEITA TOTAL" realizado={getSellerMetrics(selectedSeller).totalReceita} meta={individualMetas.receita} isCurrency={true} isDark={false} />
                         </div>
                     </div>
 
@@ -187,12 +190,12 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
                             <div className="mb-8"><ProgressBar label="UR TOTAL (Fibra + TV)" realizado={getSellerMetrics(selectedSeller).volUrTotal} meta={individualMetas.urTotal} isDark={true} /></div>
                             <div className="grid grid-cols-2 gap-3 mt-auto pt-6 border-t border-neutral-700 dark:border-neutral-800">
                                 <div className="flex flex-col justify-center bg-neutral-800/80 dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-700/50 hover:bg-neutral-800 transition-colors">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Zap size={12} className="text-[#E3000F]" />Fibras</span>
-                                    <div className="flex items-baseline gap-1"><span className="text-3xl font-black text-white leading-none">{getSellerMetrics(selectedSeller).volFibra}</span><span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 mb-1">/ {individualMetas.fibra}</span></div>
+                                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><Zap size={14} className="text-[#E3000F]" />Fibras</span>
+                                    <div className="flex items-baseline gap-1.5"><span className="text-4xl font-black text-white leading-none">{getSellerMetrics(selectedSeller).volFibra}</span><span className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-1">/ {Number.isInteger(individualMetas.fibra) ? individualMetas.fibra : individualMetas.fibra.toFixed(1)}</span></div>
                                 </div>
                                 <div className="flex flex-col justify-center bg-neutral-800/80 dark:bg-neutral-800 p-4 rounded-2xl border border-neutral-700/50 hover:bg-neutral-800 transition-colors">
-                                    <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><MonitorPlay size={12} className="text-[#E3000F]" /> TV BOX</span>
-                                    <div className="flex items-baseline gap-1"><span className="text-3xl font-black text-white leading-none">{getSellerMetrics(selectedSeller).volTv}</span><span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 mb-1">/ {individualMetas.tv}</span></div>
+                                    <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider mb-2 flex items-center gap-1.5"><MonitorPlay size={14} className="text-[#E3000F]" /> TV BOX</span>
+                                    <div className="flex items-baseline gap-1.5"><span className="text-4xl font-black text-white leading-none">{getSellerMetrics(selectedSeller).volTv}</span><span className="text-sm font-bold text-neutral-500 dark:text-neutral-400 mb-1">/ {Number.isInteger(individualMetas.tv) ? individualMetas.tv : individualMetas.tv.toFixed(1)}</span></div>
                                 </div>
                             </div>
                         </div>

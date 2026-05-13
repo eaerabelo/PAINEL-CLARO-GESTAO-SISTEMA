@@ -3,12 +3,12 @@ import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck
 } from 'lucide-react';
 
 import toast, { Toaster } from 'react-hot-toast';
 
-import { doc, onSnapshot, setDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, writeBatch, query, where } from 'firebase/firestore';
 import { db } from './firebase.js';
 
 import {
@@ -31,6 +31,7 @@ import { UrResidencial } from './components/UrResidencial.jsx';
 import { Reprovados } from './components/Reprovados.jsx';
 import { Resultado } from './components/Resultado.jsx';
 import { Login } from './components/Login.jsx';
+import { ParcialFechamento } from './components/ParcialFechamento.jsx';
 
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
 const safeAppUsers = APP_USERS || {};
@@ -78,8 +79,39 @@ export default function App() {
   const [authCredentials, setAuthCredentials] = useState({ user: '', password: '' });
   const [authError, setAuthError] = useState('');
 
+  // --- ALERTA DE PARCIAL DE VENDAS (GESTOR) ---
+  const [showParcialAlert, setShowParcialAlert] = useState(false);
+
+  useEffect(() => {
+    if (globalUser?.role !== 'GERENTE') return;
+
+    const checkParcialTime = () => {
+      const now = new Date();
+      const h = now.getHours();
+      
+      const targetHours = [10, 12, 14, 16, 18, 20];
+      if (targetHours.includes(h)) {
+        const lastHour = localStorage.getItem('lastParcialHour');
+        const lastDate = localStorage.getItem('lastParcialDate');
+        const todayDate = now.toLocaleDateString('pt-BR');
+
+        if (lastHour !== String(h) || lastDate !== todayDate) {
+          setShowParcialAlert(true);
+          localStorage.setItem('lastParcialHour', String(h));
+          localStorage.setItem('lastParcialDate', todayDate);
+        }
+      }
+    };
+
+    const interval = setInterval(checkParcialTime, 60000);
+    checkParcialTime();
+
+    return () => clearInterval(interval);
+  }, [globalUser?.role]);
+
   // --- ESTADOS DE GESTÃO DE METAS (MONTH-BY-MONTH) ---
   const currentYYYYMM = getTodaySP().slice(0, 7);
+  const [globalMonth, setGlobalMonth] = useState(currentYYYYMM);
   const [goalsDB, setGoalsDB] = useState({});
   const activeMetas = goalsDB[currentYYYYMM] || safeMetasPadrao;
 
@@ -143,11 +175,14 @@ export default function App() {
           handleUndo();
         }
       }
+      if (e.key === 'Escape' && authModal.isOpen) {
+        setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undoStack]);
+  }, [undoStack, authModal.isOpen]);
 
   // Interceptadores para detectar exclusões
   const handleSetSalesData = (action) => {
@@ -204,10 +239,27 @@ export default function App() {
       }
     }, (error) => console.error("Erro Configs:", error)));
 
+    const startStr = `${globalMonth}-01`;
+    const endStr = `${globalMonth}-31T23:59:59`; // Garante a captura até o último segundo do dia 31
+
+    // Função de ordenação cronológica inteligente para evitar "embaralhar"
+    const sortChronologically = (a, b) => {
+      const getTime = (d) => d ? new Date(d.includes('/') ? d.split('/').reverse().join('-') : d.substring(0, 10)).getTime() : 0;
+      const timeA = getTime(a.data);
+      const timeB = getTime(b.data);
+      if (timeA !== timeB) return timeB - timeA; // Datas mais recentes sempre no topo
+      return b.id - a.id; // Desempate pela ordem de registro (ID) caso sejam do mesmo dia
+    };
+
     // VENDAS (Muda para Coleção separada para escalabilidade infinita)
-    unsubs.push(onSnapshot(collection(db, 'vendas_uniao_osasco'), (snap) => {
+    const vendasQuery = query(
+      collection(db, 'vendas_uniao_osasco'),
+      where('data', '>=', startStr),
+      where('data', '<=', endStr)
+    );
+    unsubs.push(onSnapshot(vendasQuery, (snap) => {
       const data = snap.docs.map(d => d.data());
-      data.sort((a, b) => b.id - a.id); // Ordena pelas mais recentes
+      data.sort(sortChronologically); 
       setSalesData(data);
       cloudRefs.current.sales = data;
     }));
@@ -221,9 +273,14 @@ export default function App() {
     }));
 
     // REPROVADOS (Muda para Coleção)
-    unsubs.push(onSnapshot(collection(db, 'reprovados_uniao_osasco'), (snap) => {
+    const reprovadosQuery = query(
+      collection(db, 'reprovados_uniao_osasco'),
+      where('data', '>=', startStr),
+      where('data', '<=', endStr)
+    );
+    unsubs.push(onSnapshot(reprovadosQuery, (snap) => {
       const data = snap.docs.map(d => d.data());
-      data.sort((a, b) => b.id - a.id);
+      data.sort(sortChronologically);
       setReprovadosData(data);
       cloudRefs.current.reprovados = data;
       
@@ -232,7 +289,7 @@ export default function App() {
     }));
 
     return () => unsubs.forEach(unsub => unsub());
-  }, [currentYYYYMM]);
+  }, [globalMonth]);
 
   // 2. AUTO-SAVE NA NUVEM (Smart Diff - Salva apenas os documentos que foram alterados)
   useEffect(() => {
@@ -366,6 +423,14 @@ export default function App() {
     if (globalUser && globalUser.username && isFirebaseReady) {
       const currentDbUser = usersDB[globalUser.username] || safeAppUsers[globalUser.username];
       if (currentDbUser && currentDbUser.role !== globalUser.role) {
+        if (currentDbUser.role === 'SUSPENDER') {
+          setGlobalUser(null);
+          setSelectedSeller(null);
+          localStorage.removeItem('sessionUser');
+          setActiveTab('VENDA');
+          toast.error('Sua conta foi suspensa temporariamente.', { duration: 6000 });
+          return;
+        }
         const updatedUser = { ...globalUser, role: currentDbUser.role, name: currentDbUser.name };
         setGlobalUser(updatedUser);
         localStorage.setItem('sessionUser', JSON.stringify(updatedUser));
@@ -385,15 +450,16 @@ export default function App() {
     { name: 'RESULTADO', icon: <BarChart3 size={18} /> },
     { name: 'SISTEMAS CLARO', icon: <Database size={18} /> },
     { name: 'UR-RESIDENCIAL', icon: <Briefcase size={18} /> },
-    { name: 'VENDA', icon: <CreditCard size={18} /> }
+    { name: 'VENDA', icon: <CreditCard size={18} /> },
+    { name: 'PARCIAL & FECHAMENTO', icon: <ClipboardCheck size={18} /> }
   ].sort((a, b) => a.name.localeCompare(b.name));
 
   // --- REGRAS DE HIERARQUIA DERIVADAS DO LOGIN ---
   const isGerente = globalUser?.role === 'GERENTE';
   const isSeniorEquivalent = ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(globalUser?.role);
   const canModifySimcard = isGerente || isSeniorEquivalent;
-  const canEditSchedule = isGerente || isSeniorEquivalent;
-  const hasScheduleAccess = isGerente || isSeniorEquivalent;
+  const canEditSchedule = isGerente;
+  const hasScheduleAccess = isGerente || globalUser?.role === 'SENIOR';
   const hasMetaAccess = isGerente || isSeniorEquivalent;
   const isVendedor = globalUser?.role === 'VENDEDOR';
 
@@ -402,6 +468,10 @@ export default function App() {
     e.preventDefault();
     const userMatched = usersDB[authCredentials.user] || safeAppUsers[authCredentials.user];
     if (userMatched && userMatched.pass === authCredentials.password) {
+      if (userMatched.role === 'SUSPENDER') {
+        setAuthError('Conta suspensa temporariamente. Procure o Gerente.');
+        return;
+      }
       if (authModal.requiredRole && authModal.requiredRole !== userMatched.role) {
         if (authModal.requiredRole === 'SENIOR' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userMatched.role)) {
           setAuthError('Acesso negado. Requer permissão de Sênior ou superior.');
@@ -423,7 +493,7 @@ export default function App() {
       setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
       setAuthCredentials({ user: '', password: '' });
       if (activeTab === 'META' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userMatched.role)) setActiveTab('VENDA');
-      if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userMatched.role)) setActiveTab('VENDA');
+      if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR'].includes(userMatched.role)) setActiveTab('VENDA');
     } else {
       setAuthError('Usuário ou senha incorretos. Acesso negado.');
     }
@@ -462,7 +532,7 @@ export default function App() {
             localStorage.setItem('sessionUser', JSON.stringify(userWithTime));
             if (userData.role === 'VENDEDOR') setSelectedSeller(userData.name);
             if (activeTab === 'META' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userData.role)) setActiveTab('VENDA');
-            if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(userData.role)) setActiveTab('VENDA');
+            if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR'].includes(userData.role)) setActiveTab('VENDA');
           }} 
         />
       </>
@@ -472,6 +542,28 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#F5F5F5] dark:bg-neutral-950 font-sans overflow-hidden print:overflow-visible print:h-auto print:block text-neutral-800 dark:text-neutral-100 print:bg-white transition-colors duration-500">
       <Toaster position="top-right" />
+
+      {/* ALERTA DE PARCIAL DE VENDAS */}
+      {showParcialAlert && globalUser?.role === 'GERENTE' && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-white dark:bg-neutral-900 border-l-4 border-[#E3000F] shadow-2xl rounded-r-xl rounded-l-sm p-4 flex items-start gap-4 animate-fade-in w-[90%] max-w-md no-print">
+          <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-[#E3000F] shrink-0">
+            <AlertCircle size={22} />
+          </div>
+          <div className="flex-1 pt-0.5">
+            <h3 className="font-bold text-neutral-800 dark:text-neutral-100 text-sm mb-1 uppercase tracking-wider">Atenção Gestor!</h3>
+            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+              Já é hora de enviar a <strong className="text-[#E3000F]">Parcial de Vendas</strong> no grupo do WhatsApp da equipe.
+            </p>
+          </div>
+          <button 
+            onClick={() => setShowParcialAlert(false)} 
+            className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 p-1.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-colors"
+            title="Fechar Alerta"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/20 z-20 md:hidden animate-fade-in backdrop-blur-sm no-print" onClick={() => setIsSidebarOpen(false)} />
@@ -491,6 +583,7 @@ export default function App() {
               if (section.name === 'META' && !hasMetaAccess) return null;
               if (section.name === 'ESCALA DE TRABALHO' && !hasScheduleAccess) return null;
               if (section.name === 'ACESSOS' && !isGerente) return null;
+              if (section.name === 'PARCIAL & FECHAMENTO' && !isGerente) return null;
 
               return (
                 <li key={section.name}>
@@ -513,6 +606,7 @@ export default function App() {
             <h1 className="text-lg font-medium text-neutral-800 dark:text-neutral-100 hidden sm:block">{activeTab}</h1>
           </div>
           <div className="flex items-center gap-5">
+
             {undoStack.length > 0 && (
               <button 
                 onClick={handleUndo} 
@@ -522,6 +616,17 @@ export default function App() {
                 <Undo size={16} /> Desfazer
               </button>
             )}
+            
+            <div className="hidden md:flex items-center gap-2 bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm animate-fade-in">
+              <CalendarDays size={16} className="text-[#E3000F]" />
+              <input 
+                type="month" 
+                value={globalMonth}
+                onChange={(e) => setGlobalMonth(e.target.value)}
+                className="bg-transparent text-sm font-bold text-neutral-700 dark:text-neutral-100 outline-none cursor-pointer"
+                title="Mês de Busca (Carregamento Sob Demanda)"
+              />
+            </div>
 
             <button onClick={toggleTheme} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-neutral-500 dark:text-neutral-400 transition-colors" title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}>
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -563,11 +668,11 @@ export default function App() {
           {activeTab === 'META' ? (
             <Meta hasAccess={hasMetaAccess} setAuthModal={setAuthModal} goalsDB={goalsDB} setGoalsDB={setGoalsDB} currentYYYYMM={currentYYYYMM} usersDB={usersDB} />
           ) : activeTab === 'VENDA' ? (
-            <Venda salesData={salesData} setSalesData={handleSetSalesData} isVendedor={isVendedor} globalUser={globalUser} usersDB={usersDB} />
+            <Venda salesData={salesData} setSalesData={handleSetSalesData} isVendedor={isVendedor} globalUser={globalUser} usersDB={usersDB} globalMonth={globalMonth} />
           ) : activeTab === 'CONTROLE-SIMCARD' ? (
             <ControleSimcard simcardsData={simcardsData} setSimcardsData={handleSetSimcardsData} canModifySimcard={canModifySimcard} globalUser={globalUser} setAuthModal={setAuthModal} usersDB={usersDB} />
           ) : activeTab === 'COLABORADORES' ? (
-            <Colaboradores selectedSeller={selectedSeller} setSelectedSeller={setSelectedSeller} isVendedor={isVendedor} globalUser={globalUser} salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} setAuthModal={setAuthModal} />
+            <Colaboradores selectedSeller={selectedSeller} setSelectedSeller={setSelectedSeller} isVendedor={isVendedor} globalUser={globalUser} salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} setAuthModal={setAuthModal} globalMonth={globalMonth} setGlobalMonth={setGlobalMonth} />
           ) : activeTab === 'ESCALA DE TRABALHO' ? (
             <EscalaTrabalho canEditSchedule={canEditSchedule} scheduleData={scheduleData} setScheduleData={setScheduleData} monthlyOverrides={monthlyOverrides} setMonthlyOverrides={setMonthlyOverrides} hasAccess={hasScheduleAccess} setAuthModal={setAuthModal} usersDB={usersDB} />
           ) : activeTab === 'SISTEMAS CLARO' ? (
@@ -575,13 +680,15 @@ export default function App() {
           ) : activeTab === 'ACESSOS' ? (
             <Acessos usersDB={usersDB} setUsersDB={setUsersDB} setScheduleData={setScheduleData} setMonthlyOverrides={setMonthlyOverrides} setReprovadosData={handleSetReprovadosData} globalUser={globalUser} />
           ) : activeTab === 'UR-RESIDENCIAL' ? (
-            <UrResidencial salesData={salesData} setSalesData={handleSetSalesData} globalUser={globalUser} isGerente={isGerente} usersDB={usersDB} />
+            <UrResidencial salesData={salesData} setSalesData={handleSetSalesData} globalUser={globalUser} isGerente={isGerente} usersDB={usersDB} globalMonth={globalMonth} setGlobalMonth={setGlobalMonth} />
           ) : activeTab === 'PROPOSTA' ? (
             <Proposta globalUser={globalUser} />
           ) : activeTab === 'REPROVADOS' ? (
-            <Reprovados reprovadosData={reprovadosData} setReprovadosData={handleSetReprovadosData} globalUser={globalUser} isGerente={isGerente} isVendedor={isVendedor} usersDB={usersDB} />
+            <Reprovados reprovadosData={reprovadosData} setReprovadosData={handleSetReprovadosData} globalUser={globalUser} isGerente={isGerente} isVendedor={isVendedor} usersDB={usersDB} globalMonth={globalMonth} />
           ) : activeTab === 'RESULTADO' ? (
-            <Resultado salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} />
+            <Resultado salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} globalMonth={globalMonth} setGlobalMonth={setGlobalMonth} />
+          ) : activeTab === 'PARCIAL & FECHAMENTO' ? (
+            <ParcialFechamento isGerente={isGerente} salesData={salesData} goalsDB={goalsDB} globalMonth={globalMonth} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-neutral-400 dark:text-neutral-500 animate-fade-in border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50">
               <Database size={48} className="mb-4 text-neutral-300" />

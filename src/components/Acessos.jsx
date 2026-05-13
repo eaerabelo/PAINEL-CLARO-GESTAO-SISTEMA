@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Key, Lock, Unlock, ShieldAlert, Trash2, Edit3, X, Eye, EyeOff, UserPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -9,6 +9,16 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUsername, setEditingUsername] = useState(null);
     const [formData, setFormData] = useState({ name: '', username: '', password: '', role: 'GERENTE', phone: '', email: '', birthDate: '' });
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isModalOpen) {
+                setIsModalOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isModalOpen]);
 
     const handleUnlock = (e) => {
         e.preventDefault();
@@ -129,6 +139,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
             case 'ADMINISTRAÇÃO': return 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400';
             case 'JOVEM APRENDIZ': return 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400';
             case 'GEEK': return 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400';
+            case 'SUSPENDER': return 'bg-neutral-800 dark:bg-neutral-950 text-neutral-400 dark:text-neutral-600 line-through';
             default: return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400';
         }
     };
@@ -303,6 +314,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                                     <option className="bg-white dark:bg-neutral-900" value="JOVEM APRENDIZ">JOVEM APRENDIZ</option>
                                     <option className="bg-white dark:bg-neutral-900" value="GEEK">GEEK</option>
                                     <option className="bg-white dark:bg-neutral-900" value="VENDEDOR">VENDEDOR</option>
+                                    <option className="bg-white dark:bg-neutral-900 text-red-600 font-black" value="SUSPENDER">SUSPENDER ACESSO</option>
                                 </select>
                             </div>
                             <div className="space-y-1.5">

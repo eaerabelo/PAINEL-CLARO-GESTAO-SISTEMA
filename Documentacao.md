@@ -23,10 +23,11 @@ A aplicação utiliza uma arquitetura escalável de **Múltiplas Coleções Sepa
 
 **Fluxo de Sincronização (`App.jsx`):**
 1.  O sistema estabelece listeners ativos (`onSnapshot`) para cada coleção. Se outro cliente alterar uma venda, o listener atualiza o React State instantaneamente e ordena os dados.
-2.  Para evitar excesso de gravações (Writes) e otimizar custos da cota gratuita, há um algoritmo de **Smart Diff com Batch Write e Debounce de 1.200ms**. A aplicação compara o estado local atual com a última referência da nuvem e envia em pacotes (`writeBatch`) *apenas* os documentos exatos que sofreram inserção, edição ou exclusão.
+2.  A consulta usa queries filtradas por datas com base no seletor do usuário (`where('data', '>=', startStr)` e `where('data', '<=', endStr)`), garantindo que um **Carregamento Sob Demanda** poupe limites diários do plano gratuito. O retorno local é organizado através de uma Função de Ordenação Cronológica customizada.
+3.  Para evitar excesso de gravações (Writes), há um algoritmo de **Smart Diff com Batch Write e Debounce de 1.500ms**. A aplicação compara o estado local com a última referência da nuvem e envia (`writeBatch`) *apenas* os documentos exatos alterados.
 
 ### ✅ Tech Debt Resolvido (Escalabilidade)
-O limite hard de **1 MiB por documento** do Firestore foi contornado com sucesso na última refatoração. Ao transformar vendas e estoque em coleções separadas (onde cada item é um documento isolado), o sistema agora suporta literalmente milhões de registros sem degradação de performance na leitura inicial ou falhas de gravação.
+O limite hard de **1 MiB por documento** do Firestore foi contornado. A divisão em subcoleções escaláveis suporta grande volume de registros, enquanto as leituras foram enxugadas para buscar dados fragmentados por ciclos de meses.
 
 ---
 
@@ -53,6 +54,8 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 ### `Venda.jsx` (Lançamento)
 *   Trata as comissões através da função `calcularComissaoDinamica()`.
 *   Acessórios e películas possuem `15%`, enquanto Aparelhos possuem `5%` ou `6%` (caso tenha o adicional "Seguro" anexado no array `adicionais`).
+*   **Nova Funcionalidade:** Caso "SEGURO" esteja marcado em um APARELHO, a página automaticamente desmembra o pacote salvando a Venda de Seguro como um registro individual no state.
+*   **Barra de Pesquisa Global:** Pesquisa termos não apenas por CPF ou Vendedor, mas busca registros por propriedades de Combos, Serviços M-Play atrelados e Serviços Operacionais (Ativação vs Migração).
 *   Bloqueia a edição do campo "Receita" caso a matriz de produtos (`PRICING_MOVEL` no `constants.js`) possua um valor tabelado.
 *   Para otimizar o tempo (UX), campos como M-Play e Portabilidade ficam inativos (NÃO) se o produto selecionado não for Móvel.
 *   Importação/Exportação do Excel foram blindadas exclusivamente para `globalUser?.role === 'GERENTE'`. A lógica de importação foi abstraída para `excelImporter.js` (Smart Mapping).
@@ -63,6 +66,11 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 ### `Resultado.jsx` (DRE/Run Rate)
 *   O coração financeiro do sistema. Utiliza `useMemo` pesados para varrer a array completa de vendas e alocá-las nos devidos "baldes" (Migração, Pós Total, Dependentes) via varredura por `includes()` e RegExp de texto no Produto/TipoOperação.
 *   A "Meta Diária" calcula de forma dinâmica os dias úteis. Finais de semana (Sábados e Domingos) recebem o dobro de "peso" (weight = 2) na distribuição fracionada da meta gerencial para acompanhar o fluxo de shopping.
+
+### `ParcialFechamento.jsx` (DRE Intraday)
+*   Restrito ao gerente. Transita por todas as vendas registradas com a data correspondente ao dia de hoje (em variadas formatações compatíveis) e alimenta dois quadros centrais.
+*   As equações embutidas não apenas contam serviços como também executam contas de KPIs (Key Performance Indicators) sob a forma de Ticket Médio, Conversão em Porcentagem, Anexação, etc.
+*   Emprega funções de escape para web de URL (`encodeURIComponent`) concatenadas com a API não-oficial de deep linking do WhatsApp (`wa.me`).
 
 ### `Proposta.jsx` (Simulador)
 *   Utiliza o objeto do estado global para cruzar os produtos. 
@@ -134,6 +142,7 @@ painel-claro/
 │   │   ├── Login.jsx         # Tela de autenticação, registro e EmailJS
 │   │   ├── Meta.jsx          # Distribuição mensal de metas da loja
 │   │   ├── Proposta.jsx      # Simulador de combos e gerador do layout para PDF
+│   │   ├── ParcialFechamento.jsx # Consolidação automática de KPIs do dia e envio de WhatsApp
 │   │   ├── Reprovados.jsx    # Controle de vendas não concluídas e ViaCEP
 │   │   ├── Resultado.jsx     # Cálculo macro da loja (Run Rate, Excel-like)
 │   │   ├── SistemasClaro.jsx # Atalhos rápidos

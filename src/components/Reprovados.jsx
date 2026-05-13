@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertOctagon, Plus, Search, Calendar, Edit3, Trash2, X, Lock, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { applyCpfCnpjMask, getTodaySP } from '../utils/masks';
 
-export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGerente, isVendedor, usersDB = {} }) {
+export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGerente, isVendedor, usersDB = {}, globalMonth }) {
     const safeVendedores = Object.values(usersDB)
         .filter(u => !u.role || u.role === 'VENDEDOR')
         .map(u => u.name.split(' ')[0])
@@ -11,7 +11,7 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterDate, setFilterDate] = useState(getTodaySP());
+    const [filterDate, setFilterDate] = useState('');
     const [formError, setFormError] = useState('');
     const [isFetchingCep, setIsFetchingCep] = useState(false);
 
@@ -34,13 +34,22 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
         obs: ''
     });
 
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isModalOpen) {
+                setIsModalOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isModalOpen]);
+
     // Filtrando tabela via Mês e Termos de busca
     const filteredData = reprovadosData.filter(item => {
-        if (filterDate) {
-            const itemMonth = item.data.slice(0, 7); // yyyy-mm
-            const filterMonth = filterDate.slice(0, 7);
-            if (itemMonth !== filterMonth) return false;
+        if (filterDate && item.data !== filterDate) {
+            return false;
         }
+
         if (searchTerm) {
             const term = searchTerm.toLowerCase();
             return (
