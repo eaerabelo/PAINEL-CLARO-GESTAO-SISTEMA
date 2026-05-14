@@ -119,3 +119,12 @@
 - **REGRA 52:** A seção [GEEK] atua como uma biblioteca virtual para os consultores acessarem PDFs e Documentos da operação, agrupados em categorias ("BOOK DE OFERTAS", "MÓDULOS BUNDLE", etc).
 - **REGRA 53:** Para preservar o limite de peso de 1MB por documento no banco de dados Firestore, a arquitetura do painel GEEK exige que o gestor forneça uma **URL externa (ex: Link do Google Drive/OneDrive)** ao invés de realizar o upload físico do PDF.
 - **REGRA 54:** O privilégio de Adicionar e Excluir "balões" de documentos é ESTRITAMENTE restrito ao perfil GEEK. Nem a Gerência nem os Vendedores possuem permissão para apagar ou inserir documentos.
+
+## 14. MÓDULO SCRIPTS (TEXTOS PADRÕES)
+
+- **REGRA 55:** A aba de "Scripts" é de acesso público (Somente Leitura) para todos os perfis. Ela fornece textos pré-montados para facilitar a cópia e colagem em sistemas da operadora.
+- **REGRA 56:** A assinatura de cada script é dinâmica. O sistema capta automaticamente o Nome e a identificação do usuário atualmente logado para compor o rodapé da mensagem de forma padronizada antes da cópia.
+
+## 15. ATALHOS GLOBAIS (CABEÇALHO)
+
+- **REGRA 57:** O ícone de Wi-Fi, localizado no cabeçalho global, abre um modal de visualização contendo um QR Code pré-configurado. Qualquer usuário logado, independente da hierarquia, possui permissão para acionar este modal e exibi-lo ao cliente no salão de vendas.

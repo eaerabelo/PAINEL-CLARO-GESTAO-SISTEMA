@@ -1,24 +1,32 @@
+// Importações de Hooks nativos do React utilizados para gerenciar ciclo de vida, estado e referências
 import React, { useState, useEffect, useRef } from 'react';
+
+// Importação de Ícones da biblioteca lucide-react para utilizar na interface
 import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy
 } from 'lucide-react';
 
+// Importação de biblioteca de Toasts para feedback visual de ações em tela
 import toast, { Toaster } from 'react-hot-toast';
 
+// Importações do Firebase para comunicação em tempo real e em lote (Batch) com o banco de dados
 import { doc, onSnapshot, setDoc, collection, writeBatch, query, where } from 'firebase/firestore';
-import { db } from './firebase.js';
+import { db } from './firebase.js'; // Conexão com o Firebase configurada
 
+// Importações de constantes como usuários padrões e base para as metas
 import {
   METAS_PADRAO, APP_USERS
 } from './utils/constants';
 
+// Importação de função utilitária para capturar data ajustada ao fuso horário
 import {
   getTodaySP
 } from './utils/masks';
 
+// Importações de Módulos (Componentes) que constroem as telas do Sistema
 import { SistemasClaro } from './components/SistemasClaro.jsx';
 import { EscalaTrabalho } from './components/EscalaTrabalho.jsx';
 import { Acessos } from './components/Acessos.jsx';
@@ -33,15 +41,21 @@ import { Resultado } from './components/Resultado.jsx';
 import { Login } from './components/Login.jsx';
 import { ParcialFechamento } from './components/ParcialFechamento.jsx';
 import { Geek } from './components/Geek.jsx';
+import { Scripts } from './components/Scripts.jsx';
 
+// Variáveis seguras (Fallback) caso as constantes falhem ou estejam ausentes
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
 const safeAppUsers = APP_USERS || {};
 
+// Função / Componente Principal do Aplicativo (Ponto de Entrada)
 export default function App() {
+  // Define se o menu lateral estará aberto (Por padrão abre para PC e fecha para mobile)
   const [isSidebarOpen, setIsSidebarOpen] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+  // Aba ativa selecionada no painel principal
   const [activeTab, setActiveTab] = useState('VENDA');
 
   // --- TEMA (LIGHT/DARK) ---
+  // Recupera o tema do localStorage e define o tema atual da interface
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
       const savedTheme = localStorage.getItem('theme-preference');
@@ -51,6 +65,7 @@ export default function App() {
     return 'light';
   });
 
+  // Aplica as classes do Tailwind no root do HTML toda vez que o tema mudar
   useEffect(() => {
     const root = window.document.documentElement;
     if (theme === 'dark') root.classList.add('dark');
@@ -58,17 +73,20 @@ export default function App() {
     localStorage.setItem('theme-preference', theme);
   }, [theme]);
 
+  // Função simples para alternar entre Dark / Light
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   };
 
   // --- ESTADOS DO SISTEMA DE LOGIN GLOBAL ---
+  // Carrega o usuário da sessão a partir do LocalStorage com validade de 30 minutos
   const [globalUser, setGlobalUser] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sessionUser');
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
+          // Só mantém o login se não passou de 30 minutos sem atividade
           if (Date.now() - parsed.loginTime < 30 * 60 * 1000) return parsed;
           localStorage.removeItem('sessionUser');
         } catch (e) { }
@@ -76,35 +94,46 @@ export default function App() {
     }
     return null;
   });
+
+  // Estado do Modal de Autenticação (quando ação crítica é exigida)
   const [authModal, setAuthModal] = useState({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
   const [authCredentials, setAuthCredentials] = useState({ user: '', password: '' });
   const [authError, setAuthError] = useState('');
 
   // --- NOTIFICAÇÕES GLOBAIS (SININHO) ---
+  // Estado responsável por carregar/salvar alertas do sininho no cabeçalho
   const [notifications, setNotifications] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('user_notifications');
       if (saved) {
-          try { 
-            const parsed = JSON.parse(saved); 
-            if (Array.isArray(parsed)) return parsed;
-          } catch (e) { }
+        try { 
+          const parsed = JSON.parse(saved); 
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) { }
       }
     }
     return [];
   });
+  // Controle de visibilidade do popover das notificações
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  // Conta notificações não lidas
   const unreadCount = Array.isArray(notifications) ? notifications.filter(n => !n.read).length : 0;
 
+  // Estado do Modal de Wi-Fi
+  const [isWifiModalOpen, setIsWifiModalOpen] = useState(false);
+
+  // Persiste as notificações localmente a cada atualização
   useEffect(() => {
     localStorage.setItem('user_notifications', JSON.stringify(notifications));
   }, [notifications]);
 
+  // Marca tudo como lido quando o usuário abre o popover de notificações
   const markAllAsRead = () => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
   // --- ALERTA DE PARCIAL DE VENDAS (GESTOR) ---
+  // Ativa um lembrete automático para cargos de Gestão enviarem a Parcial de Vendas no grupo
   const [showParcialAlert, setShowParcialAlert] = useState(false);
 
   useEffect(() => {
@@ -114,6 +143,7 @@ export default function App() {
       const now = new Date();
       const h = now.getHours();
       
+      // Horários designados para parciais
       const targetHours = [10, 12, 14, 16, 18, 20];
       if (targetHours.includes(h)) {
         const lastHour = localStorage.getItem('lastParcialHour');
@@ -123,6 +153,7 @@ export default function App() {
         if (lastHour !== String(h) || lastDate !== todayDate) {
           setShowParcialAlert(true);
           
+          // Adiciona as parciais dentro do log de Notificações
           setNotifications(prev => {
             const newNotif = {
               id: `parcial-${todayDate}-${h}`,
@@ -148,6 +179,7 @@ export default function App() {
   }, [globalUser?.role]);
 
   // --- ESTADOS DE BANCO DE DADOS (NUVEM - FIREBASE) ---
+  // Armazena todos os registros do Banco de Dados sincronizados em Real-Time
   const [simcardsData, setSimcardsData] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [reprovadosData, setReprovadosData] = useState([]);
@@ -155,14 +187,17 @@ export default function App() {
   const [usersDB, setUsersDB] = useState({});
   const [scheduleData, setScheduleData] = useState({});
   const [monthlyOverrides, setMonthlyOverrides] = useState({});
+  // Define se o primeiro carregamento da Nuvem já foi finalizado
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
   // --- ESTADOS DE GESTÃO DE METAS (MONTH-BY-MONTH) ---
+  // Filtro de Mês e Metas
   const currentYYYYMM = getTodaySP().slice(0, 7);
   const [globalMonth, setGlobalMonth] = useState(currentYYYYMM);
   const [goalsDB, setGoalsDB] = useState({});
   const activeMetas = (goalsDB || {})[currentYYYYMM] || safeMetasPadrao;
 
+  // Adiciona notificação global se o Administrador atualizar as Metas de Vendas do mês vigente
   useEffect(() => {
     const metasLastUpdated = (goalsDB || {})[currentYYYYMM]?.lastUpdated;
     if (metasLastUpdated && isFirebaseReady) {
@@ -187,6 +222,7 @@ export default function App() {
   }, [goalsDB, currentYYYYMM, isFirebaseReady]);
 
   // --- ESTADOS DO DASHBOARD DE VENDAS ---
+  // Seleção e visualização global de determinado colaborador
   const [selectedSeller, setSelectedSeller] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('sessionUser');
@@ -210,8 +246,10 @@ export default function App() {
   });
 
   // --- SISTEMA DE DESFAZER (UNDO / CTRL+Z) ---
+  // Stack local do estado que armazena os últimos "Delete" efetuados
   const [undoStack, setUndoStack] = useState([]);
 
+  // Função para retornar a última versão dos dados (CTRL+Z/Desfazer)
   const handleUndo = () => {
     if (undoStack.length === 0) return;
     
@@ -228,6 +266,7 @@ export default function App() {
     setUndoStack(prevStack => prevStack.slice(0, -1));
   };
 
+  // Listener para capturar o atalho de teclado Control+Z
   useEffect(() => {
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
@@ -242,12 +281,16 @@ export default function App() {
       if (e.key === 'Escape' && authModal.isOpen) {
         setAuthModal({ isOpen: false, pendingAction: null, pendingId: null, requiredRole: null });
       }
+      if (e.key === 'Escape' && isWifiModalOpen) {
+        setIsWifiModalOpen(false);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undoStack, authModal.isOpen]);
+  }, [undoStack, authModal.isOpen, isWifiModalOpen]);
 
+  // Listener para fechar o popover das notificações ao clicar fora dele
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (isNotificationsOpen && !e.target.closest('.notification-container')) {
@@ -258,7 +301,7 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isNotificationsOpen]);
 
-  // Interceptadores para detectar exclusões
+  // Interceptadores (Wrappers) para detectar exclusões e criar o backup automático na Stack (para o Undo)
   const handleSetSalesData = (action) => {
     setSalesData(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
@@ -300,6 +343,7 @@ export default function App() {
   };
 
   // 1. CARREGAMENTO REAL-TIME SEPARADO (ON-SNAPSHOT NAS COLEÇÕES)
+  // Estabelece a conexão com o Firebase do Google
   useEffect(() => {
     const unsubs = [];
 
@@ -459,6 +503,7 @@ export default function App() {
   }, [salesData, simcardsData, reprovadosData, geekDocs, goalsDB, scheduleData, monthlyOverrides, usersDB, isFirebaseReady]);
 
   // 3. TIMER DE SESSÃO EXPIRADA POR INATIVIDADE (30 MINUTOS)
+  // Monitoramento de inatividade global do usuário, fazendo Logout automático caso ocioso
   useEffect(() => {
     if (!globalUser) return;
 
@@ -513,6 +558,7 @@ export default function App() {
   }, [globalUser]);
 
   // 4. SINCRONIZAÇÃO EM TEMPO REAL DAS PERMISSÕES DO USUÁRIO ATUAL
+  // Observa caso os cargos do usuário logado mudem no Banco e os desloga/altera na hora
   useEffect(() => {
     if (globalUser && globalUser.username && isFirebaseReady) {
       const currentDbUser = (usersDB || {})[globalUser.username] || safeAppUsers[globalUser.username];
@@ -533,6 +579,7 @@ export default function App() {
     }
   }, [usersDB, globalUser?.role, globalUser?.username, isFirebaseReady]);
 
+  // Abas Dinâmicas de acordo com o Menu Lateral
   const sidebarSections = [
     { name: 'ACESSOS', icon: <Key size={18} /> },
     { name: 'COLABORADORES', icon: <Users size={18} /> },
@@ -542,6 +589,7 @@ export default function App() {
     { name: 'PROPOSTA', icon: <FileText size={18} /> },
     { name: 'REPROVADOS', icon: <AlertOctagon size={18} /> },
     { name: 'RESULTADO', icon: <BarChart3 size={18} /> },
+    { name: 'SCRIPTS', icon: <Copy size={18} /> },
     { name: 'SISTEMAS CLARO', icon: <Database size={18} /> },
     { name: 'UR-RESIDENCIAL', icon: <Briefcase size={18} /> },
     { name: 'VENDA', icon: <CreditCard size={18} /> },
@@ -550,6 +598,7 @@ export default function App() {
   ].sort((a, b) => a.name.localeCompare(b.name));
 
   // --- REGRAS DE HIERARQUIA DERIVADAS DO LOGIN ---
+  // Determina através de variáveis booleanas as permissões de acordo com os cargos
   const isGerente = globalUser?.role === 'GERENTE';
   const isSeniorEquivalent = ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(globalUser?.role);
   
@@ -562,6 +611,7 @@ export default function App() {
   const isVendedor = globalUser?.role === 'VENDEDOR';
 
   // --- LÓGICA DE LOGIN ---
+  // Envio do formulário de autenticação global e/ou de senhas específicas
   const handleAuthSubmit = (e) => {
     e.preventDefault();
     const userMatched = (usersDB || {})[authCredentials.user] || safeAppUsers[authCredentials.user];
@@ -598,6 +648,7 @@ export default function App() {
     }
   };
 
+  // Logout manual e remoção de credenciais
   const handleLogout = () => {
     setGlobalUser(null);
     setSelectedSeller(null);
@@ -609,6 +660,7 @@ export default function App() {
   // =========================================================
   // 🛡️ TELA DE BLOQUEIO INICIAL (LOGIN OBRIGATÓRIO)
   // =========================================================
+  // Renderiza tela de Loading enquanto as Collections não estão preparadas
   if (!isFirebaseReady) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-neutral-100 dark:bg-neutral-900 font-sans flex-col gap-4">
@@ -618,12 +670,13 @@ export default function App() {
     );
   }
 
+  // Se o usuário não está logado globalmente, exibe a tela de Login
   if (!globalUser) {
     return (
       <>
         <Toaster position="top-right" />
         <Login 
-        usersDB={{ ...safeAppUsers, ...(usersDB || {}) }} 
+          usersDB={{ ...safeAppUsers, ...(usersDB || {}) }} 
           setUsersDB={setUsersDB} 
           onLogin={(userData, username) => {
             const userWithTime = { ...userData, username, loginTime: Date.now() };
@@ -644,6 +697,7 @@ export default function App() {
       <Toaster position="top-right" />
 
       {/* ALERTA DE PARCIAL DE VENDAS */}
+      {/* Componente Modal que notifica gerentes em horários fixos */}
       {showParcialAlert && ['GERENTE', 'SENIOR', 'GEEK', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO'].includes(globalUser?.role) && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-white dark:bg-neutral-900 border-l-4 border-[#E3000F] shadow-2xl rounded-r-xl rounded-l-sm p-4 flex items-start gap-4 animate-fade-in w-[90%] max-w-md no-print">
           <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-[#E3000F] shrink-0">
@@ -665,10 +719,12 @@ export default function App() {
         </div>
       )}
 
+      {/* Overlay da Barra Lateral em dispositivos Mobile */}
       {isSidebarOpen && (
         <div className="fixed inset-0 bg-black/20 z-20 md:hidden animate-fade-in backdrop-blur-sm no-print" onClick={() => setIsSidebarOpen(false)} />
       )}
 
+      {/* Sidebar - Menu de Navegação Esquerdo */}
       <aside className={`${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:w-0 md:translate-x-0'} no-print overflow-hidden shrink-0 transition-all duration-500 ease-in-out bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col z-30 fixed md:relative top-0 left-0 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-none`}>
         <div className="h-16 flex items-center px-6 border-b border-neutral-100 dark:border-neutral-800 min-w-[16rem] shrink-0">
           <div className="flex items-center gap-2 text-[#E3000F] font-bold text-xl tracking-tight">
@@ -698,8 +754,10 @@ export default function App() {
         </nav>
       </aside>
 
+      {/* Main Content Area */}
       <main className="flex-1 flex flex-col h-full overflow-hidden print:overflow-visible print:h-auto print:block bg-white dark:bg-neutral-950">
 
+        {/* Cabeçalho de Ações e Informações */}
         <header className="h-16 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-4 lg:px-8 shrink-0 no-print transition-colors duration-500">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md text-neutral-500 dark:text-neutral-400 transition-colors"><Menu size={20} /></button>
@@ -707,6 +765,7 @@ export default function App() {
           </div>
           <div className="flex items-center gap-5">
 
+            {/* Botão de Desfazer Exclusão */}
             {undoStack.length > 0 && (
               <button 
                 onClick={handleUndo} 
@@ -717,6 +776,7 @@ export default function App() {
               </button>
             )}
             
+            {/* Seletor Global de Mês */}
             <div className="hidden md:flex items-center gap-2 bg-neutral-100 dark:bg-neutral-800 px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm animate-fade-in">
               <CalendarDays size={16} className="text-[#E3000F]" />
               <input 
@@ -728,11 +788,22 @@ export default function App() {
               />
             </div>
 
+            {/* Botão Wi-Fi para Clientes */}
+            <button 
+              onClick={() => setIsWifiModalOpen(true)} 
+              className="hidden sm:flex p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-neutral-500 dark:text-neutral-400 transition-colors" 
+              title="Wi-Fi para Clientes"
+            >
+              <Wifi size={20} />
+            </button>
+
+            {/* Seletor do Theme Light/Dark */}
             <button onClick={toggleTheme} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full text-neutral-500 dark:text-neutral-400 transition-colors" title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}>
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
 
             {/* SINO DE NOTIFICAÇÕES */}
+            {/* Dropdown/Popover das Notificações Recebidas */}
             <div className="relative notification-container">
               <button 
                 onClick={() => {
@@ -756,15 +827,15 @@ export default function App() {
                       <button onClick={() => setNotifications([])} className="text-[10px] font-bold text-neutral-500 hover:text-[#E3000F] uppercase tracking-wider">Limpar tudo</button>
                     )}
                   </div>
-                    <div className="max-h-[350px] overflow-y-auto scrollbar-thin">
-                      {(!Array.isArray(notifications) || notifications.length === 0) ? (
+                  <div className="max-h-[350px] overflow-y-auto scrollbar-thin">
+                    {(!Array.isArray(notifications) || notifications.length === 0) ? (
                       <div className="p-6 text-center text-neutral-500 dark:text-neutral-400">
                         <Bell size={32} className="mx-auto mb-2 opacity-20" />
                         <p className="text-sm">Nenhuma notificação nova.</p>
                       </div>
                     ) : (
                       <div className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                          {notifications.map(notif => (
+                        {notifications.map(notif => (
                           <div key={notif.id} className={`p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors ${!notif.read ? 'bg-red-50/30 dark:bg-[#E3000F]/5' : ''}`}>
                             <div className="flex gap-3">
                               <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${notif.type === 'parcial' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-red-100 text-[#E3000F] dark:bg-red-900/30'}`}>
@@ -787,21 +858,24 @@ export default function App() {
               )}
             </div>
 
+            {/* Barra de Busca (Placeholder Decorativa na Header Global) */}
             <div className="relative hidden md:block">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
               <input type="text" placeholder="Buscar CPF ou Contrato..." className="pl-9 pr-4 py-1.5 bg-neutral-100 dark:bg-neutral-800 border-transparent rounded-full text-sm focus:bg-white dark:focus:bg-neutral-900 focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all w-64 outline-none dark:text-neutral-100" />
             </div>
 
+            {/* Identificação de Empresa */}
             <div className="hidden sm:flex items-center justify-center mx-2">
               <div className="text-[#E3000F] font-black text-xl tracking-tighter uppercase">CLARO UNIÃO OSASCO - AT1M</div>
             </div>
 
+            {/* Dropdown/Perfil do Usuário Global Logado */}
             <div className="pl-4 border-l border-neutral-200 dark:border-neutral-800">
               {globalUser && (
                 <div className="flex items-center gap-3 group">
                   <div className="text-right flex flex-col justify-center">
-                  <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight hidden sm:block">{globalUser?.name || 'Usuário'}</div>
-                  <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight sm:hidden">{String(globalUser?.name || '').split(' ')[0] || 'Usuário'}</div>
+                    <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight hidden sm:block">{globalUser?.name || 'Usuário'}</div>
+                    <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight sm:hidden">{String(globalUser?.name || '').split(' ')[0] || 'Usuário'}</div>
                     <div className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase tracking-wide font-medium">{globalUser?.role || ''}</div>
                   </div>
                   <div className="relative cursor-pointer">
@@ -820,6 +894,7 @@ export default function App() {
 
         <div className="flex-1 overflow-auto print:overflow-visible print:h-auto print:block print:p-0 print:bg-white p-2 sm:p-4 lg:p-8 bg-neutral-50 dark:bg-neutral-950 print-area-wrapper transition-colors duration-500">
 
+          {/* Roteador/Renderizador do Conteúdo Principal conforme as Abas ativas */}
           {activeTab === 'META' ? (
             <Meta hasAccess={hasMetaAccess} canEdit={canEditMeta} setAuthModal={setAuthModal} goalsDB={goalsDB} setGoalsDB={setGoalsDB} currentYYYYMM={currentYYYYMM} usersDB={usersDB} />
           ) : activeTab === 'VENDA' ? (
@@ -846,6 +921,8 @@ export default function App() {
             <ParcialFechamento hasAccess={hasParcialAccess} salesData={salesData} goalsDB={goalsDB} globalMonth={globalMonth} />
           ) : activeTab === 'GEEK' ? (
             <Geek geekDocs={geekDocs} setGeekDocs={handleSetGeekDocs} isGerente={isGerente} globalUser={globalUser} />
+          ) : activeTab === 'SCRIPTS' ? (
+            <Scripts globalUser={globalUser} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-neutral-400 dark:text-neutral-500 animate-fade-in border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50">
               <Database size={48} className="mb-4 text-neutral-300" />
@@ -920,6 +997,35 @@ export default function App() {
         </div>
       )}
 
+      {/* MODAL DE WI-FI PARA CLIENTES */}
+      {isWifiModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 no-print flex items-center justify-center" onClick={() => setIsWifiModalOpen(false)}>
+          <div className="bg-white dark:bg-neutral-900 rounded-3xl shadow-2xl w-full max-w-sm animate-fade-in flex flex-col items-center p-8 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="w-16 h-16 bg-red-50 dark:bg-[#E3000F]/10 rounded-full flex items-center justify-center text-[#E3000F] mb-4">
+              <Wifi size={32} />
+            </div>
+            
+            <h2 className="text-2xl font-black text-neutral-800 dark:text-neutral-100 mb-2 tracking-tight">Wi-Fi CLARO_CLIENTE</h2>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-6 leading-relaxed">
+              Escaneie o QR Code abaixo para se conectar à internet automaticamente.
+            </p>
+            
+            <div className="bg-white p-2 rounded-2xl shadow-sm border border-neutral-100 dark:border-neutral-800 mb-6 w-full max-w-[280px] aspect-square">
+              <img 
+                src="/src/assets/qr-wifi.png" 
+                alt="QR Code Wi-Fi" 
+                className="w-full h-full object-contain rounded-xl" 
+                onError={(e) => e.target.src = 'https://via.placeholder.com/256?text=QR+Code+Wi-Fi'} 
+              />
+            </div>
+
+            <button onClick={() => setIsWifiModalOpen(false)} className="w-full py-3 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold rounded-xl transition-colors">
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
-} ''
+} 

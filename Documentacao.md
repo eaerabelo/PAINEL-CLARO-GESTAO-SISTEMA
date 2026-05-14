@@ -85,6 +85,11 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 *   Para contornar o limite restrito de 1 Megabyte do Firestore e não depender do Firebase Storage (que exigiria configurações de bucket), o sistema não faz a ingestão em binário/Base64. A persistência é feita via referenciamento URL.
 *   **Isolamento Absoluto:** Modificado a flag `canEdit` para suportar `globalUser?.role === 'GEEK'` de maneira estrita, subtraindo poderes da Gerência Geral para esse módulo específico.
 
+### `Scripts.jsx` (Produtividade)
+*   Componente de utilidade pública que renderiza um grid de `textarea` readOnly com textos formatados.
+*   Intercepta o prop `globalUser` para interpolar dinamicamente a string de assinatura com o `name` em `.toUpperCase()` antes da renderização, montando o rodapé final do script na interface.
+*   O botão de cópia interage diretamente com a API nativa do navegador `navigator.clipboard.writeText`.
+
 ### `EscalaTrabalho.jsx` (Gestão de RH)
 *   Mantém 2 dicionários de estados. `scheduleData` é o espelho padrão da semana fixa. `monthlyOverrides` hospeda as exceções do mês. O botão de exclusão injeta um fallback de controle `__DEFAULT__`, que serve para deletar a chave correspondente do Override, permitindo que a regra semanal volte a ditar o horário daquele dia sem sobras no backend.
 
@@ -157,6 +162,7 @@ painel-claro/
 │   │   ├── Resultado.jsx     # Cálculo macro da loja (Run Rate, Excel-like)
 │   │   ├── SistemasClaro.jsx # Atalhos rápidos
 │   │   ├── UrResidencial.jsx # Acompanhamento logístico e contratos
+│   │   ├── Scripts.jsx       # Componente de textos padronizados e cópia rápida
 │   │   └── Venda.jsx         # Tela principal de lançamento e fluxo de caixa
 │   │
 │   ├── utils/                # Funções globais e utilitários

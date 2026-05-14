@@ -47,6 +47,10 @@ Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de au
 - **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`) para preenchimento inteligente e automático de endereços no Estado de São Paulo.
 - **Propostas:** Simulador de ofertas com cálculo de abatimento em combos (Single, Multi, Multi 3P). Integrado nativamente com botão de geração de orçamentos em formato **Imagem (PNG)** e atalho Flutuante de disparo pro **WhatsApp**.
 
+### 8. Scripts (Textos Padrões)
+Módulo de produtividade contendo textos padronizados e pré-montados para facilitar o registro de observações e solicitações em sistemas da Claro.
+- *Diferenciais:* Assinatura dinâmica que preenche automaticamente o nome e cargo do usuário logado (ex: "MATHEUS RABELO / GERENTE"), botão de cópia rápida (1-click) para a área de transferência.
+
 ---
 
 ## 🛡️ Usabilidade e Concorrência (Multi-usuários)
@@ -58,6 +62,7 @@ O sistema foi arquitetado para suportar múltiplos computadores operando simulta
 - **Timeout Inteligente:** A regra de expiração de sessão por inatividade (30 minutos) monitora o mouse e o teclado de *cada* máquina de forma completamente isolada.
 - **Anti-Conflito:** Janelas flutuantes e modais de edição em uso são protegidos contra fechamentos abruptos caso os dados de fundo sejam alterados por terceiros.
 - **Modo Noturno (Dark Mode):** Alternância com transição suave (500ms) de tema claro/escuro via ícones Sun/Moon, armazenada na máquina local, com contraste rigoroso de tabelas e leitura limpa das listagens.
+- **Acesso Rápido Wi-Fi:** Modal centralizado exibindo o QR Code da rede Wi-Fi da loja, disponível a qualquer momento no cabeçalho do painel para facilitar a conexão dos clientes na loja.
 
 ---
 
@@ -92,3 +97,5 @@ Os arquivos consolidados ficarão dentro da pasta `/dist/`, prontos para serem h
 
 ## 🗄️ Estrutura de Armazenamento
 O sistema utiliza o **Firebase Firestore** na nuvem com uma arquitetura robusta de Múltiplas Coleções (garantindo escalabilidade infinita e fugindo do limite de 1MB por arquivo). As alterações são propagadas em Real-Time usando listeners (`onSnapshot`) e gravadas de forma otimizada via **Smart Diff** e **Batch Writes**, sendo sincronizadas instantaneamente em todas as telas da loja para que nenhum colaborador trabalhe com informações desatualizadas.
+
+### 📝 Documentação Estrutura de Dados do Sistema

@@ -33,6 +33,10 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 - **Gestão de Inviabilidades:** Caso uma venda residencial caia por falta de crédito ou cabeamento, você a registra na aba de Reprovados.
 - **Busca Mágica (ViaCEP):** Basta digitar o CEP do cliente (no estado de SP) que o sistema puxa o endereço na hora, poupando o seu tempo.
 
+### Camada 6: Ferramentas de Produtividade (Scripts e Wi-Fi)
+- **Wi-Fi Rápido:** Precisa conectar o cliente à internet da loja? Clique no ícone de Wi-Fi no topo da tela para abrir o QR Code e peça para o cliente escanear.
+- **Textos Prontos (Scripts):** Na aba "Scripts", você encontra os textos padrões da loja para solicitações (como Cancelamento, Troca de Chip, etc). O sistema já coloca o seu nome na assinatura automaticamente. Basta clicar no botão de copiar e colar no sistema da Claro!
+
 ---
 
 ## PARTE 2: GUIA DA GESTÃO (GERENTES E SÊNIOR)
