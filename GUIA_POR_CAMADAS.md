@@ -10,11 +10,13 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 - **Login Seguro:** O acesso é feito obrigatoriamente com a sua Matrícula (iniciada em 9 ou F) e sua senha pessoal.
 - **Sessão Inteligente:** A plataforma mantém você logado enquanto trabalha, mas por segurança, sua sessão expira automaticamente se você ficar inativo por 30 minutos ou se trocar de navegador.
 - **Modo Noturno:** Para quem atua horas no salão de vendas, clique no atalho de Sol/Lua para ativar a versão Escura do sistema. O tema realiza uma transição suave para não agredir os olhos e melhora a legibilidade de todas as tabelas.
+- **Central de Notificações:** Fique de olho no sininho (🔔) no topo da tela. Ele avisará automaticamente sempre que a Gestão atualizar suas Metas ou quando houver lembretes operacionais importantes.
 
 ### Camada 2: Lançamento e Caixa (Vendas)
 - **Registro Rápido:** Você registra as vendas de todos os produtos: Aparelhos, Acessórios, Móvel e Fibra.
 - **Automação Financeira:** Ao colocar o valor bruto da venda, o sistema calcula sua comissão instantaneamente (15% para Acessórios/Películas e 5% para Aparelhos, subindo para 6% se você vincular um Seguro).
 - **Travas Anti-Erro:** Preços de combos tabelados são preenchidos e bloqueados automaticamente. Para facilitar o preenchimento, ao vender um "Aparelho" ou "Fibra", as caixas de "M-Play" e "Portabilidade" desaparecem, pulando direto para a Receita!
+- **Venda Múltipla (Combo):** Quando um cliente levar muitos serviços (ex: Celular + Internet + TV + Dependentes), alterne para a aba "Venda Múltipla (Combo)". Você adiciona os produtos em um "carrinho" e o painel distribui CPFs, Contratos e Descontos automaticamente antes de registrar tudo de uma vez.
 - **Seus Registros:** Você é dono das suas vendas. Seu nome é preenchido automaticamente (apenas o primeiro nome) e você pode consultar seus registros a qualquer momento pelo calendário.
 
 ### Camada 3: Atendimento e Negociação (Propostas)
@@ -24,6 +26,7 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 
 ### Camada 4: Acompanhamento Pessoal (Colaboradores e Escala)
 - **Placar em Tempo Real:** Na aba "Colaboradores", você clica na sua própria foto para abrir seu Dashboard e ver exatamente quanto você já vendeu versus a sua meta individual do mês.
+- **Hall da Fama (Gamificação):** As caixinhas dos melhores vendedores ganham destaque! Se você tiver a maior receita da loja no mês, receberá a coroa (👑) de Top 1. Se for o líder em Pós-pago, ganha a medalha (🥇) de Destaque Pós.
 - **Sua Escala:** Você tem permissão de leitura na Escala de Trabalho, podendo verificar seus horários, folgas programadas da semana ou exceções cadastradas pelo seu gerente.
 
 ### Camada 5: Rotina e Processos (Reprovados)
@@ -48,7 +51,7 @@ As camadas a seguir possuem privilégios escalados. O perfil Sênior tem forte v
 ### Camada 3: Auditoria de Vendas e Logística
 - **Poder de Edição (Vendas):** Apenas Gestores e cargos equivalentes (Seniores, Assistentes, Admin) podem editar, estornar ou excluir vendas de terceiros no sistema, garantindo a lisura do processo.
 - **UR-Residencial:** Instalações sobem para cá automaticamente. Utilize o filtro por "Vendedor" para visualizar rapidamente apenas a produção de um consultor. Na edição, CPFs e Datas já respeitam o modelo brasileiro de formatação.
-- **Estoque (Controle de Simcards):** Gestores têm passe livre para dar entrada em "Lote" de chips físicos ou e-SIMs, travando o precificador unitário. Vendedores são bloqueados de apagar/editar linhas do estoque sem autorização (Modal de permissão).
+- **Estoque (Controle de Simcards):** Gestores têm passe livre para dar entrada em "Lote" de chips físicos ou e-SIMs, travando o precificador unitário. Para facilitar a operação, quando o Vendedor abre o estoque, o sistema foca automaticamente na sua própria aba de chips.
 
 ### Camada 4: Cofre Administrativo e Segurança
 *(Exclusivo do Perfil GESTOR)*

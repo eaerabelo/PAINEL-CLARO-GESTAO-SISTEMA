@@ -3,7 +3,18 @@ import { Lock, Unlock, FileSpreadsheet, Trash2, X } from 'lucide-react';
 import { applyDateShortMask, applyOvMask, applyCpfCnpjMask, applyCurrencyMask, getTodaySP } from '../utils/masks';
 
 export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcard, globalUser, setAuthModal, usersDB = {} }) => {
-    const [simcardActiveTab, setSimcardActiveTab] = useState('');
+    const safeVendedores = Object.values(usersDB || {})
+        .filter(u => !u?.role || u?.role === 'VENDEDOR')
+        .map(u => String(u?.name || '').split(' ')[0])
+        .filter(Boolean);
+
+    const [simcardActiveTab, setSimcardActiveTab] = useState(() => {
+        if (globalUser?.role === 'VENDEDOR' && globalUser?.name) {
+            const sellerFirstName = String(globalUser.name || '').split(' ')[0];
+            if (safeVendedores.includes(sellerFirstName)) return sellerFirstName;
+        }
+        return 'GESTAO';
+    });
     const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
     const [batchData, setBatchData] = useState({ fisicos: '', esims: '', data: getTodaySP() });
 
@@ -17,10 +28,6 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isBatchModalOpen]);
 
-    const safeVendedores = Object.values(usersDB || {})
-        .filter(u => !u.role || u.role === 'VENDEDOR')
-        .map(u => u.name.split(' ')[0])
-        .filter(Boolean);
     const dynamicTabs = ['GESTAO', ...safeVendedores, 'SOBREPOSIÇÃO'];
     const currentTab = dynamicTabs.includes(simcardActiveTab) ? simcardActiveTab : (dynamicTabs[0] || 'GESTAO');
 
@@ -38,10 +45,11 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
         }
 
         const novosRegistros = [];
+        const baseId = -Date.now() * 1000;
         
         linhasFisico.forEach((linha, i) => {
             novosRegistros.push({
-                id: Date.now() + 'F' + i,
+                id: baseId - i,
                 owner: currentTab,
                 simcardFisico: linha,
                 simcardEsim: '',
@@ -52,7 +60,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
 
         linhasEsim.forEach((linha, i) => {
             novosRegistros.push({
-                id: Date.now() + 'E' + i,
+                id: baseId - linhasFisico.length - i,
                 owner: currentTab,
                 simcardFisico: '',
                 simcardEsim: linha,
@@ -61,7 +69,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
             });
         });
 
-        setSimcardsData(prev => [...novosRegistros, ...prev]);
+        setSimcardsData(prev => [...prev, ...novosRegistros]);
         setIsBatchModalOpen(false);
         setBatchData({ fisicos: '', esims: '', data: getTodaySP() });
     };
@@ -148,7 +156,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                 <div className="overflow-auto flex-1 bg-neutral-50/20 dark:bg-neutral-950/50 flex flex-col">
                     {['FÍSICO', 'VIRTUAL (E-SIM)'].map((tipoLote, idx) => {
                         const isFisico = tipoLote === 'FÍSICO';
-                        const filteredData = simcardsData.filter(item => {
+                        const filteredData = (simcardsData || []).filter(item => {
                             if (item.owner !== currentTab) return false;
                             if (isFisico) {
                                 return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
@@ -216,7 +224,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
 
                                                     <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.ov} onChange={e => handleInlineChange(item.id, 'ov', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
                                                     <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.codAutorizacao} onChange={e => handleInlineChange(item.id, 'codAutorizacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cpf} onChange={e => handleInlineChange(item.id, 'cpf', e.target.value)} placeholder="000.000.000-00" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cpf} onChange={e => handleInlineChange(item.id, 'cpf', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
                                                     <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.plano} onChange={e => handleInlineChange(item.id, 'plano', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs font-bold text-neutral-800 dark:text-neutral-200 uppercase" /></td>
                                                     <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cliente} onChange={e => handleInlineChange(item.id, 'cliente', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-800 dark:text-neutral-200 uppercase" /></td>
                                                 

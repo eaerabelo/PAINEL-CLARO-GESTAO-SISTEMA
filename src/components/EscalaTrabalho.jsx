@@ -7,8 +7,8 @@ const getLocalDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDat
 const SAFE_HORARIOS = ['09:40 - 18:00', '10:40 - 19:00', '11:40 - 20:00', '13:40 - 22:00', 'FOLGA'];
 
 export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData, monthlyOverrides, setMonthlyOverrides, hasAccess, setAuthModal, usersDB = {} }) => {
-    const SAFE_VENDEDORES = Object.values(usersDB)
-        .map(u => u.name.split(' ')[0])
+    const SAFE_VENDEDORES = Object.values(usersDB || {})
+        .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
     const [currentMonthDate, setCurrentMonthDate] = useState(new Date());
     const [editScheduleCell, setEditScheduleCell] = useState(null);
@@ -17,22 +17,22 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
 
     const getDailySchedule = (seller, year, month, day) => {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        if (monthlyOverrides[seller] && monthlyOverrides[seller][dateStr] !== undefined) {
-            return monthlyOverrides[seller][dateStr];
+        if ((monthlyOverrides || {})[seller] && (monthlyOverrides || {})[seller][dateStr] !== undefined) {
+            return (monthlyOverrides || {})[seller][dateStr];
         }
         const dateObj = new Date(year, month, day);
         const weekDayStr = LOCAL_WEEKDAYS[dateObj.getDay()];
-        return scheduleData[seller]?.[weekDayStr] || '';
+        return (scheduleData || {})[seller]?.[weekDayStr] || '';
     };
 
     const handleScheduleClick = (seller, key, type, dateStr = null) => {
         if (!canEditSchedule) return;
         setEditScheduleCell({ seller, key, type, dateStr });
         if (type === 'WEEKLY') {
-            setEditScheduleValue(scheduleData[seller][key] || '');
+            setEditScheduleValue((scheduleData || {})[seller]?.[key] || '');
         } else {
-            if (monthlyOverrides[seller] && monthlyOverrides[seller][dateStr] !== undefined) {
-                setEditScheduleValue(monthlyOverrides[seller][dateStr]);
+            if ((monthlyOverrides || {})[seller] && (monthlyOverrides || {})[seller][dateStr] !== undefined) {
+                setEditScheduleValue((monthlyOverrides || {})[seller][dateStr]);
             } else {
                 setEditScheduleValue('__DEFAULT__');
             }
@@ -140,7 +140,7 @@ export const EscalaTrabalho = ({ canEditSchedule, scheduleData, setScheduleData,
                                                 onClick={() => handleScheduleClick(seller, day, 'WEEKLY')}
                                                 className={`border border-neutral-200 dark:border-neutral-800 px-3 py-3 print:px-1 print:py-1 relative ${canEditSchedule ? 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/20 group' : ''}`}
                                             >
-                                                {formatScheduleCell(scheduleData[seller]?.[day])}
+                                                {formatScheduleCell((scheduleData || {})[seller]?.[day])}
                                                 {canEditSchedule && (
                                                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-blue-50/80 dark:bg-blue-900/60 transition-opacity no-print">
                                                         <Edit3 size={16} className="text-blue-600" />

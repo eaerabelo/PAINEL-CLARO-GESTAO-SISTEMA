@@ -9,9 +9,9 @@ import { parseExcelSales } from '../utils/excelImporter';
 const safeProdutos = Array.isArray(PRODUTOS) ? PRODUTOS : [];
 
 export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB = {}, globalMonth }) => {
-    const safeVendedores = Object.values(usersDB)
-        .filter(u => !u.role || u.role === 'VENDEDOR')
-        .map(u => u.name.split(' ')[0])
+    const safeVendedores = Object.values(usersDB || {})
+        .filter(u => !u?.role || u?.role === 'VENDEDOR')
+        .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formError, setFormError] = useState('');
@@ -19,6 +19,12 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const fileInputRef = useRef(null);
+    
+    // --- ESTADOS DO COMBO ---
+    const [vendaMode, setVendaMode] = useState('INDIVIDUAL'); // 'INDIVIDUAL' | 'COMBO'
+    const [comboItems, setComboItems] = useState([]);
+    const [comboGlobal, setComboGlobal] = useState({ cpf: '', contrato: '', adicionais: [] });
+
     const [formData, setFormData] = useState({
         vendedor: '', data: getTodaySP(), qtda: 1, portabilidade: '',
         combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false,
@@ -26,7 +32,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     });
 
     useEffect(() => {
-        if (filterDate && !filterDate.startsWith(globalMonth)) {
+        if (filterDate && globalMonth && !filterDate.startsWith(globalMonth)) {
             setFilterDate('');
         }
     }, [globalMonth]);
@@ -42,57 +48,83 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     }, [isModalOpen]);
 
     const isComissionado = ['APARELHO', 'ACESSORIO', 'PELICULA'].includes(formData?.produto || '');
-    const requiresContrato = PRODUTOS_CONTRATO_OBRIGATORIO.includes(formData?.produto || '');
-    const isMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => (formData?.produto || '').toUpperCase().includes(term));
+    const requiresContrato = (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(formData?.produto || '');
+    const isMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => String(formData?.produto || '').toUpperCase().includes(term));
     const showMplay = isMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(formData?.produto || '');
 
-    const calcularComissaoDinamica = (produto, adicionaisList, valorBruto) => {
+    const calcularComissaoDinamica = (produto, adicionaisList, valorBruto, seguroOption) => {
         const valor = parseFloat(valorBruto || 0);
         if (isNaN(valor)) return 0;
-        if (produto === 'APARELHO') return adicionaisList.includes('SEGURO') ? valor * 0.06 : valor * 0.05;
+        if (produto === 'APARELHO') return (adicionaisList.includes('SEGURO') || seguroOption) ? valor * 0.06 : valor * 0.05;
         if (produto === 'ACESSORIO' || produto === 'PELICULA') return valor * 0.15;
         return valor;
     };
 
+
     const calculatePrice = (produto, combo, subOption) => {
         if (PRICING_MOVEL[produto]) return PRICING_MOVEL[produto][combo] || PRICING_MOVEL[produto]['SINGLE'];
-        if (produto === 'FIBRA' && subOption) return FIBRA_OPTIONS.find(o => o.label === subOption)?.prices?.[combo] || FIBRA_OPTIONS.find(o => o.label === subOption)?.prices?.['SINGLE'] || FIBRA_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
+        if (produto === 'FIBRA' && subOption) {
+            const fibraOverrides = {
+                '350 MEGA': { SINGLE: 99.90, MULTI: 79.90, 'MULTI 3P': 79.90 },
+                '600 MEGA': { SINGLE: 119.90, MULTI: 99.90, 'MULTI 3P': 99.90 },
+                '750 MEGA': { SINGLE: 149.90, MULTI: 129.90, 'MULTI 3P': 129.90 }
+            };
+            if (fibraOverrides[subOption]) return fibraOverrides[subOption][combo] || fibraOverrides[subOption]['SINGLE'];
+            return FIBRA_OPTIONS.find(o => o.label === subOption)?.prices?.[combo] || FIBRA_OPTIONS.find(o => o.label === subOption)?.prices?.['SINGLE'] || FIBRA_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
+        }
         if (produto === 'TV-BOX' && subOption) return TV_BOX_OPTIONS.find(o => o.label === subOption)?.prices?.[combo] || TV_BOX_OPTIONS.find(o => o.label === subOption)?.prices?.['SINGLE'] || TV_BOX_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
         if (produto === 'FIXO' && subOption) return FIXO_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
         if (produto === 'MESH' && subOption) return MESH_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
         if (produto === 'SEGURO' && subOption) return SEGURO_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
-        if (produto === 'DEPENDENTE' && subOption) return DEPENDENTE_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
+        if (produto === 'DEPENDENTE' && subOption) {
+            if (subOption === 'DEPENDENTE ANTIGO') return 50.00;
+            return DEPENDENTE_OPTIONS.find(o => o.label === subOption)?.prices?.UNICO;
+        }
         return null;
     };
 
     const getSubOptions = () => {
-        if (formData.produto === 'FIBRA') return FIBRA_OPTIONS;
+        if (formData.produto === 'FIBRA') {
+            const extended = [...(FIBRA_OPTIONS || [])];
+            ['350 MEGA', '600 MEGA', '750 MEGA'].forEach(lbl => {
+                if (!extended.some(o => o.label === lbl)) extended.push({ label: lbl });
+            });
+            return extended.sort((a, b) => (parseInt(a.label) * (a.label.includes('GIGA') || a.label.includes('GB') ? 1000 : 1)) - (parseInt(b.label) * (b.label.includes('GIGA') || b.label.includes('GB') ? 1000 : 1)));
+        }
         if (formData.produto === 'TV-BOX') return TV_BOX_OPTIONS;
         if (formData.produto === 'FIXO') return FIXO_OPTIONS;
         if (formData.produto === 'MESH') return MESH_OPTIONS;
         if (formData.produto === 'SEGURO') return SEGURO_OPTIONS;
-        if (formData.produto === 'DEPENDENTE') return DEPENDENTE_OPTIONS;
+        if (formData.produto === 'DEPENDENTE') {
+            const extended = [...(DEPENDENTE_OPTIONS || [])];
+            if (!extended.some(o => o.label === 'DEPENDENTE ANTIGO')) extended.push({ label: 'DEPENDENTE ANTIGO' });
+            return extended;
+        }
         return [];
     };
 
     const openNovaVendaModal = () => {
         setFormError('');
         setEditingId(null);
-        setFormData({ vendedor: isVendedor && globalUser ? globalUser.name.split(' ')[0] : '', data: filterDate || getTodaySP(), qtda: 1, portabilidade: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '', seguroOption: '' });
+        setVendaMode('INDIVIDUAL');
+        setComboItems([]);
+        setComboGlobal({ cpf: '', contrato: '', adicionais: [] });
+        setFormData({ vendedor: isVendedor && globalUser ? String(globalUser?.name || '').split(' ')[0] : '', data: filterDate || getTodaySP(), qtda: 1, portabilidade: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '', seguroOption: '' });
         setIsModalOpen(true);
     };
 
     const handleEditSale = (sale) => {
         setFormError('');
         setEditingId(sale.id);
+        setVendaMode('INDIVIDUAL');
         setFormData({
             vendedor: sale.vendedor || '',
-            data: sale.data.includes('/') ? sale.data.split('/').reverse().join('-') : sale.data,
+            data: (sale.data || '').includes('/') ? sale.data.split('/').reverse().join('-') : (sale.data || ''),
             qtda: sale.qtda || 1,
             portabilidade: sale.portabilidade || '',
             combo: sale.combo || 'SINGLE',
-            produto: sale.produtoBase || (sale.produto.includes(' (') ? sale.produto.split(' (')[0] : sale.produto),
-            subOption: sale.subOption || (sale.produto.includes('(') ? sale.produto.split('(')[1].replace(')', '') : ''),
+            produto: sale.produtoBase || (String(sale.produto || '').includes(' (') ? String(sale.produto || '').split(' (')[0] : sale.produto),
+            subOption: sale.subOption || (String(sale.produto || '').includes('(') ? String(sale.produto || '').split('(')[1].replace(')', '') : ''),
             receita: applyCurrencyMask(sale.receita),
             isReceitaReadonly: false,
             cpf: sale.cpf || '',
@@ -122,7 +154,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             if (['produto', 'combo', 'subOption'].includes(name)) {
                 if (name === 'produto') {
                     next.contrato = '';
-                    if (value === 'FIBRA') next.subOption = '250 MEGA'; else if (value === 'TV-BOX') next.subOption = 'TV BOX'; else if (value === 'FIXO') next.subOption = 'FIXO MUNDO'; else if (value === 'MESH') next.subOption = 'MESH 2UN'; else if (value === 'SEGURO') next.subOption = 'SEGURO R$ 14,00'; else if (value === 'DEPENDENTE') next.subOption = 'GRATUITO'; else next.subOption = '';
+                    if (value === 'FIBRA') next.subOption = '350 MEGA'; else if (value === 'TV-BOX') next.subOption = 'TV BOX'; else if (value === 'FIXO') next.subOption = 'FIXO MUNDO'; else if (value === 'MESH') next.subOption = 'MESH 2UN'; else if (value === 'SEGURO') next.subOption = 'SEGURO R$ 14,00'; else if (value === 'DEPENDENTE') next.subOption = 'GRATUITO'; else next.subOption = '';
                     if (!value.includes('POS') && !value.includes('CONTROLE')) next.tipoOperacao = '';
                 }
                 const price = calculatePrice(next.produto, next.combo, next.subOption);
@@ -141,6 +173,19 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         });
     };
 
+    const handleGlobalAdicionalToggle = (op) => {
+        setComboGlobal(prev => {
+            let nextAdicionais = [...prev.adicionais];
+            if (op === 'NENHUM') {
+                nextAdicionais = []; 
+            } else { 
+                if (nextAdicionais.includes(op)) nextAdicionais = nextAdicionais.filter(item => item !== op); 
+                else nextAdicionais.push(op); 
+            }
+            return { ...prev, adicionais: nextAdicionais };
+        });
+    };
+
     const handleSubmitSale = (e) => {
         e.preventDefault();
         const { vendedor, data, qtda, portabilidade, produto, receita, cpf, contrato, mplay, adicionais, tipoOperacao, subOption } = formData;
@@ -153,11 +198,6 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         if ((produto.includes('POS') || produto.includes('CONTROLE')) && !tipoOperacao) { setFormError('Atenção: Selecione se a operação móvel é Ativação ou Migração.'); return; }
         if (requiresContrato && !contrato) { setFormError(`O campo Contrato é obrigatório para a venda de ${produto}.`); return; }
 
-        if (produto === 'APARELHO' && adicionais.includes('SEGURO') && !formData.seguroOption) {
-            setFormError('Atenção: Selecione a especificação do Seguro do Aparelho.');
-            return;
-        }
-
         let cidadeAuto = '';
         if (requiresContrato && contrato) {
             const prefix = String(contrato).replace(/\D/g, '').substring(0, 3);
@@ -168,14 +208,20 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         }
 
         const receitaFloat = parseCurrencyToFloat(receita);
-        const valorParaGravar = isComissionado ? calcularComissaoDinamica(produto, adicionais, receitaFloat) : receitaFloat;
+        const valorParaGravar = receitaFloat; 
+        const valorComissao = isComissionado ? calcularComissaoDinamica(produto, adicionais, receitaFloat, formData.seguroOption) : receitaFloat;
+        
+        const cleanedAdicionais = produto === 'APARELHO' ? adicionais.filter(a => a !== 'SEGURO') : adicionais;
+
         const novaVenda = {
             id: editingId || Date.now(),
             ...formData,
+            adicionais: cleanedAdicionais,
             produtoBase: formData.produto,
             subOption: formData.subOption,
             produto: formData.subOption ? `${formData.produto} (${formData.subOption})` : formData.produto,
             receita: valorParaGravar,
+            comissao: valorComissao,
             contrato: requiresContrato ? contrato : '-',
             portabilidade: finalPortabilidade,
             mplay: finalMplay,
@@ -188,7 +234,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         } else {
             const novasVendas = [novaVenda];
             
-            if (produto === 'APARELHO' && adicionais.includes('SEGURO') && formData.seguroOption) {
+            if (produto === 'APARELHO' && formData.seguroOption) {
                 const precoSeguro = calculatePrice('SEGURO', 'SINGLE', formData.seguroOption) || 0;
                 const vendaSeguro = {
                     ...formData,
@@ -197,6 +243,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                     subOption: formData.seguroOption,
                     produto: `SEGURO (${formData.seguroOption})`,
                     receita: precoSeguro,
+                    comissao: precoSeguro,
                     contrato: '-',
                     portabilidade: 'NÃO',
                     mplay: 'NÃO',
@@ -214,31 +261,129 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         setIsModalOpen(false);
     };
 
-    const parseDateToISO = (dateStr) => {
-        if (!dateStr) return '';
-        if (dateStr.includes('-')) return dateStr;
-        const [dd, mm, yyyy] = dateStr.split('/');
-        return `${yyyy}-${mm}-${dd}`;
+    // =========================================================
+    // LÓGICA DO CARRINHO (MODO COMBO)
+    // =========================================================
+    const handleAddComboItem = () => {
+        const { vendedor, data, qtda, portabilidade, produto, receita, mplay, tipoOperacao, subOption } = formData;
+        
+        const isItemMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => String(produto || '').toUpperCase().includes(term));
+        const itemShowMplay = isItemMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(produto || '');
+
+        const finalPortabilidade = isItemMovel ? portabilidade : 'NÃO';
+        const finalMplay = itemShowMplay ? mplay : 'NÃO';
+
+        if (!vendedor || !data || !qtda || !produto || receita === '' || (isItemMovel && !portabilidade) || (itemShowMplay && !mplay)) { 
+            setFormError('Preencha os campos obrigatórios do produto para adicioná-lo ao combo.'); 
+            return; 
+        }
+        if (getSubOptions().length > 0 && !subOption) { setFormError('Selecione a especificação do produto.'); return; }
+        if ((produto.includes('POS') || produto.includes('CONTROLE')) && !tipoOperacao) { setFormError('Selecione se é Ativação ou Migração.'); return; }
+
+        setComboItems(prev => [...prev, {
+            vendedor, data, qtda, portabilidade: finalPortabilidade, combo: formData.combo,
+            produtoBase: produto, subOption, produto, receita, mplay: finalMplay, tipoOperacao, seguroOption: formData.seguroOption
+        }]);
+
+        // Limpa apenas os dados do produto para facilitar a inclusão do próximo
+        setFormData(prev => ({
+            ...prev, produto: '', subOption: '', receita: '', isReceitaReadonly: false,
+            portabilidade: '', mplay: '', tipoOperacao: '', seguroOption: '', qtda: 1
+        }));
+        setFormError('');
     };
 
-    const filteredSales = salesData.filter(sale => {
+    const removeComboItem = (idx) => {
+        setComboItems(prev => prev.filter((_, i) => i !== idx));
+    };
+
+    const handleSubmitCombo = () => {
+        if (comboItems.length === 0) { setFormError('Adicione pelo menos um produto ao combo.'); return; }
+        if (!comboGlobal.cpf) { setFormError('O CPF / CNPJ do titular é obrigatório para o combo.'); return; }
+
+        const hasResidential = comboItems.some(i => (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(i.produtoBase || i.produto));
+        if (hasResidential && !comboGlobal.contrato) { setFormError('O Contrato é obrigatório, pois há produtos residenciais adicionados no combo.'); return; }
+
+        let cidadeAuto = '';
+        if (hasResidential && comboGlobal.contrato) {
+            const prefix = String(comboGlobal.contrato).replace(/\D/g, '').substring(0, 3);
+            if (prefix === '924') cidadeAuto = 'OSASCO';
+            else if (prefix === '003') cidadeAuto = 'SÃO PAULO';
+            else if (prefix === '443') cidadeAuto = 'BARUERI';
+            else if (prefix === '533') cidadeAuto = 'CARAPICUIBA';
+        }
+
+        let mainTitularFound = false;
+        const novasVendas = [];
+        let currentId = Date.now();
+
+        comboItems.forEach(item => {
+            const isItemResidential = (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(item.produtoBase || item.produto);
+            const pBase = String(item.produtoBase || item.produto || '').toUpperCase();
+            const isTitularCandidate = !mainTitularFound && (pBase.includes('POS') || pBase.includes('PÓS') || pBase.includes('CONTROLE')) && !pBase.includes('DEPENDENTE') && !pBase.includes('DEP');
+
+            let itemAdicionais = [];
+            if (isTitularCandidate) {
+                itemAdicionais = [...comboGlobal.adicionais];
+                mainTitularFound = true;
+            }
+
+            const isItemComissionado = ['APARELHO', 'ACESSORIO', 'PELICULA'].includes(item.produtoBase || item.produto);
+            const receitaFloat = parseCurrencyToFloat(item.receita);
+            const valorComissao = isItemComissionado ? calcularComissaoDinamica(item.produtoBase || item.produto, itemAdicionais, receitaFloat, item.seguroOption) : receitaFloat;
+
+            const cleanedAdicionais = (item.produtoBase || item.produto) === 'APARELHO' ? itemAdicionais.filter(a => a !== 'SEGURO') : itemAdicionais;
+
+            novasVendas.push({
+                id: currentId++, vendedor: item.vendedor, data: item.data, qtda: item.qtda, portabilidade: item.portabilidade, combo: item.combo,
+                produtoBase: item.produtoBase || item.produto, subOption: item.subOption, produto: item.subOption ? `${item.produtoBase || item.produto} (${item.subOption})` : (item.produtoBase || item.produto),
+                receita: receitaFloat, comissao: valorComissao, cpf: comboGlobal.cpf, contrato: isItemResidential ? comboGlobal.contrato : '-',
+                mplay: item.mplay, adicionais: cleanedAdicionais, tipoOperacao: item.tipoOperacao, seguroOption: item.seguroOption || '',
+                ...(cidadeAuto && isItemResidential ? { cidade: cidadeAuto } : {})
+            });
+
+            if ((item.produtoBase || item.produto) === 'APARELHO' && item.seguroOption) {
+                const precoSeguro = calculatePrice('SEGURO', 'SINGLE', item.seguroOption) || 0;
+                novasVendas.unshift({
+                    id: currentId++, vendedor: item.vendedor, data: item.data, qtda: 1, portabilidade: 'NÃO', combo: 'SINGLE', produtoBase: 'SEGURO',
+                    subOption: item.seguroOption, produto: `SEGURO (${item.seguroOption})`, receita: precoSeguro, comissao: precoSeguro, cpf: comboGlobal.cpf,
+                    contrato: '-', mplay: 'NÃO', adicionais: [], tipoOperacao: ''
+                });
+            }
+        });
+
+        setSalesData(prev => [...novasVendas, ...prev]);
+        toast.success('Combo múltiplo registrado com sucesso!');
+        setIsModalOpen(false);
+    };
+
+
+    const parseDateToISO = (dateStr) => {
+        if (typeof dateStr !== 'string') return '';
+        if (dateStr.includes('-')) return dateStr;
+        const parts = dateStr.split('/');
+        if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        return '';
+    };
+
+    const filteredSales = (salesData || []).filter(sale => {
         let matchDate = true;
         if (filterDate) matchDate = parseDateToISO(sale.data) === filterDate;
         
         let matchSearch = true;
         if (searchTerm) {
-            const term = searchTerm.toLowerCase();
-            matchSearch = (sale.vendedor || '').toLowerCase().includes(term) ||
-                (sale.produto || '').toLowerCase().includes(term) ||
-                (sale.portabilidade || '').toLowerCase().includes(term) ||
+            const term = String(searchTerm).toLowerCase();
+            matchSearch = String(sale.vendedor || '').toLowerCase().includes(term) ||
+                String(sale.produto || '').toLowerCase().includes(term) ||
+                String(sale.portabilidade || '').toLowerCase().includes(term) ||
                 (sale.portabilidade === 'SIM' && 'portabilidade'.includes(term)) ||
-                (sale.mplay || '').toLowerCase().includes(term) ||
+                String(sale.mplay || '').toLowerCase().includes(term) ||
                 (sale.mplay === 'SIM' && ('mplay'.includes(term) || 'm-play'.includes(term))) ||
-                (sale.combo || '').toLowerCase().includes(term) ||
-                (sale.tipoOperacao || '').toLowerCase().includes(term) ||
-                (sale.cpf || '').toLowerCase().includes(term) ||
-                (sale.contrato || '').toLowerCase().includes(term) ||
-                (sale.adicionais && sale.adicionais.join(' ').toLowerCase().includes(term));
+                String(sale.combo || '').toLowerCase().includes(term) ||
+                String(sale.tipoOperacao || '').toLowerCase().includes(term) ||
+                String(sale.cpf || '').toLowerCase().includes(term) ||
+                String(sale.contrato || '').toLowerCase().includes(term) ||
+                (Array.isArray(sale.adicionais) && sale.adicionais.filter(ad => !(String(sale.produto || '').includes('APARELHO') && ad === 'SEGURO')).join(' ').toLowerCase().includes(term));
         }
         return matchDate && matchSearch;
     });
@@ -261,7 +406,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             'CPF/CNPJ': sale.cpf,
             'Contrato': sale.contrato,
             'M-Play': sale.mplay,
-            'Adicionais': sale.adicionais ? sale.adicionais.join(', ') : ''
+            'Adicionais': Array.isArray(sale.adicionais) ? sale.adicionais.join(', ') : ''
         }));
 
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -364,7 +509,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                             {filteredSales.map((sale, index) => (
                                 <tr key={sale.id || index} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/50 transition-colors group cursor-pointer">
                                     <td className="px-6 py-3 font-medium text-neutral-800 dark:text-neutral-200">{sale.vendedor}</td>
-                                    <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">{sale.data.includes('-') ? new Date(sale.data + 'T12:00:00').toLocaleDateString('pt-BR') : sale.data}</td>
+                                    <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">{typeof sale.data === 'string' && sale.data.includes('-') ? new Date(sale.data + 'T12:00:00').toLocaleDateString('pt-BR') : sale.data}</td>
                                     <td className="px-6 py-3 text-neutral-700 dark:text-neutral-300 font-medium">{sale.produto}</td>
                                     <td className="px-6 py-3"><span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">{sale.combo}</span></td>
                                     <td className="px-6 py-3 text-center"><span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 px-2 py-1 rounded-md text-xs">{sale.qtda}</span></td>
@@ -373,9 +518,9 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                     <td className="px-6 py-3 font-medium text-neutral-800 dark:text-neutral-200">{applyCurrencyMask(sale.receita)}</td>
                                     <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 font-mono text-xs">{sale.cpf}</td><td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 font-mono text-xs">{sale.contrato}</td>
                                     <td className="px-6 py-3"><span className={`flex items-center gap-1.5 text-xs font-medium ${sale.mplay === 'SIM' ? 'text-[#E3000F]' : 'text-neutral-400 dark:text-neutral-500'}`}>{sale.mplay === 'SIM' ? <MonitorPlay size={14} /> : <div className="w-3.5 h-3.5 rounded-full border border-neutral-300 dark:border-neutral-600"></div>}{sale.mplay}</span></td>
-                                    <td className="px-6 py-3 text-center">{sale.adicionais && sale.adicionais.length > 0 ? (<div className="flex justify-center gap-1.5 flex-wrap">{sale.adicionais.map(ad => (<span key={ad} className="bg-[#E3000F]/10 text-[#E3000F] px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{ad}</span>))}</div>) : <span className="text-neutral-300 text-xs">-</span>}</td>
+                                    <td className="px-6 py-3 text-center">{Array.isArray(sale.adicionais) && sale.adicionais.length > 0 ? (<div className="flex justify-center gap-1.5 flex-wrap">{sale.adicionais.map(ad => (<span key={ad} className="bg-[#E3000F]/10 text-[#E3000F] px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{ad}</span>))}</div>) : <span className="text-neutral-300 text-xs">-</span>}</td>
                                     <td className="px-6 py-3 text-center">
-                                        {(!isVendedor || sale.vendedor === globalUser?.name || sale.vendedor === globalUser?.name.split(' ')[0]) ? (
+                                        {(!isVendedor || sale.vendedor === globalUser?.name || sale.vendedor === String(globalUser?.name || '').split(' ')[0]) ? (
                                             <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <button onClick={(e) => { e.stopPropagation(); handleEditSale(sale); }} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors" title="Editar Venda"><Edit3 size={16} /></button>
                                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteSale(sale.id); }} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Excluir Venda"><Trash2 size={16} /></button>
@@ -397,49 +542,154 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 no-print">
                     <div className="flex min-h-full items-center justify-center">
-                        <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-4xl animate-fade-in transition-colors">
-                            <div className="sticky top-0 bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800 p-6 flex justify-between items-center z-10 rounded-t-2xl">
-                                <div><h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100">{editingId ? 'Editar Venda' : 'Registrar Nova Venda'}</h2><p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Regras automáticas e cálculos de comissão ativados.</p></div>
-                                <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-full transition-colors"><X size={18} /></button>
-                            </div>
-                            <form onSubmit={handleSubmitSale} className="p-4 sm:p-6 space-y-6">
-                                {formError && (<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[#E3000F] px-4 py-3 rounded-lg flex items-center gap-3 text-sm font-medium animate-fade-in"><AlertCircle size={18} className="shrink-0" />{formError}</div>)}
-                                <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center gap-4 justify-between"><div><h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide">Contexto da Venda</h3><p className="text-xs text-neutral-500 dark:text-neutral-400">Selecione o formato para calcular a receita corretamente.</p></div><div className="flex flex-wrap sm:flex-nowrap bg-white dark:bg-neutral-900 rounded-lg p-1 border border-neutral-200 dark:border-neutral-700 shadow-sm w-full md:w-auto">{['SINGLE', 'MULTI', 'MULTI 3P'].map(tipo => (<button key={tipo} type="button" onClick={() => handleFormChange({ target: { name: 'combo', value: tipo } })} className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-md transition-all ${formData.combo === tipo ? 'bg-[#E3000F] text-white shadow-md' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'}`}>{tipo}</button>))}</div></div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-                                    <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium ${isVendedor ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-[#E3000F]' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}><option className="bg-white dark:bg-neutral-900" value="">Selecione o vendedor</option>{safeVendedores.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select></div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" max={getTodaySP()} value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto Principal <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium"><option className="bg-white dark:bg-neutral-900" value="">Selecione o produto</option>{safeProdutos.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
-                                    {getSubOptions().length > 0 && (<div className="space-y-1.5 animate-fade-in bg-yellow-50/50 dark:bg-yellow-900/20 p-2 -m-2 rounded-lg border border-yellow-100 dark:border-yellow-800"><label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1">Especificação <span className="text-[#E3000F]">*</span></label><select name="subOption" value={formData.subOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-[#E3000F]"><option className="bg-white dark:bg-neutral-900" value="">Selecione a opção</option>{getSubOptions().map(o => <option className="bg-white dark:bg-neutral-900" key={o.label} value={o.label}>{o.label}</option>)}</select></div>)}
-                                    {(formData.produto.includes('POS') || formData.produto.includes('CONTROLE')) && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center justify-between"><span>{isComissionado ? 'Valor Bruto da Venda (R$)' : 'Receita (R$)'} <span className="text-[#E3000F]">*</span></span>{formData.isReceitaReadonly && <span className="text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={10} /> Automático</span>}</label>{formData.isReceitaReadonly ? (<input type="text" readOnly value={formData.receita} className="w-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />) : (<input type="text" name="receita" value={formData.receita} onChange={handleFormChange} placeholder="R$ 0,00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] focus:border-[#E3000F] outline-none text-sm font-bold" />)}{isComissionado && formData.receita && (<div className="text-[11px] text-green-700 dark:text-green-400 font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded border border-green-200 dark:border-green-800 mt-1 flex justify-between items-center animate-fade-in"><span>Comissão a registrar:</span><span>{applyCurrencyMask(calcularComissaoDinamica(formData.produto, formData.adicionais, parseCurrencyToFloat(formData.receita)))}</span></div>)}</div>
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
-                                    {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
-                                    <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">CPF / CNPJ <span className="text-[#E3000F]">*</span></label><input type="text" name="cpf" value={formData.cpf} onChange={handleFormChange} placeholder="000.000.000-00" className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono" /></div>
-                                    <div className="space-y-1.5 relative"><label className={`text-xs font-bold uppercase tracking-wider flex justify-between ${requiresContrato ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-400 dark:text-neutral-500'}`}><span>Contrato {requiresContrato && <span className="text-[#E3000F]">*</span>}</span>{!requiresContrato && <Lock size={12} />}</label><input type="text" name="contrato" value={formData.contrato} onChange={handleFormChange} placeholder={requiresContrato ? "Ex: 000/000000000" : "Não aplicável"} disabled={!requiresContrato} className={`w-full px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono border ${requiresContrato ? 'bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100' : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'}`} /></div>
-                                    {showMplay && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">M-Play <span className="text-[#E3000F]">*</span></label><select name="mplay" value={formData.mplay} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                        <div className={`bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full ${!editingId && vendaMode === 'COMBO' ? 'max-w-6xl' : 'max-w-4xl'} animate-fade-in transition-all duration-300`}>
+                            <div className="sticky top-0 bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800 z-10 rounded-t-2xl flex flex-col">
+                                <div className="p-6 flex justify-between items-center">
+                                    <div><h2 className="text-xl font-bold text-neutral-800 dark:text-neutral-100">{editingId ? 'Editar Venda' : 'Registrar Nova Venda'}</h2><p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Regras automáticas e cálculos de comissão ativados.</p></div>
+                                    <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-full transition-colors"><X size={18} /></button>
                                 </div>
-                                <div className="mt-6 pt-6 border-t border-neutral-100 dark:border-neutral-800">
-                                    <label className="text-sm font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2 mb-4"><Briefcase size={16} className="text-[#E3000F]" /> A Venda possui algum programa adicional?</label>
-                                    <div className="flex flex-wrap gap-4">
-                                        <label className={`flex items-center gap-3 px-5 py-3 border rounded-xl cursor-pointer transition-all ${formData.adicionais.length === 0 ? 'border-[#E3000F] bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F]' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 text-neutral-600 dark:text-neutral-400'}`}><input type="checkbox" checked={formData.adicionais.length === 0} onChange={() => handleAdicionalToggle('NENHUM')} className="hidden" /><div className={`w-4 h-4 rounded flex items-center justify-center ${formData.adicionais.length === 0 ? 'bg-[#E3000F] border-[#E3000F]' : 'border-2 border-neutral-300 dark:border-neutral-600'}`}>{formData.adicionais.length === 0 && <Check size={12} className="text-white" />}</div><span className="text-sm font-bold tracking-wide">NENHUM</span></label>
-                                        {['TROCAFY', 'CLARO UP', 'SEGURO'].map((op) => (
-                                            <label key={op} className={`flex items-center gap-3 px-5 py-3 border rounded-xl cursor-pointer transition-all ${formData.adicionais.includes(op) ? 'border-[#E3000F] bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F]' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 text-neutral-600 dark:text-neutral-400'}`}><input type="checkbox" checked={formData.adicionais.includes(op)} onChange={() => handleAdicionalToggle(op)} className="hidden" /><div className={`w-4 h-4 rounded flex items-center justify-center ${formData.adicionais.includes(op) ? 'bg-[#E3000F] border-[#E3000F]' : 'border-2 border-neutral-300 dark:border-neutral-600'}`}>{formData.adicionais.includes(op) && <Check size={12} className="text-white" />}</div><span className="text-sm font-bold tracking-wide">{op}</span></label>
-                                        ))}
+                                {!editingId && (
+                                    <div className="flex gap-6 px-6 pt-0">
+                                        <button type="button" onClick={() => setVendaMode('INDIVIDUAL')} className={`pb-3 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${vendaMode === 'INDIVIDUAL' ? 'border-[#E3000F] text-[#E3000F]' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>Venda Individual</button>
+                                        <button type="button" onClick={() => setVendaMode('COMBO')} className={`pb-3 text-sm font-bold uppercase tracking-wider border-b-2 transition-colors ${vendaMode === 'COMBO' ? 'border-[#E3000F] text-[#E3000F]' : 'border-transparent text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'}`}>Venda Múltipla (Combo)</button>
                                     </div>
-                                    {formData.produto === 'APARELHO' && formData.adicionais.includes('SEGURO') && (
-                                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl animate-fade-in">
-                                            <label className="text-sm font-bold text-blue-800 dark:text-blue-300 flex items-center gap-2 mb-2">
-                                                Qual o plano do Seguro contratado? <span className="text-[#E3000F]">*</span>
-                                            </label>
-                                            <select name="seguroOption" value={formData.seguroOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-blue-200 dark:border-blue-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold text-blue-700 dark:text-blue-400">
-                                                <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" value="">Selecione o valor do seguro...</option>
-                                                {SEGURO_OPTIONS.map(o => <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" key={o.label} value={o.label}>{o.label}</option>)}
-                                            </select>
+                                )}
+                            </div>
+                            
+                            {vendaMode === 'INDIVIDUAL' || editingId ? (
+                                <form onSubmit={handleSubmitSale} className="p-4 sm:p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+                                    {formError && (<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[#E3000F] px-4 py-3 rounded-lg flex items-center gap-3 text-sm font-medium animate-fade-in"><AlertCircle size={18} className="shrink-0" />{formError}</div>)}
+                                    <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center gap-4 justify-between"><div><h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide">Contexto da Venda</h3><p className="text-xs text-neutral-500 dark:text-neutral-400">Selecione o formato para calcular a receita corretamente.</p></div><div className="flex flex-wrap sm:flex-nowrap bg-white dark:bg-neutral-900 rounded-lg p-1 border border-neutral-200 dark:border-neutral-700 shadow-sm w-full md:w-auto">{['SINGLE', 'MULTI', 'MULTI 3P'].map(tipo => (<button key={tipo} type="button" onClick={() => handleFormChange({ target: { name: 'combo', value: tipo } })} className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-md transition-all ${formData.combo === tipo ? 'bg-[#E3000F] text-white shadow-md' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'}`}>{tipo}</button>))}</div></div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
+                                        <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium ${isVendedor ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-[#E3000F]' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}><option className="bg-white dark:bg-neutral-900" value="">Selecione o vendedor</option>{safeVendedores.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select></div>
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" max={getTodaySP()} value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto Principal <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium"><option className="bg-white dark:bg-neutral-900" value="">Selecione o produto</option>{safeProdutos.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
+                                        {getSubOptions().length > 0 && (<div className="space-y-1.5 animate-fade-in bg-yellow-50/50 dark:bg-yellow-900/20 p-2 -m-2 rounded-lg border border-yellow-100 dark:border-yellow-800"><label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1">Especificação <span className="text-[#E3000F]">*</span></label><select name="subOption" value={formData.subOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-[#E3000F]"><option className="bg-white dark:bg-neutral-900" value="">Selecione a opção</option>{getSubOptions().map(o => <option className="bg-white dark:bg-neutral-900" key={o.label} value={o.label}>{o.label}</option>)}</select></div>)}
+                                        {(formData.produto.includes('POS') || formData.produto.includes('CONTROLE')) && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center justify-between"><span>{isComissionado ? 'Valor Bruto (R$)' : 'Receita (R$)'} <span className="text-[#E3000F]">*</span></span>{formData.isReceitaReadonly && <span className="text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={10} /> Automático</span>}</label>{formData.isReceitaReadonly ? (<input type="text" readOnly value={formData.receita} className="w-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />) : (<input type="text" name="receita" value={formData.receita} onChange={handleFormChange} placeholder="R$ 0,00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] focus:border-[#E3000F] outline-none text-sm font-bold" />)}</div>
+                                        {isComissionado && (
+                                            <div className="space-y-1.5 animate-fade-in">
+                                                <label className="text-xs font-bold text-green-700 dark:text-green-500 uppercase tracking-wider">Comissão / Vendedor (R$)</label>
+                                                <input type="text" readOnly value={applyCurrencyMask(calcularComissaoDinamica(formData.produto, formData.adicionais, parseCurrencyToFloat(formData.receita), formData.seguroOption))} className="w-full bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />
+                                            </div>
+                                        )}
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                        {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                        {formData.produto === 'APARELHO' && (
+                                            <div className="space-y-1.5 animate-fade-in">
+                                                <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Seguro do Aparelho</label>
+                                                <select name="seguroOption" value={formData.seguroOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-blue-600 dark:text-blue-400">
+                                                    <option className="bg-white dark:bg-neutral-900 text-neutral-500" value="">Sem Seguro</option>
+                                                    {SEGURO_OPTIONS.map(o => <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" key={o.label} value={o.label}>{o.label}</option>)}
+                                                </select>
+                                            </div>
+                                        )}
+                                        <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">CPF / CNPJ <span className="text-[#E3000F]">*</span></label><input type="text" name="cpf" value={formData.cpf} onChange={handleFormChange} placeholder="000.000.000-00" className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono" /></div>
+                                        <div className="space-y-1.5 relative"><label className={`text-xs font-bold uppercase tracking-wider flex justify-between ${requiresContrato ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-400 dark:text-neutral-500'}`}><span>Contrato {requiresContrato && <span className="text-[#E3000F]">*</span>}</span>{!requiresContrato && <Lock size={12} />}</label><input type="text" name="contrato" value={formData.contrato} onChange={handleFormChange} placeholder={requiresContrato ? "Ex: 000/000000000" : "Não aplicável"} disabled={!requiresContrato} className={`w-full px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono border ${requiresContrato ? 'bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100' : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'}`} /></div>
+                                        {showMplay && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">M-Play <span className="text-[#E3000F]">*</span></label><select name="mplay" value={formData.mplay} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                    </div>
+                                    <div className="mt-6 pt-6 border-t border-neutral-100 dark:border-neutral-800">
+                                        <label className="text-sm font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2 mb-4"><Briefcase size={16} className="text-[#E3000F]" /> A Venda possui algum programa adicional?</label>
+                                        <div className="flex flex-wrap gap-4">
+                                            <label className={`flex items-center gap-3 px-5 py-3 border rounded-xl cursor-pointer transition-all ${formData.adicionais.length === 0 ? 'border-[#E3000F] bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F]' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 text-neutral-600 dark:text-neutral-400'}`}><input type="checkbox" checked={formData.adicionais.length === 0} onChange={() => handleAdicionalToggle('NENHUM')} className="hidden" /><div className={`w-4 h-4 rounded flex items-center justify-center ${formData.adicionais.length === 0 ? 'bg-[#E3000F] border-[#E3000F]' : 'border-2 border-neutral-300 dark:border-neutral-600'}`}>{formData.adicionais.length === 0 && <Check size={12} className="text-white" />}</div><span className="text-sm font-bold tracking-wide">NENHUM</span></label>
+                                            {['TROCAFY', 'CLARO UP'].map((op) => (
+                                                <label key={op} className={`flex items-center gap-3 px-5 py-3 border rounded-xl cursor-pointer transition-all ${formData.adicionais.includes(op) ? 'border-[#E3000F] bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F]' : 'border-neutral-200 dark:border-neutral-700 hover:border-neutral-300 dark:hover:border-neutral-600 text-neutral-600 dark:text-neutral-400'}`}><input type="checkbox" checked={formData.adicionais.includes(op)} onChange={() => handleAdicionalToggle(op)} className="hidden" /><div className={`w-4 h-4 rounded flex items-center justify-center ${formData.adicionais.includes(op) ? 'bg-[#E3000F] border-[#E3000F]' : 'border-2 border-neutral-300 dark:border-neutral-600'}`}>{formData.adicionais.includes(op) && <Check size={12} className="text-white" />}</div><span className="text-sm font-bold tracking-wide">{op}</span></label>
+                                            ))}
                                         </div>
-                                    )}
+                                    </div>
+                                    <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 dark:border-neutral-800 mt-6"><button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cancelar</button><button type="submit" className="w-full sm:w-auto px-8 py-2.5 bg-[#E3000F] text-white font-medium rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">{editingId ? 'Salvar Alterações' : 'Confirmar Venda'}</button></div>
+                                </form>
+                            ) : (
+                                <div className="grid grid-cols-1 lg:grid-cols-12 max-h-[75vh] overflow-hidden">
+                                    <div className="lg:col-span-7 p-4 sm:p-6 space-y-6 overflow-y-auto border-b lg:border-b-0 lg:border-r border-neutral-100 dark:border-neutral-800">
+                                        {formError && (<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[#E3000F] px-4 py-3 rounded-lg flex items-center gap-3 text-sm font-medium animate-fade-in"><AlertCircle size={18} className="shrink-0" />{formError}</div>)}
+                                        <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center gap-4 justify-between"><div><h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide">Contexto da Venda</h3><p className="text-xs text-neutral-500 dark:text-neutral-400">Selecione o formato para calcular a receita corretamente.</p></div><div className="flex flex-wrap sm:flex-nowrap bg-white dark:bg-neutral-900 rounded-lg p-1 border border-neutral-200 dark:border-neutral-700 shadow-sm w-full md:w-auto">{['SINGLE', 'MULTI', 'MULTI 3P'].map(tipo => (<button key={tipo} type="button" onClick={() => handleFormChange({ target: { name: 'combo', value: tipo } })} className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-md transition-all ${formData.combo === tipo ? 'bg-[#E3000F] text-white shadow-md' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'}`}>{tipo}</button>))}</div></div>
+                                        
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                            <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium ${isVendedor ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-[#E3000F]' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}><option className="bg-white dark:bg-neutral-900" value="">Selecione o vendedor</option>{safeVendedores.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select></div>
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" max={getTodaySP()} value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium"><option className="bg-white dark:bg-neutral-900" value="">Selecione o produto</option>{safeProdutos.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
+                                            {getSubOptions().length > 0 && (<div className="space-y-1.5 animate-fade-in bg-yellow-50/50 dark:bg-yellow-900/20 p-2 -m-2 rounded-lg border border-yellow-100 dark:border-yellow-800"><label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1">Especificação <span className="text-[#E3000F]">*</span></label><select name="subOption" value={formData.subOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-[#E3000F]"><option className="bg-white dark:bg-neutral-900" value="">Selecione a opção</option>{getSubOptions().map(o => <option className="bg-white dark:bg-neutral-900" key={o.label} value={o.label}>{o.label}</option>)}</select></div>)}
+                                            {(formData.produto.includes('POS') || formData.produto.includes('CONTROLE')) && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center justify-between"><span>{isComissionado ? 'Valor Bruto (R$)' : 'Receita (R$)'} <span className="text-[#E3000F]">*</span></span>{formData.isReceitaReadonly && <span className="text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={10} /> Automático</span>}</label>{formData.isReceitaReadonly ? (<input type="text" readOnly value={formData.receita} className="w-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />) : (<input type="text" name="receita" value={formData.receita} onChange={handleFormChange} placeholder="R$ 0,00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] focus:border-[#E3000F] outline-none text-sm font-bold" />)}</div>
+                                            {isComissionado && (
+                                                <div className="space-y-1.5 animate-fade-in">
+                                                    <label className="text-xs font-bold text-green-700 dark:text-green-500 uppercase tracking-wider">Comissão / Vendedor (R$)</label>
+                                                    <input type="text" readOnly value={applyCurrencyMask(calcularComissaoDinamica(formData.produto, formData.adicionais, parseCurrencyToFloat(formData.receita), formData.seguroOption))} className="w-full bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />
+                                                </div>
+                                            )}
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                            {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                            {formData.produto === 'APARELHO' && (
+                                                <div className="space-y-1.5 animate-fade-in">
+                                                    <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Seguro do Aparelho</label>
+                                                    <select name="seguroOption" value={formData.seguroOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-blue-600 dark:text-blue-400">
+                                                        <option className="bg-white dark:bg-neutral-900 text-neutral-500" value="">Sem Seguro</option>
+                                                        {SEGURO_OPTIONS.map(o => <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" key={o.label} value={o.label}>{o.label}</option>)}
+                                                    </select>
+                                                </div>
+                                            )}
+                                            {showMplay && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">M-Play <span className="text-[#E3000F]">*</span></label><select name="mplay" value={formData.mplay} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                        </div>
+                                        
+                                        <div className="pt-4 border-t border-neutral-100 dark:border-neutral-800 flex justify-end">
+                                            <button type="button" onClick={handleAddComboItem} className="w-full sm:w-auto px-6 py-3 bg-neutral-900 dark:bg-neutral-800 text-white font-medium rounded-xl hover:bg-black transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"><Plus size={16}/> Adicionar Produto ao Combo</button>
+                                        </div>
+                                    </div>
+
+                                    <div className="lg:col-span-5 bg-neutral-50 dark:bg-neutral-800/50 p-4 sm:p-6 flex flex-col overflow-y-auto">
+                                        <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide mb-4">Resumo do Combo</h3>
+                                        <div className="flex-1 space-y-3 mb-6 min-h-[150px] overflow-y-auto pr-2">
+                                            {comboItems.length === 0 ? (
+                                                <div className="text-center text-neutral-400 py-10 border-2 border-dashed border-neutral-200 dark:border-neutral-700 rounded-xl flex flex-col items-center justify-center gap-2"><Briefcase size={24} className="opacity-50"/> Nenhum produto adicionado.</div>
+                                            ) : (
+                                                comboItems.map((item, idx) => (
+                                                    <div key={idx} className="bg-white dark:bg-neutral-900 p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-700 flex justify-between items-center shadow-sm relative overflow-hidden group">
+                                                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#E3000F]"></div>
+                                                        <div className="flex flex-col pl-2">
+                                                            <span className="text-xs font-bold text-neutral-800 dark:text-neutral-100">{item.qtda}x {item.produtoBase || item.produto} {item.subOption && `(${item.subOption})`}</span>
+                                                            <span className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-0.5">{item.combo} {item.tipoOperacao ? `• ${item.tipoOperacao}` : ''}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-xs font-black text-green-600 dark:text-green-500">{item.receita}</span>
+                                                            <button type="button" onClick={() => removeComboItem(idx)} className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><Trash2 size={14}/></button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-4 pt-4 border-t border-neutral-200 dark:border-neutral-700 shrink-0">
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">CPF / CNPJ do Titular <span className="text-[#E3000F]">*</span></label><input type="text" value={comboGlobal.cpf} onChange={e => setComboGlobal({...comboGlobal, cpf: applyCpfCnpjMask(e.target.value)})} placeholder="000.000.000-00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm font-mono text-neutral-800 dark:text-neutral-100" /></div>
+                                            
+                                            {(() => {
+                                                const hasResidential = comboItems.some(i => (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(i.produtoBase || i.produto));
+                                                return (
+                                                    <div className="space-y-1.5 relative">
+                                                        <label className={`text-xs font-bold uppercase tracking-wider flex justify-between ${hasResidential ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-400 dark:text-neutral-500'}`}><span>Contrato {hasResidential && <span className="text-[#E3000F]">*</span>}</span>{!hasResidential && <Lock size={12} />}</label>
+                                                        <input type="text" value={comboGlobal.contrato} onChange={e => setComboGlobal({...comboGlobal, contrato: applyContratoMask(e.target.value)})} placeholder={hasResidential ? "Ex: 000/000000000" : "Não aplicável"} disabled={!hasResidential} className={`w-full px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono border ${hasResidential ? 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100' : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'}`} />
+                                                    </div>
+                                                );
+                                            })()}
+
+                                            <div className="pt-2">
+                                                <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2 mb-3"><Briefcase size={14} className="text-[#E3000F]" /> Adicionais Globais (Titular do Combo)</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <label className={`flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer transition-all ${comboGlobal.adicionais.length === 0 ? 'border-[#E3000F] bg-red-50 dark:bg-red-900/20 text-[#E3000F]' : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400'}`}><input type="checkbox" checked={comboGlobal.adicionais.length === 0} onChange={() => handleGlobalAdicionalToggle('NENHUM')} className="hidden" /><div className={`w-3 h-3 rounded flex items-center justify-center ${comboGlobal.adicionais.length === 0 ? 'bg-[#E3000F] border-[#E3000F]' : 'border border-neutral-300 dark:border-neutral-600'}`}>{comboGlobal.adicionais.length === 0 && <Check size={10} className="text-white" />}</div><span className="text-[10px] font-bold tracking-wide">NENHUM</span></label>
+                                                    {['TROCAFY', 'CLARO UP'].map((op) => (
+                                                        <label key={op} className={`flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer transition-all ${comboGlobal.adicionais.includes(op) ? 'border-[#E3000F] bg-red-50 dark:bg-red-900/20 text-[#E3000F]' : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400'}`}><input type="checkbox" checked={comboGlobal.adicionais.includes(op)} onChange={() => handleGlobalAdicionalToggle(op)} className="hidden" /><div className={`w-3 h-3 rounded flex items-center justify-center ${comboGlobal.adicionais.includes(op) ? 'bg-[#E3000F] border-[#E3000F]' : 'border border-neutral-300 dark:border-neutral-600'}`}>{comboGlobal.adicionais.includes(op) && <Check size={10} className="text-white" />}</div><span className="text-[10px] font-bold tracking-wide">{op}</span></label>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-6 mt-6 border-t border-neutral-200 dark:border-neutral-700 flex flex-col gap-3 shrink-0">
+                                            <button type="button" onClick={handleSubmitCombo} className="w-full py-3 bg-[#E3000F] text-white font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2 text-sm">Confirmar Venda Combo</button>
+                                            <button type="button" onClick={() => setIsModalOpen(false)} className="w-full py-2 text-sm text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 font-bold transition-colors">Cancelar</button>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 dark:border-neutral-800 mt-6"><button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cancelar</button><button type="submit" className="w-full sm:w-auto px-8 py-2.5 bg-[#E3000F] text-white font-medium rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">{editingId ? 'Salvar Alterações' : 'Confirmar Venda'}</button></div>
-                            </form>
+                            )}
                         </div>
                     </div>
                 </div>

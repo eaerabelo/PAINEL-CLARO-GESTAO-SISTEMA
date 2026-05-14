@@ -23,7 +23,8 @@
 - **REGRA 9:** Se a venda envolver produtos comissionados, o campo "Receita" muda sua lógica para ler o "Valor Bruto" da venda. A comissão é fracionada dinamicamente: 5% para Aparelhos Celulares (subindo para 6% se o adicional de "Seguro" estiver vinculado) e 15% para Acessórios e Películas. Serviços de Telecom (Pós, Controle, Fibra) computam 100% do valor para o Run Rate.
 - **REGRA 10:** A Receita (preço) é preenchida e bloqueada automaticamente se a combinação de Produto + Tipo de Combo + Especificação for encontrada na tabela de preços do sistema. Caso contrário, o campo fica livre para digitação.
 - **REGRA 11:** Vendas de produtos móveis (Pós, Controle, etc.) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração), além dos campos de "M-Play" e "Portabilidade". Para serviços residenciais, o campo de "M-Play" também é exibido para preenchimento. Para produtos físicos (Aparelhos, Acessórios), esses campos são ocultos da interface. A tabela de listagem exibe a coluna "Operação".
-- **REGRA 11.1:** Na venda de um "APARELHO", caso o adicional "SEGURO" seja marcado, o sistema obriga a seleção do plano do seguro e, ao salvar, desmembra a venda registrando automaticamente uma linha adicional individual para o produto "SEGURO". A comissão de 6% sobre o aparelho original é preservada.
+- **REGRA 11.1:** Na venda de um "APARELHO", caso o adicional "SEGURO" seja selecionado na caixa flutuante, o sistema desmembra a venda ao salvar, registrando automaticamente uma linha adicional e individual para o produto "SEGURO". A comissão de 6% sobre o aparelho original é preservada, e a palavra "Seguro" é ocultada da coluna de adicionais do aparelho na interface para melhor leitura visual.
+- **REGRA 11.2:** A tela de Vendas conta com um "Modo Combo" (Venda Múltipla). O vendedor pode adicionar vários serviços (ex: Pós + 3 Dependentes + Fibra + TV) em um carrinho de compras. O sistema exige a especificação do titular, compartilha o contrato residencial entre as linhas necessárias, e salva todos os produtos simultaneamente e de forma desmembrada na base de dados.
 - **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, aos perfis de liderança/backoffice (SÊNIOR e equivalentes) ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado).
 - **REGRA 13:** A tabela de visualização exibe as vendas pertencentes ao Mês Selecionado no seletor global do sistema. A barra de pesquisa possui uma inteligência abrangente para filtrar as vendas listadas por Vendedor, Produto, CPF/CNPJ, Adicionais (ex: Trocafy, Seguro), Portabilidade, M-Play e Tipo de Operação.
 - **REGRA 13.1:** A importação e exportação em Excel são **exclusivos do perfil GESTOR** para proteção dos dados da loja. O sistema possui uma inteligência de mapeamento (Smart Mapper) que converte automaticamente formatações antigas e lê datas seriais.
@@ -40,6 +41,7 @@
 ## 4. MÓDULO CONTROLE DE SIMCARDS E ESTOQUE
 
 - **REGRA 20:** Apenas contas de GESTOR ou SÊNIOR (e equivalentes) podem excluir uma linha inteira da planilha de chips ou editar os campos de número de série (Físico ou E-SIM). Se um vendedor tentar clicar nessas áreas, um modal será aberto exigindo que um superior autorize a edição.
+- **REGRA 20.1:** Ao acessar a seção Controle Simcard, caso o usuário tenha o papel de VENDEDOR, a aba correspondente ao seu próprio estoque (buscando o seu primeiro nome) é ativada e focada automaticamente.
 - **REGRA 21:** Na inclusão de Lote, os ICCIDs de chip Físico e E-SIM inseridos simultaneamente ocupam a mesma linha de cadastro se suas quebras de linha forem correspondentes.
 - **REGRA 22:** Todo novo lote de chip criado carrega a regra automática de precificação unitária base padronizada e travada (valor fixo inserido por padrão no banco).
 - **REGRA 23:** O campo de "Plano" exibe em cascata exatamente as mesmas opções cadastradas ativamente nas tabelas da loja (Móveis, Dependentes, Flex, etc).
@@ -50,6 +52,7 @@
 - **REGRA 25:** O preenchimento da matriz de metas globais da loja é de acesso exclusivo do GESTOR.
 - **REGRA 26:** A construção do painel de metas é feita com base na META TOTAL DA LOJA. O gestor informa o montante global da operação para aquele mês, e o sistema se encarrega de dividir matematicamente pela quantidade de consultores ativos no painel para estipular as metas individuais.
 - **REGRA 27:** O Dashboard individual da equipe (aba Colaboradores) gera relatórios "Meta vs Realizado" em tempo real. Esta aba é uma das únicas que exibe o Nome Completo dos usuários para fins de gestão.
+- **REGRA 27.1:** O Dashboard possui um motor de Gamificação/Ranking em tempo real. O sistema calcula invisivelmente as vendas de todos os vendedores e coroa (👑) o Top 1 em Receita Total da Loja e premia (🥇) o Destaque com o maior volume em vendas Pós-Pago. As insígnias são visíveis a todos na equipe.
 - **REGRA 28:** Perfis de Vendedor acessam a aba Colaboradores sob uma barreira de restrição: eles conseguem abrir somente a própria foto para visualizar o próprio placar de vendas.
 
 ## 6. MÓDULO DE ESCALA DE TRABALHO
@@ -68,6 +71,7 @@
 - **REGRA 34:** A plataforma opera com Sincronização em Tempo Real (onSnapshot). Qualquer alteração feita por um vendedor na loja é propagada automaticamente e instantaneamente para a tela do Gestor e dos outros computadores conectados.
 - **REGRA 35:** A captura dos dados implementa um **Carregamento Sob Demanda**. Para otimizar a cota de leitura do banco e evitar custos ou interrupções, o sistema restringe o carregamento de "Vendas" e "Reprovados" exclusivamente aos registros do mês selecionado pelo seletor de Mês Global localizado no topo da interface.
 - **REGRA 35.1:** A ordenação dos dados baixados do banco emprega uma "Inteligência Cronológica", ordenando os itens primariamente pela data física registrada pelo usuário, e utilizando a Ordem de Lançamento (ID) apenas como método de desempate, impedindo assim o embaralhamento da tabela com lançamentos retroativos.
+- **REGRA 35.2:** O sistema conta com uma Central de Notificações global (Sininho). Ele alerta os usuários logados quando a gestão atualiza o Espelho de Metas (com o aviso "Novas Metas Definidas!") e notifica os gestores automaticamente em horários de pico (10h, 12h, 14h, 16h, 18h, 20h) para envio da Parcial.
 
 ## 8. MÓDULO DE REPROVADOS (RESIDENCIAL)
 
@@ -90,6 +94,7 @@
   - **REC. ACESSÓRIOS / REC. APARELHOS:** Consolida a receita exata proveniente dessas categorias (com ou sem seguro).
   - **BL:** Soma todas as vendas correspondentes a BL ou BANDA LARGA.
   - **GROSS DIA:** Calcula todos os serviços móveis do dia (Pós, Controle, Dependentes, Flex, Banda Larga e PME), sem misturar com Residencial ou Aparelhos.
+- **REGRA 41.1:** A contagem de volumes físicos de Aparelhos, Acessórios e Películas nas tabelas de Resultados e Dashboards espelha exatamente a quantidade bruta lançada pelo vendedor (Aparelhos UN e Acessórios UN). O cálculo do Ticket Médio é realizado sobre essa quantidade real física (PHC), para evitar perda de dados e garantir acuracidade total do estoque da loja.
 - **REGRA 42:** No rodapé do módulo, duas linhas fixas ("TOTAL" e "META LOJA") consolidam os resultados totais do mês corrente. A visão completa pode ser exportada para um arquivo nativo `.xlsx` (Excel) para controle de diretoria.
 
 ## 10. MÓDULO DE PROPOSTAS (SIMULADOR)
@@ -108,3 +113,9 @@
 - **REGRA 49:** O módulo possui integração de dados fluída, varrendo as vendas do dia e categorizando-as perfeitamente em Gross (Titulares, Dependentes Pagos, Banda Larga, Flex), Gross PME, Convergência Residencial, Aparelhos, Portabilidade, Ativações e Migrações.
 - **REGRA 50:** O sistema calcula de forma autônoma Indicadores-Chave de Desempenho (KPIs): Ticket Médio de Acessórios, Taxa de Anexação (%) sobre aparelhos e Taxa de Conversão de Seguro (%).
 - **REGRA 51:** A tela possui botões de exportação (One-Click Share) que mesclam as automações calculadas com os dados inseridos manualmente pelo Gestor (Fluxo de Senhas, Boost, Churn) num template de texto formatado, invocando a Web API do WhatsApp instantaneamente.
+
+## 13. MÓDULO GEEK (CENTRAL DE DOCUMENTOS)
+
+- **REGRA 52:** A seção [GEEK] atua como uma biblioteca virtual para os consultores acessarem PDFs e Documentos da operação, agrupados em categorias ("BOOK DE OFERTAS", "MÓDULOS BUNDLE", etc).
+- **REGRA 53:** Para preservar o limite de peso de 1MB por documento no banco de dados Firestore, a arquitetura do painel GEEK exige que o gestor forneça uma **URL externa (ex: Link do Google Drive/OneDrive)** ao invés de realizar o upload físico do PDF.
+- **REGRA 54:** O privilégio de Adicionar e Excluir "balões" de documentos é ESTRITAMENTE restrito ao perfil GEEK. Nem a Gerência nem os Vendedores possuem permissão para apagar ou inserir documentos.

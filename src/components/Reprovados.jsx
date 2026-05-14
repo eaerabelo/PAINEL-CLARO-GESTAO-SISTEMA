@@ -4,9 +4,9 @@ import toast from 'react-hot-toast';
 import { applyCpfCnpjMask, getTodaySP } from '../utils/masks';
 
 export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGerente, isVendedor, usersDB = {}, globalMonth }) {
-    const safeVendedores = Object.values(usersDB)
-        .filter(u => !u.role || u.role === 'VENDEDOR')
-        .map(u => u.name.split(' ')[0])
+    const safeVendedores = Object.values(usersDB || {})
+        .filter(u => !u?.role || u?.role === 'VENDEDOR')
+        .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -45,17 +45,17 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
     }, [isModalOpen]);
 
     // Filtrando tabela via Mês e Termos de busca
-    const filteredData = reprovadosData.filter(item => {
+    const filteredData = (reprovadosData || []).filter(item => {
         if (filterDate && item.data !== filterDate) {
             return false;
         }
 
         if (searchTerm) {
-            const term = searchTerm.toLowerCase();
+            const term = String(searchTerm).toLowerCase();
             return (
-                (item.cliente || '').toLowerCase().includes(term) ||
-                (item.cpf || '').toLowerCase().includes(term) ||
-                (item.logradouro || '').toLowerCase().includes(term)
+                String(item.cliente || '').toLowerCase().includes(term) ||
+                String(item.cpf || '').toLowerCase().includes(term) ||
+                String(item.logradouro || '').toLowerCase().includes(term)
             );
         }
         return true;
@@ -63,7 +63,7 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
 
     const canEditDelete = (item) => {
         if (isGerente || ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'JOVEM APRENDIZ', 'GEEK'].includes(globalUser?.role)) return true;
-        if (isVendedor && (item.vendedor === globalUser?.name || item.vendedor === globalUser?.name.split(' ')[0])) return true;
+        if (isVendedor && (item.vendedor === globalUser?.name || item.vendedor === String(globalUser?.name || '').split(' ')[0])) return true;
         return false;
     };
 
@@ -72,7 +72,7 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
         setEditingId(null);
         setFormData({
             data: getTodaySP(),
-            vendedor: (isVendedor && globalUser) ? globalUser.name.split(' ')[0] : '',
+            vendedor: (isVendedor && globalUser) ? String(globalUser?.name || '').split(' ')[0] : '',
             produto: '',
             motivo: '',
             cliente: '',
@@ -204,7 +204,7 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
                                     ) : (
                                         filteredData.map(item => (
                                             <tr key={item.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors bg-white dark:bg-neutral-900 border-b border-neutral-100 dark:border-neutral-800">
-                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400 font-medium">{item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</td>
+                                                <td className="px-4 py-3 text-neutral-600 dark:text-neutral-400 font-medium">{typeof item.data === 'string' && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</td>
                                                 <td className="px-4 py-3 font-bold text-neutral-800 dark:text-neutral-200">{item.vendedor}</td>
                                                 <td className="px-4 py-3 text-neutral-700 dark:text-neutral-300">{item.produto}</td>
                                                 <td className="px-4 py-3"><span className="bg-red-50 dark:bg-red-900/20 text-[#E3000F] border border-red-100 dark:border-red-900/30 px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase">{item.motivo}</span></td>

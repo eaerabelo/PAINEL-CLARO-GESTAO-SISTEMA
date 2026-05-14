@@ -12,6 +12,9 @@ Bem-vindo à documentação oficial para desenvolvedores do **Painel de Gestão 
 *   **Notificações Visuais:** `react-hot-toast`
 *   **Geração de Relatórios e Midia:** `xlsx` (Excel), `html2canvas` (Geração de propostas visuais por Imagem) e envio API-URI `WhatsApp`.
 *   **Banco de Dados:** Firebase Firestore (NoSQL, Client-Side).
+*   **Gamificação:** Rankings dinâmicos calculados em tempo real (`topReceitaName`, `topPosName`).
+*   **Notificações:** Estado persistente no `localStorage` vinculado a timestamps do Firebase para emissão de badges de notificação global.
+*   **Programação Defensiva:** Fallbacks (`|| ''`, `|| []`, `?.`) implementados ativamente em todas as funções nativas do JS (`.split`, `.includes`, `.toUpperCase`) protegendo a Árvore do React contra exceções nulas do Banco de Dados (WSoD - White Screen of Death), junto a um robusto `ErrorBoundary`.
 
 ---
 
@@ -54,7 +57,8 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 ### `Venda.jsx` (Lançamento)
 *   Trata as comissões através da função `calcularComissaoDinamica()`.
 *   Acessórios e películas possuem `15%`, enquanto Aparelhos possuem `5%` ou `6%` (caso tenha o adicional "Seguro" anexado no array `adicionais`).
-*   **Nova Funcionalidade:** Caso "SEGURO" esteja marcado em um APARELHO, a página automaticamente desmembra o pacote salvando a Venda de Seguro como um registro individual no state.
+*   **Modo Combo (Venda Múltipla):** A tela suporta alternância via estado `vendaMode`. Produtos são estocados temporariamente em `comboItems` e propriedades globais (CPF, Adicionais do Titular, Contrato) ficam em `comboGlobal`, permitindo o despacho (`unshift` e `push`) massivo de Múltiplos Serviços para a tabela.
+*   **Nova Funcionalidade:** Caso a `seguroOption` esteja selecionada em um APARELHO, a página desmembra o pacote salvando a Venda de Seguro como um registro individual e oculta a tag "Seguro" da coluna do aparelho para limpeza visual.
 *   **Barra de Pesquisa Global:** Pesquisa termos não apenas por CPF ou Vendedor, mas busca registros por propriedades de Combos, Serviços M-Play atrelados e Serviços Operacionais (Ativação vs Migração).
 *   Bloqueia a edição do campo "Receita" caso a matriz de produtos (`PRICING_MOVEL` no `constants.js`) possua um valor tabelado.
 *   Para otimizar o tempo (UX), campos como M-Play e Portabilidade ficam inativos (NÃO) se o produto selecionado não for Móvel.
@@ -65,7 +69,7 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 
 ### `Resultado.jsx` (DRE/Run Rate)
 *   O coração financeiro do sistema. Utiliza `useMemo` pesados para varrer a array completa de vendas e alocá-las nos devidos "baldes" (Migração, Pós Total, Dependentes) via varredura por `includes()` e RegExp de texto no Produto/TipoOperação.
-*   A "Meta Diária" calcula de forma dinâmica os dias úteis. Finais de semana (Sábados e Domingos) recebem o dobro de "peso" (weight = 2) na distribuição fracionada da meta gerencial para acompanhar o fluxo de shopping.
+*   **Matemática de Volume:** As tabelas assumem a responsabilidade 1:1 física para volume de Aparelhos/Acessórios, enquanto o Ticket Médio continua utilizando a Receita Bruta integral/Quantidade Física (Cálculo PHC). Adicionada a coluna consolidada `CONTROLE` com `controleTotal` e alterado nomes vitais para `GROSS ACUM.`.
 
 ### `ParcialFechamento.jsx` (DRE Intraday)
 *   Restrito ao gerente. Transita por todas as vendas registradas com a data correspondente ao dia de hoje (em variadas formatações compatíveis) e alimenta dois quadros centrais.
@@ -75,6 +79,11 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 ### `Proposta.jsx` (Simulador)
 *   Utiliza o objeto do estado global para cruzar os produtos. 
 *   Regra vital: Se houver Móvel + Fibra/TV, o `comboType` transita de `SINGLE` para `MULTI`, ativando gatilhos comerciais na tela e renderizando um ticket otimizado via CSS puro (`@media print`).
+
+### `Geek.jsx` (Central de Documentos)
+*   Projetado como uma grade de "Balões" (Cards) flexíveis que hospedam hiperlinks para PDFs e materiais promocionais.
+*   Para contornar o limite restrito de 1 Megabyte do Firestore e não depender do Firebase Storage (que exigiria configurações de bucket), o sistema não faz a ingestão em binário/Base64. A persistência é feita via referenciamento URL.
+*   **Isolamento Absoluto:** Modificado a flag `canEdit` para suportar `globalUser?.role === 'GEEK'` de maneira estrita, subtraindo poderes da Gerência Geral para esse módulo específico.
 
 ### `EscalaTrabalho.jsx` (Gestão de RH)
 *   Mantém 2 dicionários de estados. `scheduleData` é o espelho padrão da semana fixa. `monthlyOverrides` hospeda as exceções do mês. O botão de exclusão injeta um fallback de controle `__DEFAULT__`, que serve para deletar a chave correspondente do Override, permitindo que a regra semanal volte a ditar o horário daquele dia sem sobras no backend.
@@ -142,6 +151,7 @@ painel-claro/
 │   │   ├── Login.jsx         # Tela de autenticação, registro e EmailJS
 │   │   ├── Meta.jsx          # Distribuição mensal de metas da loja
 │   │   ├── Proposta.jsx      # Simulador de combos e gerador do layout para PDF
+│   │   ├── Geek.jsx          # Repositório de Books, Promomemos e arquivos PDF
 │   │   ├── ParcialFechamento.jsx # Consolidação automática de KPIs do dia e envio de WhatsApp
 │   │   ├── Reprovados.jsx    # Controle de vendas não concluídas e ViaCEP
 │   │   ├── Resultado.jsx     # Cálculo macro da loja (Run Rate, Excel-like)

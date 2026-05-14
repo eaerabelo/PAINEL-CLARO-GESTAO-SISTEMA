@@ -9,16 +9,16 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
     const monthFilter = globalMonth;
     const setMonthFilter = setGlobalMonth;
 
-    const activeMetas = goalsDB[monthFilter] || METAS_PADRAO || {};
-    const safeVendedores = Object.values(usersDB)
-        .filter(u => !u.role || u.role === 'VENDEDOR')
-        .map(u => u.name)
+    const activeMetas = (goalsDB || {})[monthFilter] || METAS_PADRAO || {};
+    const safeVendedores = Object.values(usersDB || {})
+        .filter(u => !u?.role || u?.role === 'VENDEDOR')
+        .map(u => u?.name)
         .filter(Boolean);
     const numSellers = safeVendedores.length || 1;
 
     // Cálculos de extração por Dia
     const { rows, totals } = useMemo(() => {
-        const [yearStr, monthStr] = monthFilter.split('-');
+        const [yearStr, monthStr] = (monthFilter || '').split('-');
         const year = parseInt(yearStr, 10);
         const month = parseInt(monthStr, 10);
         const daysInMonth = new Date(year, month, 0).getDate();
@@ -32,8 +32,8 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
         let accumulatedGross = 0;
         
         const sumTotals = {
-            grossDia: 0, metaDia: 0, total: 0, posTt: 0, depPg: 0, depGratis: 0, migracaoPos: 0, migracaoControle: 0, grossPme: 0,
-            portabilidade: 0, bl: 0, flex: 0, receita: 0, fibra: 0, tvBox: 0, mplay: 0, mesh: 0, urPme: 0,
+            grossDia: 0, metaDia: 0, total: 0, posTt: 0, controle: 0, controleTotal: 0, posPagoTotal: 0, depPg: 0, depBl: 0, depGratis: 0, migracaoPos: 0, migracaoControle: 0, grossPme: 0,
+            portabilidade: 0, bl: 0, flex: 0, receita: 0, fibra: 0, tv: 0, tvBox: 0, fixo: 0, mplay: 0, mesh: 0, urPme: 0,
             totalRes: 0, aparelho: 0, receitaAparelho: 0, seguro: 0, acessorio: 0, trocafy: 0, pelicula: 0, claroUp: 0, receitaAcessorio: 0
         };
 
@@ -49,22 +49,22 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                 remainingDays -= 1;
             }
 
-            const dailySales = salesData.filter(s => {
-                if (!s.data) return false;
+            const dailySales = (salesData || []).filter(s => {
+                if (typeof s.data !== 'string') return false;
                 // Aceita ambos os formatos (YYYY-MM-DD ou DD/MM/YYYY)
                 if (s.data.includes('-')) return s.data === dateIso;
                 return s.data === dateBr;
             });
 
-            let posTt = 0, depPg = 0, depGratis = 0, migracaoPos = 0, migracaoControle = 0, controleAtiv = 0, grossPme = 0, portabilidade = 0;
-            let bl = 0, flex = 0, receita = 0, fibra = 0, tvBox = 0, mplay = 0, mesh = 0, urPme = 0, aparelho = 0;
+            let posTt = 0, controle = 0, depPg = 0, depBl = 0, depGratis = 0, migracaoPos = 0, migracaoControle = 0, grossPme = 0, portabilidade = 0;
+            let bl = 0, flex = 0, receita = 0, fibra = 0, tv = 0, tvBox = 0, fixo = 0, mplay = 0, mesh = 0, urPme = 0, aparelho = 0;
             let receitaAparelho = 0, seguro = 0, acessorio = 0, trocafy = 0, pelicula = 0, claroUp = 0, receitaAcessorio = 0;
 
             dailySales.forEach(sale => {
-                const pBase = (sale.produtoBase || sale.produto || '').toUpperCase();
-                const op = (sale.tipoOperacao || sale.operacao || '').toUpperCase();
-                const port = (sale.portabilidade || '').toUpperCase();
-                const sub = (sale.subOption || sale.subtipo || '').toUpperCase();
+                const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
+                const op = String(sale.tipoOperacao || sale.operacao || '').toUpperCase();
+                const port = String(sale.portabilidade || '').toUpperCase();
+                const sub = String(sale.subOption || sale.subtipo || '').toUpperCase();
                 const rec = Number(sale.receita) || 0;
                 const q = Number(sale.qtda) || 1;
                 const adds = sale.adicionais || [];
@@ -79,7 +79,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                 }
                 else if (pBase.includes('CONTROLE')) {
                     if (op.includes('MIGRA') || pBase.includes('MIGRA') || sub.includes('MIGRA')) migracaoControle += q;
-                    else controleAtiv += q; 
+                    else controle += q; 
                     if (port === 'SIM') portabilidade += q;
                 }
                 else if (pBase.includes('FLEX')) {
@@ -88,17 +88,20 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                 }
                 else if (pBase.includes('DEPENDENTE') || pBase.includes('DEP')) {
                     if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || pBase.includes('GRÁTIS')) depGratis += q;
+                    else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA')) depBl += q;
                     else depPg += q;
                 }
                 else if (pBase.includes('BANDA LARGA') || pBase === 'BL' || pBase.includes('CLARO NET VIRTUA')) bl += q;
                 else if (pBase.includes('FIBRA PME') || pBase.includes('UR PME')) urPme += q;
                 else if (pBase.includes('FIBRA') || pBase.includes('BANDA LARGA RESIDENCIAL')) fibra += q;
-                else if (pBase.includes('TV-BOX') || pBase.includes('CLARO TV+') || pBase.includes('TV')) tvBox += q;
+                else if (pBase.includes('TV-BOX')) tvBox += q;
+                else if (pBase.includes('CLARO TV+') || pBase.includes('TV')) tv += q;
+                else if (pBase.includes('FIXO') || pBase.includes('NET FONE')) fixo += q;
                 else if (pBase.includes('MESH')) mesh += q;
-                else if (pBase.includes('APARELHO')) { aparelho += q; receitaAparelho += rec; }
+                else if (pBase.includes('APARELHO')) { aparelho += q; receitaAparelho += (rec || 0); }
                 else if (pBase.includes('SEGURO')) seguro += q;
-                else if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { acessorio += q; receitaAcessorio += rec; }
-                else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { pelicula += q; receitaAcessorio += rec; }
+                else if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { acessorio += q; receitaAcessorio += (rec || 0); }
+                else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { pelicula += q; receitaAcessorio += (rec || 0); }
 
                 if (adds.includes('TROCAFY')) trocafy += 1;
                 if (adds.includes('CLARO UP')) claroUp += 1;
@@ -106,23 +109,26 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
             });
 
             // GROSS DIA consolida Pós, Controle (Ativ+Mig), BL, Flex, PME, Dependentes
-            const grossDia = posTt + controleAtiv + depPg + depGratis + migracaoPos + migracaoControle + grossPme + bl + flex;
+            const grossDia = posTt + controle + depPg + depBl + depGratis + migracaoPos + migracaoControle + grossPme + bl + flex;
             accumulatedGross += grossDia;
-            const totalRes = fibra + tvBox + urPme;
+            const totalRes = fibra + tv + tvBox + fixo + urPme;
+
+            const posPagoTotal = posTt + migracaoPos + depPg + depBl + depGratis;
+            const controleTotal = controle + migracaoControle;
 
             generatedRows.push({
-                data: dayStr, grossDia, metaDia, total: accumulatedGross, posTt, depPg, depGratis, migracaoPos,
-                migracaoControle, grossPme, portabilidade, bl, flex, receita, fibra, tvBox, mplay, mesh,
+                data: dayStr, grossDia, metaDia, total: accumulatedGross, posTt, controle, controleTotal, posPagoTotal, depPg, depBl, depGratis, migracaoPos,
+                migracaoControle, grossPme, portabilidade, bl, flex, receita, fibra, tv, tvBox, fixo, mplay, mesh,
                 urPme, totalRes, aparelho, receitaAparelho, seguro, acessorio, trocafy, pelicula, claroUp, receitaAcessorio
             });
 
-            sumTotals.grossDia += grossDia; sumTotals.metaDia += metaDia; sumTotals.posTt += posTt; sumTotals.depPg += depPg; sumTotals.depGratis += depGratis;
+            sumTotals.grossDia += grossDia; sumTotals.metaDia += metaDia; sumTotals.posTt += posTt; sumTotals.controle += controle; sumTotals.controleTotal += controleTotal; sumTotals.posPagoTotal += posPagoTotal;
+            sumTotals.depPg += depPg; sumTotals.depBl += depBl; sumTotals.depGratis += depGratis;
             sumTotals.migracaoPos += migracaoPos; sumTotals.migracaoControle += migracaoControle; sumTotals.grossPme += grossPme;
             sumTotals.portabilidade += portabilidade; sumTotals.bl += bl; sumTotals.flex += flex; sumTotals.receita += receita;
-            sumTotals.fibra += fibra; sumTotals.tvBox += tvBox; sumTotals.mplay += mplay; sumTotals.mesh += mesh;
-            sumTotals.urPme += urPme; sumTotals.totalRes += totalRes; sumTotals.aparelho += aparelho; sumTotals.receitaAparelho += receitaAparelho;
-            sumTotals.seguro += seguro; sumTotals.acessorio += acessorio; sumTotals.trocafy += trocafy; sumTotals.pelicula += pelicula;
-            sumTotals.claroUp += claroUp; sumTotals.receitaAcessorio += receitaAcessorio;
+            sumTotals.fibra += fibra; sumTotals.tv += tv; sumTotals.tvBox += tvBox; sumTotals.fixo += fixo; sumTotals.mplay += mplay; sumTotals.mesh += mesh;
+            sumTotals.urPme += urPme; sumTotals.totalRes += totalRes; sumTotals.receitaAparelho += receitaAparelho; sumTotals.aparelho += aparelho;
+            sumTotals.seguro += seguro; sumTotals.trocafy += trocafy; sumTotals.claroUp += claroUp; sumTotals.receitaAcessorio += receitaAcessorio;
         }
 
         sumTotals.total = accumulatedGross;
@@ -131,15 +137,15 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
     }, [salesData, monthFilter, activeMetas, numSellers]);
 
     const COLUMNS = [
-        { key: 'grossDia', label: 'GROSS DIA', highlight: true }, { key: 'metaDia', label: 'META DIA', highlight: true }, { key: 'total', label: 'TOTAL', highlight: true },
-        { key: 'posTt', label: 'POS TT' }, { key: 'depPg', label: 'DEP PG' }, { key: 'depGratis', label: 'DEP GRÁTIS' },
+        { key: 'grossDia', label: 'GROSS DIA', highlight: true }, { key: 'metaDia', label: 'META DIA', highlight: true }, { key: 'total', label: 'GROSS ACUM.', highlight: true },
+        { key: 'posTt', label: 'POS TT' }, { key: 'controleTotal', label: 'CONTROLE' }, { key: 'posPagoTotal', label: 'PÓS PAGO' }, { key: 'depPg', label: 'DEP PG' }, { key: 'depBl', label: 'DEP BL' }, { key: 'depGratis', label: 'DEP GRÁTIS' },
         { key: 'migracaoPos', label: 'MIGRAÇÃO-PÓS' }, { key: 'migracaoControle', label: 'MIGRAÇÃO-CONTROLE' }, { key: 'grossPme', label: 'GROSS PME' },
         { key: 'portabilidade', label: 'PORTAB. POS/CTRL' }, { key: 'bl', label: 'BL' }, { key: 'flex', label: 'FLEX' },
-        { key: 'receita', label: 'RECEITA', isCurrency: true, highlight: true }, { key: 'fibra', label: 'FIBRA' }, { key: 'tvBox', label: 'TV+ BOX' },
-        { key: 'mplay', label: 'M-PLAY' }, { key: 'mesh', label: 'MESH' }, { key: 'urPme', label: 'UR PME' },
-        { key: 'totalRes', label: 'TOTAL RES.', highlight: true }, { key: 'aparelho', label: 'APARELHO' }, { key: 'receitaAparelho', label: 'REC. APARELHOS', isCurrency: true },
-        { key: 'seguro', label: 'SEGURO' }, { key: 'acessorio', label: 'ACESSÓRIO' }, { key: 'trocafy', label: 'TROCAFY' },
-        { key: 'pelicula', label: 'PELÍCULA' }, { key: 'claroUp', label: 'CLARO UP' }, { key: 'receitaAcessorio', label: 'REC. ACESSÓRIOS', isCurrency: true }
+        { key: 'receita', label: 'RECEITA (R$)', isCurrency: true, highlight: true }, { key: 'fibra', label: 'FIBRA' }, { key: 'tv', label: 'TV+' }, { key: 'tvBox', label: 'TV BOX' }, { key: 'fixo', label: 'FIXO' },
+        { key: 'urPme', label: 'UR PME' }, { key: 'mesh', label: 'MESH' },
+        { key: 'totalRes', label: 'TOTAL RES.', highlight: true }, { key: 'mplay', label: 'M-PLAY' }, { key: 'aparelho', label: 'APARELHOS (UN)' }, { key: 'receitaAparelho', label: 'REC. APARELHOS', isCurrency: true },
+        { key: 'seguro', label: 'SEGURO' }, { key: 'acessorio', label: 'ACESSÓRIOS (UN)' }, { key: 'receitaAcessorio', label: 'REC. ACESSÓRIOS', isCurrency: true },
+        { key: 'trocafy', label: 'TROCAFY' }, { key: 'claroUp', label: 'CLARO UP' }
     ];
 
     const renderValue = (val, isCurrency) => {
@@ -153,15 +159,18 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
         metaDia: metaGrossTotal,
         total: metaGrossTotal,
         posTt: Number(activeMetas.posPago) || 0,
+        posPagoTotal: Number(activeMetas.posPago) || 0,
+        controle: Number(activeMetas.controle) || 0,
+        controleTotal: Number(activeMetas.controle) || 0,
         receita: Number(activeMetas.receita) || 0,
         fibra: Number(activeMetas.fibra) || 0,
-        tvBox: Number(activeMetas.tv) || 0,
+        tv: Number(activeMetas.tv) || 0,
+        fixo: Number(activeMetas.fixo) || 0,
         totalRes: Number(activeMetas.urTotal) || 0,
         aparelho: Number(activeMetas.aparelho) || 0,
         seguro: Number(activeMetas.seguro) || 0,
         acessorio: Number(activeMetas.acessorio) || 0,
         trocafy: Number(activeMetas.trocafy) || 0,
-        pelicula: Number(activeMetas.pelicula) || 0,
         mplay: Number(activeMetas.mplay) || 0,
         mesh: Number(activeMetas.mesh) || 0,
     };
@@ -253,7 +262,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                     <tfoot className="bg-neutral-50 dark:bg-neutral-900 sticky bottom-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
                         {/* LINHA DE TOTAIS REALIZADOS */}
                         <tr className="text-neutral-900 dark:text-neutral-100 font-black uppercase text-[11px]">
-                            <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 sticky left-0 bg-neutral-100 dark:bg-neutral-800 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-[#E3000F]">TOTAL</td>
+                            <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 sticky left-0 bg-neutral-100 dark:bg-neutral-800 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-[#E3000F]">REALIZADO MÊS</td>
                             {COLUMNS.map(col => (
                                 <td key={col.key} className={`border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-3 py-3 ${col.highlight ? 'bg-yellow-100/50 dark:bg-yellow-900/20' : 'bg-neutral-50 dark:bg-neutral-900'}`}>
                                     {renderValue(totals[col.key], col.isCurrency)}

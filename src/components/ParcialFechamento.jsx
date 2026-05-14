@@ -2,14 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ClipboardCheck, ShieldAlert, MessageCircle, Clock, Hash, Store, Target, CheckCircle2, FileText, Send } from 'lucide-react';
 import { getTodaySP, applyCurrencyMask } from '../utils/masks';
 
-export function ParcialFechamento({ isGerente, salesData = [], goalsDB = {}, globalMonth }) {
+export function ParcialFechamento({ hasAccess, salesData = [], goalsDB = {}, globalMonth }) {
     const todayISO = getTodaySP();
     const [yearStr, monthStr, dayStr] = todayISO.split('-');
     const dateBr = `${dayStr}/${monthStr}/${yearStr}`;
     
     // Calcula as métricas de hoje extraídas automaticamente do sistema
     const { totals, dailyGoals } = useMemo(() => {
-        const activeMetas = goalsDB[globalMonth] || {};
+        const activeMetas = (goalsDB || {})[globalMonth] || {};
         const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
         const calcDailyGoal = (val) => Math.ceil((Number(val) || 0) / daysInMonth);
         
@@ -25,24 +25,24 @@ export function ParcialFechamento({ isGerente, salesData = [], goalsDB = {}, glo
             mplay: calcDailyGoal(activeMetas.mplay)
         };
 
-        const todaySales = salesData.filter(s => {
-            if (!s.data) return false;
+        const todaySales = (salesData || []).filter(s => {
+            if (typeof s.data !== 'string') return false;
             if (s.data.includes('-')) return s.data === todayISO;
             return s.data === dateBr;
         });
 
         const sumTotals = { 
-            gross: 0, grossPme: 0, aparelho: 0, seguro: 0, acessorio: 0, virtua: 0, virtuaPme: 0, tv: 0, mplay: 0, claroUp: 0,
+            gross: 0, grossPme: 0, aparelho: 0, receitaAparelho: 0, seguro: 0, acessorio: 0, virtua: 0, virtuaPme: 0, tv: 0, mplay: 0, claroUp: 0,
             posTt: 0, depPg: 0, depBl: 0, depGratis: 0, migraPos: 0, controle: 0, migraControle: 0, bl: 0, flex: 0,
             portabilidade: 0, ativacao: 0, migracao: 0, fixo: 0, fibra: 0, tvBox: 0, mesh: 0, pelicula: 0, receitaAcessorio: 0, trocafy: 0,
-            grossDia: 0, totalRes: 0, contaTotal: 0
+            grossDia: 0, totalRes: 0, contaTotal: 0, qtdaAcessorioFisico: 0
         };
 
         todaySales.forEach(sale => {
-            const pBase = (sale.produtoBase || sale.produto || '').toUpperCase();
-            const op = (sale.tipoOperacao || sale.operacao || '').toUpperCase();
-            const sub = (sale.subOption || sale.subtipo || '').toUpperCase();
-            const port = (sale.portabilidade || '').toUpperCase();
+            const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
+            const op = String(sale.tipoOperacao || sale.operacao || '').toUpperCase();
+            const sub = String(sale.subOption || sale.subtipo || '').toUpperCase();
+            const port = String(sale.portabilidade || '').toUpperCase();
             const rec = Number(sale.receita) || 0;
             const q = Number(sale.qtda) || 1;
             const adds = sale.adicionais || [];
@@ -75,10 +75,10 @@ export function ParcialFechamento({ isGerente, salesData = [], goalsDB = {}, glo
             else if (pBase.includes('CLARO TV+') || pBase.includes('TV')) sumTotals.tv += q;
             else if (pBase.includes('FIXO')) sumTotals.fixo += q;
             else if (pBase.includes('MESH')) sumTotals.mesh += q;
-            if (pBase.includes('APARELHO')) sumTotals.aparelho += q;
+            if (pBase.includes('APARELHO')) { sumTotals.aparelho += q; sumTotals.receitaAparelho += rec; }
             if (pBase.includes('SEGURO')) sumTotals.seguro += q;
-            if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { sumTotals.acessorio += q; sumTotals.receitaAcessorio += rec; }
-            if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { sumTotals.pelicula += q; sumTotals.receitaAcessorio += rec; }
+            if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { sumTotals.acessorio += q; sumTotals.receitaAcessorio += rec; sumTotals.qtdaAcessorioFisico += q; }
+            if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { sumTotals.pelicula += q; sumTotals.receitaAcessorio += rec; sumTotals.qtdaAcessorioFisico += q; }
 
             if (adds.includes('TROCAFY')) sumTotals.trocafy += 1;
             if (adds.includes('CLARO UP')) sumTotals.claroUp += 1;
@@ -122,15 +122,15 @@ export function ParcialFechamento({ isGerente, salesData = [], goalsDB = {}, glo
         }));
     }, [totals, dailyGoals]);
 
-    // Barreira de Segurança (Route Guard): Bloqueia acesso caso não seja Gerente
-    if (!isGerente) {
+    // Barreira de Segurança (Route Guard): Bloqueia acesso caso não tenha permissão
+    if (!hasAccess) {
         return (
             <div className="h-full flex flex-col items-center justify-center animate-fade-in bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 p-6 transition-colors">
                 <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center text-[#E3000F] mb-4">
                     <ShieldAlert size={32} />
                 </div>
                 <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-2">Acesso Restrito</h2>
-                <p className="text-neutral-500 dark:text-neutral-400 text-center max-w-md">Esta área é restrita à Gerência para controle de Parciais e Fechamentos.</p>
+                <p className="text-neutral-500 dark:text-neutral-400 text-center max-w-md">Esta área é restrita para controle de Parciais e Fechamentos.</p>
             </div>
         );
     }
@@ -149,8 +149,7 @@ export function ParcialFechamento({ isGerente, salesData = [], goalsDB = {}, glo
         
         const anexacao = totals.aparelho > 0 ? Math.round(((totals.acessorio + totals.pelicula) / totals.aparelho) * 100) : 0;
         const conversao = totals.aparelho > 0 ? Math.round((totals.seguro / totals.aparelho) * 100) : 0;
-        const totalAcc = totals.acessorio + totals.pelicula;
-        const ticketMedio = totalAcc > 0 ? totals.receitaAcessorio / totalAcc : 0;
+        const ticketMedio = totals.qtdaAcessorioFisico > 0 ? totals.receitaAcessorio / totals.qtdaAcessorioFisico : 0;
 
         const text = `Loja União Osasco \n\n` +
             `Data: ${dateBr}\n\n` +
@@ -299,7 +298,7 @@ export function ParcialFechamento({ isGerente, salesData = [], goalsDB = {}, glo
                                     <h4 className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-widest mb-2 border-b border-neutral-100 dark:border-neutral-800 pb-1">Aparelhos & Acessórios</h4>
                                     <StatTextRow label="Aparelhos" value={String(totals.aparelho).padStart(2, '0')} />
                                     <StatTextRow label="Acessórios / Películas" value={`${String(totals.acessorio).padStart(2, '0')} / ${String(totals.pelicula).padStart(2, '0')}`} />
-                                    <StatTextRow label="Ticket Médio" value={applyCurrencyMask(totals.acessorio + totals.pelicula > 0 ? totals.receitaAcessorio / (totals.acessorio + totals.pelicula) : 0)} />
+                                    <StatTextRow label="Ticket Médio" value={applyCurrencyMask(totals.qtdaAcessorioFisico > 0 ? totals.receitaAcessorio / totals.qtdaAcessorioFisico : 0)} />
                                     <StatTextRow label="Receita Acessórios" value={applyCurrencyMask(totals.receitaAcessorio)} highlight={true} />
                                     <StatTextRow label="Anexação" value={`${totals.aparelho > 0 ? Math.round(((totals.acessorio + totals.pelicula) / totals.aparelho) * 100) : 0}%`} highlight={true} />
                                     <StatTextRow label="Seguro / Conversão" value={`${String(totals.seguro).padStart(2, '0')} (${totals.aparelho > 0 ? Math.round((totals.seguro / totals.aparelho) * 100) : 0}%)`} />

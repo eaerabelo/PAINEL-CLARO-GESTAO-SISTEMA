@@ -59,7 +59,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
 
         const userToDelete = usersDB[userKey];
         const userName = userToDelete?.name;
-        const firstName = userName?.split(' ')[0];
+        const firstName = String(userName || '').split(' ')[0];
 
         if (window.confirm(`Tem certeza que deseja apagar o usuário ${userKey}? Ele perderá o acesso instantaneamente.`)) {
             setUsersDB(prev => {
@@ -187,7 +187,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
     }
 
     const totalFuncionarios = Object.keys(usersDB || {}).length;
-    const totalVendedores = Object.values(usersDB || {}).filter(u => u.role === 'VENDEDOR').length;
+    const totalVendedores = Object.values(usersDB || {}).filter(u => u?.role === 'VENDEDOR').length;
 
     // --- TELA DO COFRE DESBLOQUEADO (TABELA E EDIÇÃO) ---
     return (
@@ -245,7 +245,7 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                             ) : (
                                 Object.entries(usersDB).map(([username, user]) => (
                                     <tr key={username} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
-                                        <td className="px-6 py-3 font-bold text-neutral-800 dark:text-neutral-200">{user.name}</td>
+                                        <td className="px-6 py-3 font-bold text-neutral-800 dark:text-neutral-200">{user?.name || '-'}</td>
                                         <td className="px-6 py-3 font-mono text-neutral-600 dark:text-neutral-400">{username}</td>
                                         <td className="px-6 py-3 text-neutral-500 dark:text-neutral-500">{user.email || '-'}</td>
                                         <td className="px-6 py-3">

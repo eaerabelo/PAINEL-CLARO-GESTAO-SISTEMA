@@ -21,14 +21,15 @@ A plataforma é dividida em módulos estratégicos baseados no Controle de Acess
 
 ### 1. Vendas
 O coração da operação. Permite o lançamento de vendas de aparelhos, acessórios, planos móveis e banda larga.
-- *Diferenciais:* Auto-preenchimento restrito ao **Primeiro Nome** do Vendedor, cálculo dinâmico de comissionamento e bloqueio de preços para combinações padrão.
+- *Diferenciais:* Auto-preenchimento restrito ao **Primeiro Nome** do Vendedor, cálculo dinâmico de comissionamento e bloqueio de preços para combinações padrão. Nova funcionalidade de **Venda Múltipla (Combo)** agindo como um carrinho inteligente para registrar vários serviços ao mesmo tempo, além de desmembrar automaticamente o Seguro de Aparelhos.
 - *Recurso Adicional:* Ocultação inteligente de campos irrelevantes baseado no produto. Exportação/importação inteligente de planilhas Excel (Restrito à Gerência).
 
 ### 2. Resultado (Visão Global)
-Acompanhamento macro da loja. Uma tabela gerencial que cruza todas as vendas por data e classifica em categorias complexas (Gross Dia, Migrações, Portabilidades). Permite o espelho instantâneo e a exportação do DRE em formato Excel.
+Acompanhamento macro da loja. Uma tabela gerencial que cruza todas as vendas por data e classifica em categorias complexas (Gross Dia, Migrações, Portabilidades). Permite o espelho instantâneo e a exportação do DRE em formato Excel. Conta com agrupamentos unificados para Pós-Pago Total e exibe volumes de aparelhos/acessórios fiéis ao estoque físico.
 
 ### 3. Colaboradores (Dashboards Individuais)
 Mostra relatórios automáticos (Meta vs Realizado) da produção diária e mensal de cada vendedor em tempo real. Esta aba retém a visualização do **Nome Completo** para fins gerenciais.
+- *Diferenciais:* Sistema nativo de Gamificação (**Hall da Fama**) que avalia e premia visivelmente o Top 1 em Receita e o Destaque em vendas Pós-Pago para engajamento da equipe, incluindo visão panorâmica de UR Total.
 
 ### 4. Metas
 Módulo exclusivo da gerência para distribuir os alvos financeiros e quantitativos de Ativações Pós, Aparelhos, Controle e UR-Residencial, gerando o espelho que alimenta todo o painel.
@@ -39,7 +40,7 @@ Gerenciamento duplo (Semanal Fixo x Calendário Dinâmico) de horários, exibind
 
 ### 6. Controle Simcard (Estoque)
 Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de autorização, dados de cliente, e regras rígidas contra exclusões não autorizadas (Modal de Cofre Master).
-- *Diferenciais:* Inclusão "Em Lote" simultânea para simplificar o recebimento de inventários.
+- *Diferenciais:* Inclusão "Em Lote" simultânea para simplificar o recebimento de inventários. Foco automático na aba do Vendedor quando ele acessa a tela, removendo atritos.
 
 ### 7. UR-Residencial, Reprovados & Propostas
 - **Residencial:** Acompanhamento logístico refinado com filtro exclusivo por Vendedores, formatação nativa de datas (BR) e máscara de edição para documentos (CPF/CNPJ).
@@ -51,6 +52,8 @@ Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de au
 ## 🛡️ Usabilidade e Concorrência (Multi-usuários)
 O sistema foi arquitetado para suportar múltiplos computadores operando simultaneamente no salão de vendas, garantindo uma experiência fluida e sem conflitos:
 - **Isolamento Visual (Local State):** A navegação entre abas, preenchimento de formulários e abertura de modais ocorrem na memória local. A tela de um usuário nunca sofre interferência ou troca inesperada pelas ações de outro.
+- **Notificações Globais:** Um "Sininho" de lembretes no topo da interface alerta os vendedores caso o Gestor altere as metas do mês atual, e notifica o gestor sobre os prazos fixos para envio da Parcial.
+- **Tolerância a Falhas (WSoD Proof):** Programação defensiva avançada com `Error Boundary` e checagens rígidas de tipo (Type-Safety), garantindo que bancos de dados mal preenchidos ou "sujos" não consigam derrubar o React.
 - **Sincronização Real-Time:** Apenas os dados confirmados (salvar, editar, excluir) são transmitidos via rede, atualizando as tabelas e o estoque da loja inteira em milissegundos sem a necessidade de recarregar a página (F5).
 - **Timeout Inteligente:** A regra de expiração de sessão por inatividade (30 minutos) monitora o mouse e o teclado de *cada* máquina de forma completamente isolada.
 - **Anti-Conflito:** Janelas flutuantes e modais de edição em uso são protegidos contra fechamentos abruptos caso os dados de fundo sejam alterados por terceiros.

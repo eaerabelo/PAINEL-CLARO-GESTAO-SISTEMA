@@ -17,8 +17,8 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     const AGENDAMENTO_OPTIONS = ['08:00 A 12:00', '12:00 A 15:00', '15:00 A 18:00'];
     const ACAO_OPTIONS = ['REAGENDADO', 'RETENÇÃO EM FALTA', 'DESISTIU'];
     const VENDEDORES_OPTIONS = Object.values(usersDB || {})
-        .filter(u => !u.role || u.role === 'VENDEDOR')
-        .map(u => u.name.split(' ')[0])
+        .filter(u => !u?.role || u?.role === 'VENDEDOR')
+        .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
     const RESIDENTIAL_PRODUCTS = [
         'FIBRA 350 MEGAS', 'FIBRA 500 MEGAS', 'FIBRA 750 MEGAS', 'FIBRA 1 GIGA',
@@ -36,21 +36,25 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     };
 
     // Identifica automaticamente se a venda possui caráter residencial
-    const isResidential = (produto = '') => {
-        const p = produto.toUpperCase();
+    const isResidential = (produto) => {
+        const p = String(produto || '').toUpperCase();
         return p.includes('FIBRA') || p.includes('TV') || p.includes('FIXO') || p.includes('RESIDENCIAL') || p.includes('MESH');
     };
 
     // Filtrando a Base Central de Vendas para exibir somente UR-RESIDENCIAL no mês consultado
-    const filteredData = salesData.filter(item => {
+    const filteredData = (salesData || []).filter(item => {
         if (!isResidential(item.produto)) return false;
 
-        if (item.data) {
+        if (typeof item.data === 'string') {
             const parts = item.data.split('/');
             if (parts.length === 3) {
                 const itemMonth = `${parts[2]}-${parts[1]}`;
                 if (itemMonth !== monthFilter) return false;
+            } else if (item.data.includes('-')) {
+                if (item.data.slice(0, 7) !== monthFilter) return false;
             }
+        } else {
+            return false;
         }
 
         if (sellerFilter && item.vendedor !== sellerFilter) {
@@ -58,12 +62,12 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
         }
 
         if (searchTerm) {
-            const term = searchTerm.toLowerCase();
+            const term = String(searchTerm).toLowerCase();
             return (
-                (item.contrato || '').toLowerCase().includes(term) ||
-                (item.cpf || '').toLowerCase().includes(term) ||
-                (item.nomeCliente || '').toLowerCase().includes(term) ||
-                (item.cidade || '').toLowerCase().includes(term)
+                String(item.contrato || '').toLowerCase().includes(term) ||
+                String(item.cpf || '').toLowerCase().includes(term) ||
+                String(item.nomeCliente || '').toLowerCase().includes(term) ||
+                String(item.cidade || '').toLowerCase().includes(term)
             );
         }
         return true;
@@ -207,7 +211,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                                                     {isEditing ? <input type="text" value={editForm.cidade || ''} onChange={(e) => handleChange(e, 'cidade')} className="w-24 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.cidade || getCidadePorContrato(item.contrato) || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
-                                                    {isEditing ? <input type="date" value={editForm.data || ''} onChange={(e) => handleChange(e, 'data')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-600 dark:text-neutral-400">{item.data && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</span>}
+                                                    {isEditing ? <input type="date" value={editForm.data || ''} onChange={(e) => handleChange(e, 'data')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-600 dark:text-neutral-400">{typeof item.data === 'string' && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
                                                     {isEditing ? <input type="date" value={editForm.dataInstalacao || ''} onChange={(e) => handleChange(e, 'dataInstalacao')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none cursor-pointer focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.dataInstalacao ? new Date(item.dataInstalacao + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}</span>}

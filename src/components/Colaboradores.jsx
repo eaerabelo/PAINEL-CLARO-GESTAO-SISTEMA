@@ -1,20 +1,20 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Smartphone, Home, Watch, ShieldCheck, Zap, MonitorPlay, Calendar, Lock, Users } from 'lucide-react';
+import { ArrowLeft, Smartphone, Home, Watch, ShieldCheck, Zap, MonitorPlay, Calendar, Lock, Users, Crown, Medal } from 'lucide-react';
 import { applyCurrencyMask } from '../utils/masks';
 import { ProgressBar } from './ProgressBar.jsx';
 import toast from 'react-hot-toast';
 import { METAS_PADRAO } from '../utils/constants';
 
 export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, globalUser, salesData, goalsDB = {}, usersDB = {}, setAuthModal, globalMonth, setGlobalMonth }) => {
-    const safeVendedores = Object.values(usersDB)
-        .filter(u => !u.role || u.role === 'VENDEDOR')
-        .map(u => u.name)
+    const safeVendedores = Object.values(usersDB || {})
+        .filter(u => !u?.role || u?.role === 'VENDEDOR')
+        .map(u => String(u?.name || ''))
         .filter(Boolean);
 
     const monthFilter = globalMonth;
     const setMonthFilter = setGlobalMonth;
 
-    const activeMetas = goalsDB[monthFilter] || METAS_PADRAO || {};
+    const activeMetas = (goalsDB || {})[monthFilter] || METAS_PADRAO || {};
     const numSellers = safeVendedores.length || 1;
     
     const individualMetas = {
@@ -35,43 +35,60 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
     };
 
     const getSellerMetrics = (sellerName) => {
-        const mySales = salesData.filter(s => {
-            if (s.vendedor !== sellerName && s.vendedor !== sellerName.split(' ')[0]) return false;
-            if (!s.data) return false;
-            if (s.data.includes('/')) return `${s.data.split('/')[2]}-${s.data.split('/')[1]}` === monthFilter;
+        const mySales = (salesData || []).filter(s => {
+            if (s.vendedor !== sellerName && s.vendedor !== String(sellerName || '').split(' ')[0]) return false;
+            if (typeof s.data !== 'string') return false;
+            if (s.data.includes('/')) {
+                const parts = s.data.split('/');
+                if (parts.length === 3) return `${parts[2]}-${parts[1]}` === monthFilter;
+            }
             if (s.data.includes('-')) return s.data.slice(0, 7) === monthFilter;
             return false;
         });
-        let metrics = { totalReceita: 0, volControle: 0, volPosPago: 0, volPosTotal: 0, volFibra: 0, volTv: 0, volUrTotal: 0, volAparelho: 0, volAcessorio: 0, volPelicula: 0, volSeguro: 0, volMesh: 0, volTrocafy: 0, volMPlay: 0 };
+        let metrics = { totalReceita: 0, volControle: 0, volPosPago: 0, volPosTotal: 0, volFibra: 0, volTv: 0, volUrTotal: 0, volAparelho: 0, volAcessorio: 0, volPelicula: 0, volSeguro: 0, volMesh: 0, volTrocafy: 0, volMPlay: 0, receitaAparelho: 0, receitaAcessorio: 0 };
         mySales.forEach(sale => {
-            metrics.totalReceita += Number(sale.receita);
-            const p = sale.produto.toUpperCase();
-            const qtda = Number(sale.qtda);
+            metrics.totalReceita += Number(sale.comissao !== undefined ? sale.comissao : sale.receita) || 0;
+            const p = String(sale.produto || '').toUpperCase();
+            const qtda = Number(sale.qtda) || 0;
+            const rec = Number(sale.receita) || 0;
             if (p.includes('CONTROLE')) metrics.volControle += qtda;
             if (p.includes('POS') || p.includes('DEPENDENTE') || p.includes('BANDA LARGA')) metrics.volPosPago += qtda;
             if (p.includes('POS') || p.includes('CONTROLE') || p.includes('DEPENDENTE') || p.includes('BANDA LARGA') || p.includes('FLEX')) metrics.volPosTotal += qtda;
             if (p.includes('FIBRA')) metrics.volFibra += qtda;
             if (p.includes('TV')) metrics.volTv += qtda;
-            if (p.includes('APARELHO')) metrics.volAparelho += qtda;
-            if (p.includes('ACESSORIO')) metrics.volAcessorio += qtda;
-            if (p.includes('PELICULA')) metrics.volPelicula += qtda;
+            if (p.includes('APARELHO')) { metrics.volAparelho += qtda; metrics.receitaAparelho += rec; }
+            if (p.includes('ACESSORIO')) { metrics.volAcessorio += qtda; metrics.receitaAcessorio += rec; }
+            if (p.includes('PELICULA')) { metrics.volPelicula += qtda; metrics.receitaAcessorio += rec; }
             if (p.includes('MESH')) metrics.volMesh += qtda;
             if (p.includes('SEGURO')) metrics.volSeguro += qtda;
-            if (sale.adicionais && sale.adicionais.includes('TROCAFY')) metrics.volTrocafy += 1;
+            if (Array.isArray(sale.adicionais) && sale.adicionais.includes('TROCAFY')) metrics.volTrocafy += 1;
             if (sale.mplay === 'SIM') metrics.volMPlay += 1;
         });
+        
         metrics.volUrTotal = metrics.volFibra + metrics.volTv;
         return metrics;
     };
 
     const handleSellerClick = (seller) => {
-        if (isVendedor && seller !== globalUser.name && seller !== globalUser.name.split(' ')[0]) {
+        if (isVendedor && seller !== globalUser?.name && seller !== String(globalUser?.name || '').split(' ')[0]) {
             toast.error("Acesso restrito! Solicite a senha do Gerente para visualizar outro colaborador.");
             setAuthModal({ isOpen: true, pendingAction: null, pendingId: null, requiredRole: 'GERENTE' });
         } else {
             setSelectedSeller(seller);
         }
     };
+
+    // RANKING / GAMIFICAÇÃO
+    const sellerMetricsMap = {};
+    safeVendedores.forEach(seller => {
+        sellerMetricsMap[seller] = getSellerMetrics(seller);
+    });
+
+    const sortedByReceita = [...safeVendedores].sort((a, b) => sellerMetricsMap[b].totalReceita - sellerMetricsMap[a].totalReceita);
+    const topReceitaName = sortedByReceita.length > 0 && sellerMetricsMap[sortedByReceita[0]].totalReceita > 0 ? sortedByReceita[0] : null;
+
+    const sortedByPos = [...safeVendedores].sort((a, b) => sellerMetricsMap[b].volPosTotal - sellerMetricsMap[a].volPosTotal);
+    const topPosName = sortedByPos.length > 0 && sellerMetricsMap[sortedByPos[0]].volPosTotal > 0 ? sortedByPos[0] : null;
 
     return (
         <div className="flex flex-col min-h-full animate-fade-in transition-colors">
@@ -100,8 +117,10 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {safeVendedores.map(seller => {
-                            const isRestricted = isVendedor && seller !== globalUser.name;
-                            const metrics = isRestricted ? null : getSellerMetrics(seller);
+                            const isRestricted = isVendedor && seller !== globalUser?.name && seller !== String(globalUser?.name || '').split(' ')[0];
+                            const metrics = isRestricted ? null : sellerMetricsMap[seller];
+                            const isTopReceita = seller === topReceitaName;
+                            const isTopPos = seller === topPosName;
                             return (
                                 <div key={seller} onClick={() => handleSellerClick(seller)} className="bg-white dark:bg-neutral-900 rounded-2xl p-6 border border-neutral-200 dark:border-neutral-800 shadow-sm hover:shadow-lg hover:border-[#E3000F]/30 dark:hover:border-[#E3000F]/50 transition-all cursor-pointer group relative overflow-hidden">
                                     {isRestricted && (
@@ -110,12 +129,16 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
                                         </div>
                                     )}
                                     <div className="flex items-center gap-4 mb-4">
-                                        <div className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-[#E3000F] font-bold text-lg group-hover:bg-[#E3000F] group-hover:text-white transition-colors">
+                                        <div className="w-12 h-12 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center text-[#E3000F] font-bold text-lg group-hover:bg-[#E3000F] group-hover:text-white transition-colors shrink-0">
                                             {seller.charAt(0)}
                                         </div>
-                                        <div>
-                                            <h3 className="font-bold text-neutral-800 dark:text-neutral-100 text-lg">{seller}</h3>
-                                            <span className="text-xs font-medium text-neutral-400 dark:text-neutral-500 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded">Consultor</span>
+                                        <div className="flex-1 min-w-0 pr-2">
+                                            <h3 className="font-bold text-neutral-800 dark:text-neutral-100 text-lg truncate" title={seller}>{seller}</h3>
+                                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                                <span className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded uppercase tracking-wider">Consultor</span>
+                                                {isTopReceita && <span className="text-[10px] font-bold text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400 px-1.5 py-0.5 rounded flex items-center gap-1" title="Vendedor com maior Receita"><Crown size={12} className="text-yellow-600 dark:text-yellow-500" /> Top 1</span>}
+                                                {isTopPos && !isTopReceita && <span className="text-[10px] font-bold text-blue-700 bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 px-1.5 py-0.5 rounded flex items-center gap-1" title="Vendedor com mais Pós-pago"><Medal size={12} className="text-blue-600 dark:text-blue-500" /> Destaque Pós</span>}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="space-y-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
@@ -138,6 +161,13 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
                                                     <div className="text-right shrink-0">
                                                         <span className="text-xl font-bold text-neutral-800 dark:text-neutral-100">{metrics.volPosTotal}</span>
                                                         <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500 ml-1">/ {Number.isInteger(individualMetas.posTotal) ? individualMetas.posTotal : individualMetas.posTotal.toFixed(1)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-end gap-2">
+                                                    <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase">UR Total</span>
+                                                    <div className="text-right shrink-0">
+                                                        <span className="text-xl font-bold text-neutral-800 dark:text-neutral-100">{metrics.volUrTotal}</span>
+                                                        <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500 ml-1">/ {Number.isInteger(individualMetas.urTotal) ? individualMetas.urTotal : individualMetas.urTotal.toFixed(1)}</span>
                                                     </div>
                                                 </div>
                                             </>
