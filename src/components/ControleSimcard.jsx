@@ -125,6 +125,13 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
         if (!canModifySimcard) setAuthModal({ isOpen: true, pendingAction: 'UNLOCK', pendingId: null });
     };
 
+    const handleChangeColor = (id, newColor) => {
+        if (!canModifySimcard) return;
+        setSimcardsData(prev => prev.map(item => 
+            item.id === id ? { ...item, statusColor: newColor } : item
+        ));
+    };
+
     return (
         <>
             <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden flex flex-col h-full animate-fade-in transition-colors">
@@ -185,7 +192,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">Plano</th>
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-64 min-w-[256px]">Cliente</th>
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-64 min-w-[256px]">Observação</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-16 min-w-[64px]">Excluir</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Ações</th>
                                             </tr>
                                         ) : (
                                             <tr>
@@ -199,7 +206,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-28 min-w-[112px]">Pagamento</th>
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-24 min-w-[96px]">Valor</th>
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-64 min-w-[256px]">Observação</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-16 min-w-[64px]">Excluir</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Ações</th>
                                             </tr>
                                         )}
                                     </thead>
@@ -210,7 +217,11 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                                             </tr>
                                         ) : (
                                             filteredData.map((item) => (
-                                                <tr key={item.id} className="hover:bg-blue-50/40 dark:hover:bg-blue-900/20 transition-colors group">
+                                                <tr key={item.id} className={`transition-colors group ${item.statusColor === 'green' ? 'bg-green-200 dark:bg-green-900/40 hover:bg-green-300/60 dark:hover:bg-green-900/60' :
+                                                    item.statusColor === 'yellow' ? 'bg-yellow-200 dark:bg-yellow-900/40 hover:bg-yellow-300/60 dark:hover:bg-yellow-900/60' :
+                                                        item.statusColor === 'red' ? 'bg-red-200 dark:bg-red-900/40 hover:bg-red-300/60 dark:hover:bg-red-900/60' :
+                                                            'hover:bg-blue-50/40 dark:hover:bg-blue-900/20'
+                                                    }`}>
                                                     <td className={`border border-neutral-200 dark:border-neutral-800 p-0 relative ${!canModifySimcard ? 'bg-neutral-100/50 dark:bg-neutral-800/50' : ''}`}><input type="text" value={isFisico ? item.simcardFisico : item.simcardEsim} onChange={e => handleInlineChange(item.id, isFisico ? 'simcardFisico' : 'simcardEsim', e.target.value)} readOnly={!canModifySimcard} className={`w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs ${!canModifySimcard ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-800 dark:text-neutral-200'}`} />{!canModifySimcard && (isFisico ? item.simcardFisico : item.simcardEsim) && <Lock size={12} onClick={handleProtectedClick} title="Desbloquear Edição" className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 cursor-pointer hover:text-[#E3000F] transition-colors" />}</td>
                                                     <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative w-24"><input type="text" value={item.data} onChange={e => handleInlineChange(item.id, 'data', e.target.value)} placeholder="DD/MM/AA" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400 text-center" /></td>
                                                 
@@ -239,7 +250,21 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
 
                                                     <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.observacao} onChange={e => handleInlineChange(item.id, 'observacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400" /></td>
                                                     <td className="border border-neutral-200 dark:border-neutral-800 p-0 text-center align-middle">
-                                                        <button onClick={() => handleDeleteRequest(item.id)} className={`w-full h-full min-h-[36px] flex items-center justify-center transition-colors ${canModifySimcard ? 'text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20' : 'text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400'}`} title={canModifySimcard ? "Excluir Linha" : "Autenticação Necessária"}>{canModifySimcard ? <Trash2 size={14} /> : <Lock size={12} />}</button>
+                                                        <div className="flex items-center justify-center gap-1.5 h-full min-h-[36px] px-2">
+                                                            {canModifySimcard && (
+                                                                <div className="flex items-center gap-1.5 border-r border-neutral-300 dark:border-neutral-700 pr-2 mr-1">
+                                                                    <button onClick={() => handleChangeColor(item.id, 'green')} className="w-3.5 h-3.5 rounded-full bg-green-500 hover:bg-green-600 shadow-sm transition-colors" title="Tudo Certo" />
+                                                                    <button onClick={() => handleChangeColor(item.id, 'yellow')} className="w-3.5 h-3.5 rounded-full bg-yellow-500 hover:bg-yellow-600 shadow-sm transition-colors" title="Atenção" />
+                                                                    <button onClick={() => handleChangeColor(item.id, 'red')} className="w-3.5 h-3.5 rounded-full bg-red-500 hover:bg-red-600 shadow-sm transition-colors" title="Com Erro" />
+                                                                    {item.statusColor && (
+                                                                        <button onClick={() => handleChangeColor(item.id, null)} className="w-3.5 h-3.5 rounded-full bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-500 text-[8px] flex items-center justify-center font-bold shadow-sm transition-colors" title="Limpar Cor">X</button>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            <button onClick={() => handleDeleteRequest(item.id)} className={`flex items-center justify-center transition-colors ${canModifySimcard ? 'text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded' : 'text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400'}`} title={canModifySimcard ? "Excluir Linha" : "Autenticação Necessária"}>
+                                                                {canModifySimcard ? <Trash2 size={14} /> : <Lock size={12} />}
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))

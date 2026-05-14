@@ -42,6 +42,7 @@ import { Login } from './components/Login.jsx';
 import { ParcialFechamento } from './components/ParcialFechamento.jsx';
 import { Geek } from './components/Geek.jsx';
 import { Scripts } from './components/Scripts.jsx';
+import qrWifiImg from './assets/qr-wifi.png';
 
 // Variáveis seguras (Fallback) caso as constantes falhem ou estejam ausentes
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
@@ -1012,7 +1013,7 @@ export default function App() {
             
             <div className="bg-white p-2 rounded-2xl shadow-sm border border-neutral-100 dark:border-neutral-800 mb-6 w-full max-w-[280px] aspect-square">
               <img 
-                src="/src/assets/qr-wifi.png" 
+                src={qrWifiImg} 
                 alt="QR Code Wi-Fi" 
                 className="w-full h-full object-contain rounded-xl" 
                 onError={(e) => e.target.src = 'https://via.placeholder.com/256?text=QR+Code+Wi-Fi'} 

@@ -21,8 +21,10 @@ export const StreamingBadges = () => (
 export function Proposta({ globalUser }) {
     const [cliente, setCliente] = useState('');
     const [movel, setMovel] = useState('');
-    const [dependente, setDependente] = useState('');
-    const [qtdDependente, setQtdDependente] = useState(1);
+    const [linhaInclusa, setLinhaInclusa] = useState('');
+    const [qtdLinhaInclusa, setQtdLinhaInclusa] = useState(1);
+    const [linhaAdicional, setLinhaAdicional] = useState('');
+    const [qtdLinhaAdicional, setQtdLinhaAdicional] = useState(1);
     const [fibra, setFibra] = useState('');
     const [qtdFibra, setQtdFibra] = useState(1);
     const [tv, setTv] = useState('');
@@ -47,10 +49,13 @@ export function Proposta({ globalUser }) {
     ];
 
     const dependentePlans = [
-        { label: 'DEPENDENTE PAGO', prices: { UNICO: 55.00 } },
-        { label: 'DEPENDENTE INCLUSO', prices: { UNICO: 0.00 } },
-        { label: 'DEP BANDA-LARGA', prices: { UNICO: 29.90 } }
+        { label: 'LINHA ADICIONAL PAGA', prices: { UNICO: 55.00 } },
+        { label: 'LINHA ADICIONAL INCLUSA', prices: { UNICO: 0.00 } },
+        { label: 'LINHA BL ADICIONAL', prices: { UNICO: 29.90 } }
     ];
+
+    const linhaInclusaPlans = dependentePlans.filter(p => p.label === 'LINHA ADICIONAL INCLUSA');
+    const linhaAdicionalPlans = dependentePlans.filter(p => p.label === 'LINHA ADICIONAL PAGA' || p.label === 'LINHA BL ADICIONAL');
 
     const pontoAdicionalPlans = [
         { label: 'PONTO TV BOX STREAMING', prices: { UNICO: 69.90 } },
@@ -105,14 +110,15 @@ export function Proposta({ globalUser }) {
     };
 
     const valMovel = getPrice('MOVEL', movel);
-    const valDependente = getPrice('DEPENDENTE', dependente) * (parseInt(qtdDependente, 10) || 1);
+    const valLinhaInclusa = getPrice('DEPENDENTE', linhaInclusa) * (parseInt(qtdLinhaInclusa, 10) || 1);
+    const valLinhaAdicional = getPrice('DEPENDENTE', linhaAdicional) * (parseInt(qtdLinhaAdicional, 10) || 1);
     const valFibra = getPrice('FIBRA', fibra) * (parseInt(qtdFibra, 10) || 1);
     const valTv = getPrice('TV', tv);
     const valPontoAdicional = getPrice('PONTO_ADICIONAL', pontoAdicional) * (parseInt(qtdPontoAdicional, 10) || 1);
     const valFixo = getPrice('FIXO', fixo) * (parseInt(qtdFixo, 10) || 1);
     const valMesh = getPrice('MESH', mesh);
     const valSeguro = getPrice('SEGURO', seguro);
-    const valorTotal = valMovel + valDependente + valFibra + valTv + valPontoAdicional + valFixo + valMesh + valSeguro;
+    const valorTotal = valMovel + valLinhaInclusa + valLinhaAdicional + valFibra + valTv + valPontoAdicional + valFixo + valMesh + valSeguro;
     
     const valAparelho = parseCurrencyToFloat(aparelhoValor);
     const parcela12x = valAparelho / 12;
@@ -128,7 +134,8 @@ export function Proposta({ globalUser }) {
         
         text += `*RESUMO DOS SERVIÇOS:*\n`;
         if (movel) text += `📱 *Móvel:* ${movel} - ${applyCurrencyMask(valMovel)}\n`;
-        if (dependente) text += `👥 *Dependente:* ${qtdDependente > 1 ? `${qtdDependente}x ` : ''}${dependente} - ${applyCurrencyMask(valDependente)}\n`;
+        if (linhaInclusa) text += `👥 *Linha Inclusa:* ${qtdLinhaInclusa > 1 ? `${qtdLinhaInclusa}x ` : ''}${linhaInclusa} - ${applyCurrencyMask(valLinhaInclusa)}\n`;
+        if (linhaAdicional) text += `👥 *Linha Adicional:* ${qtdLinhaAdicional > 1 ? `${qtdLinhaAdicional}x ` : ''}${linhaAdicional} - ${applyCurrencyMask(valLinhaAdicional)}\n`;
         if (fibra) text += `🌐 *Fibra:* ${qtdFibra > 1 ? `${qtdFibra}x ` : ''}${fibra} - ${applyCurrencyMask(valFibra)}\n`;
         if (tv) text += `📺 *TV:* ${tv} - ${applyCurrencyMask(valTv)}\n`;
         if (pontoAdicional) text += `📺 *Ponto Adicional:* ${qtdPontoAdicional > 1 ? `${qtdPontoAdicional}x ` : ''}${pontoAdicional} - ${applyCurrencyMask(valPontoAdicional)}\n`;
@@ -218,14 +225,15 @@ export function Proposta({ globalUser }) {
             }
         }
         
-        if (dependente) {
-            const d = dependente.toUpperCase();
-            if (d.includes('BANDA-LARGA')) {
-                bens.push({ icon: <Wifi size={14} />, title: 'Dependente Banda-Larga', desc: 'Compartilha a franquia de internet móvel com roteador.' });
+        const deps = [linhaInclusa, linhaAdicional].filter(Boolean);
+        deps.forEach(dep => {
+            const d = dep.toUpperCase();
+            if (d.includes('BANDA-LARGA') || d.includes('BL')) {
+                bens.push({ icon: <Wifi size={14} />, title: 'Linha Adicional Banda-Larga', desc: 'Compartilha a franquia de internet móvel com roteador.' });
             } else {
-                bens.push({ icon: <User size={14} />, title: 'Linha Dependente', desc: 'Compartilha a internet do plano titular com ligações ilimitadas.' });
+                bens.push({ icon: <User size={14} />, title: 'Linha Adicional', desc: 'Compartilha a internet do plano titular com ligações ilimitadas.' });
             }
-        }
+        });
 
         if (fibra) {
             const f = fibra.toUpperCase();
@@ -332,14 +340,27 @@ export function Proposta({ globalUser }) {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><User size={14} className="text-[#E3000F]" /> Dependentes Móvel / Banda-Larga</label>
+                            <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><User size={14} className="text-[#E3000F]" /> Linha Adicional Inclusa</label>
                             <div className="flex gap-2">
-                                <select value={dependente} onChange={(e) => setDependente(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
-                                    <option className="bg-white dark:bg-neutral-900" value="">Nenhum dependente selecionado</option>
-                                    {dependentePlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
+                                <select value={linhaInclusa} onChange={(e) => setLinhaInclusa(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
+                                    <option className="bg-white dark:bg-neutral-900" value="">Nenhuma linha inclusa selecionada</option>
+                                    {linhaInclusaPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
                                 </select>
-                                {dependente && (
-                                    <input type="number" min="1" value={qtdDependente} onChange={(e) => setQtdDependente(e.target.value)} className="w-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-center" title="Quantidade" />
+                                {linhaInclusa && (
+                                    <input type="number" min="1" value={qtdLinhaInclusa} onChange={(e) => setQtdLinhaInclusa(e.target.value)} className="w-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-center" title="Quantidade" />
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2"><User size={14} className="text-[#E3000F]" /> Linha Adicional Paga / BL</label>
+                            <div className="flex gap-2">
+                                <select value={linhaAdicional} onChange={(e) => setLinhaAdicional(e.target.value)} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium cursor-pointer">
+                                    <option className="bg-white dark:bg-neutral-900" value="">Nenhuma linha paga/BL selecionada</option>
+                                    {linhaAdicionalPlans.map(p => <option className="bg-white dark:bg-neutral-900" key={p.label} value={p.label}>{p.label}</option>)}
+                                </select>
+                                {linhaAdicional && (
+                                    <input type="number" min="1" value={qtdLinhaAdicional} onChange={(e) => setQtdLinhaAdicional(e.target.value)} className="w-20 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-center" title="Quantidade" />
                                 )}
                             </div>
                         </div>
@@ -437,7 +458,7 @@ export function Proposta({ globalUser }) {
                             </div>
                             <div>
                                 <h2 className="text-xl md:text-2xl font-bold mb-0.5 tracking-tight">Proposta Claro União Osasco</h2>
-                                <p className="text-neutral-400 text-[11px] md:text-xs font-medium uppercase tracking-wider">Data: {new Date().toLocaleDateString('pt-BR')} &bull; Validade: 7 dias</p>
+                                <p className="text-neutral-400 text-[11px] md:text-xs font-medium uppercase tracking-wider">Data: {new Date().toLocaleDateString('pt-BR')} &bull; Validade: 24 HORAS</p>
                             </div>
                         </div>
                         <div className="text-right hidden sm:block">
@@ -465,10 +486,16 @@ export function Proposta({ globalUser }) {
                                         <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valMovel)}</span>
                                     </div>
                                 )}
-                                {dependente && (
+                                {linhaInclusa && (
                                     <div className="flex justify-between items-center group">
-                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><User size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{qtdDependente > 1 ? `${qtdDependente}x ` : ''}{dependente}</span></div>
-                                        <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valDependente)}</span>
+                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><User size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{qtdLinhaInclusa > 1 ? `${qtdLinhaInclusa}x ` : ''}{linhaInclusa}</span></div>
+                                        <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valLinhaInclusa)}</span>
+                                    </div>
+                                )}
+                                {linhaAdicional && (
+                                    <div className="flex justify-between items-center group">
+                                        <div className="flex items-center gap-3"><div className="w-7 h-7 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center text-neutral-600 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-700"><User size={14} /></div><span className="text-xs font-bold text-neutral-700 dark:text-neutral-300 leading-tight w-36 sm:w-auto truncate">{qtdLinhaAdicional > 1 ? `${qtdLinhaAdicional}x ` : ''}{linhaAdicional}</span></div>
+                                        <span className="text-xs font-black text-neutral-900 dark:text-white">{applyCurrencyMask(valLinhaAdicional)}</span>
                                     </div>
                                 )}
                                 {fibra && (
