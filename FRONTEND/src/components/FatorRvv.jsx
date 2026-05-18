@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calculator, User, DollarSign, Target, TrendingUp, AlertCircle, Award, Lock, CheckCircle2 } from 'lucide-react';
 import { applyCurrencyMask } from '../utils/masks';
 import { METAS_PADRAO } from '../utils/constants';
-import { calcularFatorRV, aplicarRegrasDeProduto } from '../utils/rules';
+
+// URL base da API configurada via variável de ambiente (Vite) ou fallback para localhost
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {}, globalMonth }) => {
     const isVendedor = globalUser?.role === 'VENDEDOR';
@@ -14,155 +16,173 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
         .filter(Boolean);
 
     const [selectedSeller, setSelectedSeller] = useState(isVendedor ? loggedName : (safeVendedores[0] || ''));
+    const [metrics, setMetrics] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const metrics = useMemo(() => {
-        if (!selectedSeller) return null;
+    useEffect(() => {
+        if (!selectedSeller) {
+            setMetrics(null);
+            return;
+        }
+        let isMounted = true;
 
-        const activeMetas = (goalsDB || {})[globalMonth] || METAS_PADRAO || {};
-        const numSellers = safeVendedores.length || 1;
-
-        // 1. Isola as vendas do mês
-        const monthSales = salesData.filter(s => {
-            if (typeof s.data !== 'string') return false;
-            if (s.data.includes('/')) {
-                const parts = s.data.split('/');
-                if (parts.length === 3) return `${parts[2]}-${parts[1]}` === globalMonth;
-            }
-            if (s.data.includes('-')) return s.data.slice(0, 7) === globalMonth;
-            return false;
-        });
-
-        // 2. Isola as vendas individuais do vendedor
-        const sellerSales = monthSales.filter(s => s.vendedor === selectedSeller || s.vendedor === String(selectedSeller || '').split(' ')[0]);
-
-        let sellerTotalReceita = 0;
-        let volMplay = 0;
-        sellerSales.forEach(s => {
-            sellerTotalReceita += Number(s.valorBruto || s.receita) || 0;
-            if (s.mplay === 'SIM') volMplay += 1;
-        });
-
-        const metaReceita = (Number(activeMetas.receita) || 0) / numSellers;
-        const metaMplay = Math.ceil((Number(activeMetas.mplay) || 0) / numSellers);
-
-        // 3. Calcula o Fator Multiplicador baseado no atingimento INDIVIDUAL
-        const pctAtingimentoMplay = metaMplay > 0 ? (volMplay / metaMplay) * 100 : (volMplay > 0 ? 100 : 0);
-
-        let fatorMultiplicador = 1.2;
-        if (pctAtingimentoMplay >= 160.00) fatorMultiplicador = 1.8;
-        else if (pctAtingimentoMplay >= 130.00) fatorMultiplicador = 1.6;
-        else if (pctAtingimentoMplay >= 100.00) fatorMultiplicador = 1.4;
-
-        let totalReceita = 0;
-        let totalComissao = 0;
-        let totalVendas = sellerSales.length;
-        let totalPos = 0;
-        let totalUr = 0;
-        let volPosPago = 0;
-        let volFibra = 0;
-        let volTv = 0;
-        let volPortabilidade = 0;
-        let volMulti = 0;
-        let volPme = 0;
-        let volAparelho = 0;
-        let comissaoAparelho = 0;
-        let volSeguro = 0;
-        let comissaoSeguro = 0;
-
-        sellerSales.forEach(sale => {
-            const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
-            const q = Number(sale.qtda) || 1;
-            const combo = String(sale.combo || '').toUpperCase();
-            const port = String(sale.portabilidade || '').toUpperCase();
+        const fetchData = async () => {
+            setIsLoading(true);
             
-            if (port === 'SIM') volPortabilidade += q;
-            if (combo.includes('MULTI')) volMulti += q;
-            if (pBase.includes('PME')) volPme += q;
+            const activeMetas = (goalsDB || {})[globalMonth] || METAS_PADRAO || {};
+            const numSellers = safeVendedores.length || 1;
 
-            if (pBase.includes('APARELHO')) {
-                volAparelho += q;
-                comissaoAparelho += aplicarRegrasDeProduto(sale, { pctAtingimentoMplay });
-            }
-            if (pBase.includes('SEGURO')) {
-                volSeguro += q;
-                comissaoSeguro += aplicarRegrasDeProduto(sale, { pctAtingimentoMplay });
-            }
+            // 1. Isola as vendas do mês
+            const monthSales = salesData.filter(s => {
+                if (typeof s.data !== 'string') return false;
+                if (s.data.includes('/')) {
+                    const parts = s.data.split('/');
+                    if (parts.length === 3) return `${parts[2]}-${parts[1]}` === globalMonth;
+                }
+                if (s.data.includes('-')) return s.data.slice(0, 7) === globalMonth;
+                return false;
+            });
 
-            if ((pBase.includes('POS') || pBase.includes('PÓS') || pBase.includes('CONTROLE') || pBase.includes('FLEX') || pBase.includes('DEPENDENTE') || pBase.includes('DEP') || pBase.includes('BANDA LARGA') || pBase === 'BL') && !pBase.includes('PME') && pBase !== 'PME') {
-                totalPos += q;
-            }
-            
-            if (pBase.includes('FIBRA') || pBase.includes('TV') || pBase.includes('FIXO') || pBase.includes('MESH')) {
-                totalUr += q;
-            }
-            
-            if ((pBase.includes('POS') || pBase.includes('PÓS') || pBase.includes('DEPENDENTE') || pBase.includes('DEP') || pBase.includes('BANDA LARGA') || pBase === 'BL') && !pBase.includes('PME') && pBase !== 'PME') {
-                volPosPago += q;
-            }
-            if (pBase.includes('FIBRA') || pBase.includes('BANDA LARGA RESIDENCIAL')) {
-                volFibra += q;
-            }
-            if (pBase.includes('CLARO TV+') || pBase.includes('TV')) {
-                volTv += q;
-            }
+            // 2. Isola as vendas individuais do vendedor
+            const sellerSales = monthSales.filter(s => s.vendedor === selectedSeller || s.vendedor === String(selectedSeller || '').split(' ')[0]);
 
-            totalReceita += Number(sale.valorBruto || sale.receita) || 0;
-            // MODIFICADO: Aplica portabilidade e acelerador Multi na matemática
-            totalComissao += aplicarRegrasDeProduto(sale, { pctAtingimentoMplay });
-        });
+            let sellerTotalReceita = 0;
+            let volMplay = 0;
+            sellerSales.forEach(s => {
+                sellerTotalReceita += Number(s.valorBruto || s.receita) || 0;
+                if (s.mplay === 'SIM') volMplay += 1;
+            });
 
-        const metaPos = (Number(activeMetas.posTotal) || 0) / numSellers;
-        const metaUr = (Number(activeMetas.urTotal) || 0) / numSellers;
+            const metaReceita = (Number(activeMetas.receita) || 0) / numSellers;
+            const metaMplay = Math.ceil((Number(activeMetas.mplay) || 0) / numSellers);
+
+            // 3. Calcula o Fator Multiplicador baseado no atingimento INDIVIDUAL
+            const pctAtingimentoMplay = metaMplay > 0 ? (volMplay / metaMplay) * 100 : (volMplay > 0 ? 100 : 0);
+
+            let fatorMultiplicador = 1.2;
+            if (pctAtingimentoMplay >= 160.00) fatorMultiplicador = 1.8;
+            else if (pctAtingimentoMplay >= 130.00) fatorMultiplicador = 1.6;
+            else if (pctAtingimentoMplay >= 100.00) fatorMultiplicador = 1.4;
+
+            let totalReceita = 0;
+            let totalVendas = sellerSales.length;
+            let totalPos = 0;
+            let totalUr = 0;
+            let volPosPago = 0;
+            let volFibra = 0;
+            let volTv = 0;
+            let volPortabilidade = 0;
+            let volMulti = 0;
+            let volPme = 0;
+            let volAparelho = 0;
+            let volSeguro = 0;
+
+            try {
+                // 🚀 Correção de Performance: Em vez de dezenas de requisições simultâneas, fazemos 1 única requisição em LOTE
+                const batchResponse = await fetch(`${API_URL}/api/calcular-lote-receita`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sales: sellerSales, metricasVendedor: { pctAtingimentoMplay } })
+                });
+                const { resultados } = await batchResponse.json();
+
+                let totalComissao = 0;
+                let comissaoAparelho = 0;
+                let comissaoSeguro = 0;
+
+                sellerSales.forEach((sale) => {
+                    const resApi = (resultados || []).find(r => r.id === sale.id);
+                    const receitaBase = resApi ? resApi.receitaBase : 0;
+
+                    const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
+                    const q = Number(sale.qtda) || 1;
+                    const combo = String(sale.combo || '').toUpperCase();
+                    const port = String(sale.portabilidade || '').toUpperCase();
+                    
+                    if (port === 'SIM') volPortabilidade += q;
+                    if (combo.includes('MULTI')) volMulti += q;
+                    if (pBase.includes('PME')) volPme += q;
+
+                    if (pBase.includes('APARELHO')) {
+                        volAparelho += q;
+                        comissaoAparelho += receitaBase;
+                    }
+                    if (pBase.includes('SEGURO')) {
+                        volSeguro += q;
+                        comissaoSeguro += receitaBase;
+                    }
+
+                    if ((pBase.includes('POS') || pBase.includes('PÓS') || pBase.includes('CONTROLE') || pBase.includes('FLEX') || pBase.includes('DEPENDENTE') || pBase.includes('DEP') || pBase.includes('BANDA LARGA') || pBase === 'BL') && !pBase.includes('PME') && pBase !== 'PME') {
+                        totalPos += q;
+                    }
+                    
+                    if (pBase.includes('FIBRA') || pBase.includes('TV') || pBase.includes('FIXO') || pBase.includes('MESH')) {
+                        totalUr += q;
+                    }
+                    
+                    if ((pBase.includes('POS') || pBase.includes('PÓS') || pBase.includes('DEPENDENTE') || pBase.includes('DEP') || pBase.includes('BANDA LARGA') || pBase === 'BL') && !pBase.includes('PME') && pBase !== 'PME') {
+                        volPosPago += q;
+                    }
+                    if (pBase.includes('FIBRA') || pBase.includes('BANDA LARGA RESIDENCIAL')) {
+                        volFibra += q;
+                    }
+                    if (pBase.includes('CLARO TV+') || pBase.includes('TV')) {
+                        volTv += q;
+                    }
+
+                    totalReceita += Number(sale.valorBruto || sale.receita) || 0;
+                    totalComissao += receitaBase;
+                });
+
+                const metaPos = (Number(activeMetas.posTotal) || 0) / numSellers;
+                const metaUr = (Number(activeMetas.urTotal) || 0) / numSellers;
+                
+                const metaPosPago = Math.ceil((Number(activeMetas.posPago) || 0) / numSellers);
+                const metaFibra = Math.ceil((Number(activeMetas.fibra) || 0) / numSellers);
+                const metaTv = Math.ceil((Number(activeMetas.tv) || 0) / numSellers);
+
+                const pctAtingimento = metaReceita > 0 ? (totalComissao / metaReceita) * 100 : 0;
+                const pctAtingimentoPos = metaPos > 0 ? (totalPos / metaPos) * 100 : 0;
+                const pctAtingimentoUr = metaUr > 0 ? (totalUr / metaUr) * 100 : 0;
+
+                // Pede o Fator RV Final para a API
+                const rvResponse = await fetch(`${API_URL}/api/calcular-rv`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pctAtingimento, totalComissao,
+                        metricasExtras: {
+                            totalVendas, pctAtingimentoPos, pctAtingimentoUr, notaNps: 0,
+                            volPosPago, metaPosPago, volFibra, metaFibra, volTv, metaTv
+                        }
+                    })
+                });
+                const resultRV = await rvResponse.json();
+
+                if (isMounted) {
+                    setMetrics({
+                        totalReceita, totalComissao, totalVendas, totalPos, totalUr,
+                        metaReceita, metaPos, metaUr, pctAtingimento, pctAtingimentoPos, pctAtingimentoUr,
+                        pctAtingimentoMplay, volMplay, metaMplay,
+                        previaPagamento: resultRV.previaPagamento,
+                        fatorSimulado: resultRV.fatorAplicado,
+                        elegivel: resultRV.elegivel,
+                        bonusUnitario: resultRV.bonusUnitario,
+                        fatorMultiplicador, volPortabilidade, volMulti, volPme,
+                        volAparelho, comissaoAparelho, volSeguro, comissaoSeguro
+                    });
+                    setIsLoading(false);
+                }
+            } catch (error) {
+                console.error("Erro ao calcular métricas com a API:", error);
+                if (isMounted) setIsLoading(false);
+            }
+        };
+
+        fetchData();
         
-        const metaPosPago = Math.ceil((Number(activeMetas.posPago) || 0) / numSellers);
-        const metaFibra = Math.ceil((Number(activeMetas.fibra) || 0) / numSellers);
-        const metaTv = Math.ceil((Number(activeMetas.tv) || 0) / numSellers);
-
-        const pctAtingimento = metaReceita > 0 ? (totalComissao / metaReceita) * 100 : 0;
-        const pctAtingimentoPos = metaPos > 0 ? (totalPos / metaPos) * 100 : 0;
-        const pctAtingimentoUr = metaUr > 0 ? (totalUr / metaUr) * 100 : 0;
-
-        // Cálculo de RV sendo importado do arquivo isolado de regras
-        const resultRV = calcularFatorRV(pctAtingimento, totalComissao, { 
-            totalVendas,
-            pctAtingimentoPos,
-            pctAtingimentoUr,
-            notaNps: 0,
-            volPosPago,
-            metaPosPago,
-            volFibra,
-            metaFibra,
-            volTv,
-            metaTv
-        });
-
-        return {
-            totalReceita,
-            totalComissao,
-            totalVendas,
-            totalPos,
-            totalUr,
-            metaReceita,
-            metaPos,
-            metaUr,
-            pctAtingimento,
-            pctAtingimentoPos,
-            pctAtingimentoUr,
-            pctAtingimentoMplay,
-            volMplay,
-            metaMplay,
-            previaPagamento: resultRV.previaPagamento,
-            fatorSimulado: resultRV.fatorAplicado,
-            elegivel: resultRV.elegivel,
-            bonusUnitario: resultRV.bonusUnitario,
-            fatorMultiplicador,
-            volPortabilidade,
-            volMulti,
-            volPme,
-            volAparelho,
-            comissaoAparelho,
-            volSeguro,
-            comissaoSeguro
+        return () => {
+            isMounted = false;
         };
     }, [salesData, selectedSeller, globalMonth, goalsDB, safeVendedores.length, isVendedor]);
 
@@ -205,7 +225,12 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
                         <User size={48} className="mb-4 opacity-20" />
                         <p>Selecione um vendedor para visualizar o Dashboard.</p>
                     </div>
-                ) : metrics ? (
+                ) : isLoading || !metrics ? (
+                    <div className="flex flex-col items-center justify-center h-full text-neutral-400 dark:text-neutral-600">
+                        <div className="w-12 h-12 border-4 border-[#E3000F] border-t-transparent rounded-full animate-spin mb-4"></div>
+                        <p>Calculando regras de comissão na API...</p>
+                    </div>
+                ) : (
                     <div className="max-w-6xl mx-auto space-y-6">
                         
                         {/* Alerta de Regra Aplicada */}
@@ -416,7 +441,7 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
 
                         </div>
                     </div>
-                ) : null}
+                )}
             </div>
         </div>
     );

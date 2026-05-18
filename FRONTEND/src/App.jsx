@@ -16,6 +16,9 @@ import toast, { Toaster } from 'react-hot-toast';
 import { doc, onSnapshot, setDoc, collection, writeBatch, query, where } from 'firebase/firestore';
 import { db } from './firebase.js'; // Conexão com o Firebase configurada
 
+// Importação do Socket.io para comunicação em Tempo Real com o Node.js
+import { io } from 'socket.io-client';
+
 // Importações de constantes como usuários padrões e base para as metas
 import {
   METAS_PADRAO, APP_USERS
@@ -44,6 +47,9 @@ import { Geek } from './components/Geek.jsx';
 import { Scripts } from './components/Scripts.jsx';
 import { FatorRvv } from './components/FatorRvv.jsx';
 import qrWifiImg from './assets/qr-wifi.png';
+
+// URL base da API configurada via variável de ambiente (Vite) ou fallback para localhost
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Variáveis seguras (Fallback) caso as constantes falhem ou estejam ausentes
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
@@ -135,9 +141,6 @@ export default function App() {
   };
 
   // --- ALERTA DE PARCIAL DE VENDAS (GESTOR) ---
-  // Ativa um lembrete automático para cargos de Gestão enviarem a Parcial de Vendas no grupo
-  const [showParcialAlert, setShowParcialAlert] = useState(false);
-
   useEffect(() => {
     if (!['GERENTE', 'SENIOR', 'GEEK', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO'].includes(globalUser?.role)) return;
 
@@ -153,8 +156,34 @@ export default function App() {
         const todayDate = now.toLocaleDateString('pt-BR');
 
         if (lastHour !== String(h) || lastDate !== todayDate) {
-          setShowParcialAlert(true);
           
+          // Usa o Toast nativo para garantir que a notificação apareça sempre no topo, livre de problemas visuais
+          toast.custom((t) => (
+            <div className={`${t.visible ? 'animate-fade-in' : 'opacity-0'} max-w-md w-full bg-white dark:bg-neutral-900 shadow-2xl rounded-xl border-l-4 border-[#E3000F] pointer-events-auto flex ring-1 ring-black/5 dark:ring-white/5 transition-all duration-300`}>
+              <div className="flex-1 w-0 p-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-[#E3000F] shrink-0">
+                    <AlertCircle size={22} />
+                  </div>
+                  <div className="flex-1 pt-0.5">
+                    <p className="text-sm font-bold text-neutral-900 dark:text-white uppercase tracking-wider">Atenção Gestor!</p>
+                    <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                      Já é hora de enviar a <strong className="text-[#E3000F]">Parcial de Vendas</strong> no grupo do WhatsApp da equipe.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex border-l border-neutral-100 dark:border-neutral-800">
+                <button
+                  onClick={() => toast.dismiss(t.id)}
+                  className="w-full border border-transparent rounded-none rounded-r-xl p-4 flex items-center justify-center text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+          ), { duration: 60000, position: 'top-center', id: `parcial-toast-${h}` });
+
           // Adiciona as parciais dentro do log de Notificações
           setNotifications(prev => {
             const newNotif = {
@@ -367,10 +396,23 @@ export default function App() {
       } else {
         setGoalsDB({ [currentYYYYMM]: { ...safeMetasPadrao } });
       }
-    }, (error) => console.error("Erro Configs:", error)));
+      // Libera a tela principal assim que as configurações essenciais (usuários, metas) forem carregadas
+      if (!isFirebaseReady) {
+        setIsFirebaseReady(true);
+      }
+    }, (error) => {
+      console.error("Erro Configs:", error);
+      setIsFirebaseReady(true); // Libera a tela mesmo em caso de erro para não travar o login
+    }));
 
     const startStr = `${globalMonth}-01`;
     const endStr = `${globalMonth}-31T23:59:59`; // Garante a captura até o último segundo do dia 31
+
+    // 🚀 INICIANDO O TÚNEL DE TEMPO REAL
+    const socket = io(API_URL);
+    socket.on('connect', () => {
+      console.log('🟢 Conectado ao Servidor em Tempo Real!');
+    });
 
     // Função de ordenação cronológica inteligente para evitar "embaralhar"
     const sortChronologically = (a, b) => {
@@ -381,52 +423,86 @@ export default function App() {
       return (b.id || 0) - (a.id || 0); // Desempate pela ordem de registro (ID) caso sejam do mesmo dia
     };
 
-    // VENDAS (Muda para Coleção separada para escalabilidade infinita)
-    const vendasQuery = query(
-      collection(db, 'vendas_uniao_osasco'),
-      where('data', '>=', startStr),
-      where('data', '<=', endStr)
-    );
-    unsubs.push(onSnapshot(vendasQuery, (snap) => {
-      const data = snap.docs.map(d => d.data());
-      data.sort(sortChronologically); 
-      setSalesData(data);
-      cloudRefs.current.sales = data;
-    }));
+    // 🚀 PASSO 1: VENDAS BUSCADAS VIA API REST DO BACKEND (Node.js)
+    // Substituímos o onSnapshot direto do Firebase por uma requisição HTTP limpa
+    const fetchVendasAPI = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/vendas?start=${startStr}&end=${endStr}`);
+        const data = await response.json();
+        data.sort(sortChronologically);
+        setSalesData(data);
+        cloudRefs.current.sales = data;
+      } catch (error) {
+        console.error("Erro ao conectar com a API de Vendas do Backend:", error);
+      }
+    };
+    fetchVendasAPI();
 
-    // ESTOQUE SIMCARDS (Muda para Coleção)
-    unsubs.push(onSnapshot(collection(db, 'estoque_uniao_osasco'), (snap) => {
-      const data = snap.docs.map(d => d.data());
-      data.sort((a, b) => b.id - a.id);
-      setSimcardsData(data);
-      cloudRefs.current.simcards = data;
-    }));
+    // Ouve o servidor. Se alguém salvar uma venda na loja, o React refaz o fetch sozinho!
+    socket.on('vendas-atualizadas', () => {
+      console.log('🔄 Nova venda detectada no servidor! Atualizando tela...');
+      fetchVendasAPI();
+    });
 
-    // REPROVADOS (Muda para Coleção)
-    const reprovadosQuery = query(
-      collection(db, 'reprovados_uniao_osasco'),
-      where('data', '>=', startStr),
-      where('data', '<=', endStr)
-    );
-    unsubs.push(onSnapshot(reprovadosQuery, (snap) => {
-      const data = snap.docs.map(d => d.data());
-      data.sort(sortChronologically);
-      setReprovadosData(data);
-      cloudRefs.current.reprovados = data;
-      
-      // Marca como pronto quando carregar as coleções
-      setIsFirebaseReady(true);
-    }));
+    // 🚀 PASSO 2: ESTOQUE BUSCADO VIA API REST DO BACKEND (Node.js)
+    const fetchSimcardsAPI = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/simcards`);
+        const data = await response.json();
+        data.sort((a, b) => b.id - a.id);
+        setSimcardsData(data);
+        cloudRefs.current.simcards = data;
+      } catch (error) {
+        console.error("Erro ao conectar com a API de Simcards do Backend:", error);
+      }
+    };
+    fetchSimcardsAPI();
 
-    // GEEK DOCS (Sem filtro de mês, pois os documentos são fixos)
-    unsubs.push(onSnapshot(collection(db, 'geek_docs_uniao_osasco'), (snap) => {
-      const data = snap.docs.map(d => d.data());
-      data.sort((a, b) => b.id - a.id);
-      setGeekDocs(data);
-      cloudRefs.current.geekDocs = data;
-    }));
+    socket.on('simcards-atualizados', () => {
+      console.log('🔄 Estoque atualizado no servidor! Atualizando tela...');
+      fetchSimcardsAPI();
+    });
 
-    return () => unsubs.forEach(unsub => unsub());
+    // 🚀 PASSO 3: REPROVADOS BUSCADOS VIA API REST
+    const fetchReprovadosAPI = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/reprovados?start=${startStr}&end=${endStr}`);
+        const data = await response.json();
+        data.sort(sortChronologically);
+        setReprovadosData(data);
+        cloudRefs.current.reprovados = data;
+      } catch (error) {
+        console.error("Erro ao conectar com a API de Reprovados:", error);
+      }
+    };
+    fetchReprovadosAPI();
+
+    socket.on('reprovados-atualizados', () => {
+      fetchReprovadosAPI();
+    });
+
+    // 🚀 PASSO 4: GEEK DOCS BUSCADOS VIA API REST
+    const fetchGeekDocsAPI = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/geek-docs`);
+        const data = await response.json();
+        data.sort((a, b) => b.id - a.id);
+        setGeekDocs(data);
+        cloudRefs.current.geekDocs = data;
+      } catch (error) {
+        console.error("Erro ao conectar com a API de Geek Docs:", error);
+      }
+    };
+    fetchGeekDocsAPI();
+
+    socket.on('geek-docs-atualizados', () => {
+      fetchGeekDocsAPI();
+    });
+
+    return () => {
+      unsubs.forEach(unsub => unsub());
+      socket.disconnect(); // Desconecta ao mudar de mês para evitar túneis duplicados
+    };
   }, [globalMonth]);
 
   // 2. AUTO-SAVE NA NUVEM (Smart Diff - Salva apenas os documentos que foram alterados)
@@ -453,30 +529,99 @@ export default function App() {
         const safeStr = (obj) => JSON.stringify(obj || {});
 
         // Função inteligente de comparação (Diff)
-        const syncCollection = (localArray, cloudArray, collectionName) => {
+        const syncCollection = async (localArray, cloudArray, collectionName) => {
           const localMap = new Map((localArray || []).map(item => [String(item.id), item]));
           const cloudMap = new Map((cloudArray || []).map(item => [String(item.id), item]));
+
+          const apiUpserts = [];
+          const apiDeletes = [];
 
           // 1. Identificar Novas inserções ou Edições feitas pelo usuário
           localMap.forEach((item, id) => {
             const cloudItem = cloudMap.get(id);
             if (!cloudItem || safeStr(item) !== safeStr(cloudItem)) {
-              getBatch().set(doc(db, collectionName, id), item);
+              const usesAPI = ['vendas_uniao_osasco', 'estoque_uniao_osasco', 'reprovados_uniao_osasco', 'geek_docs_uniao_osasco'].includes(collectionName);
+              if (usesAPI) {
+                apiUpserts.push(item);
+              } else {
+                getBatch().set(doc(db, collectionName, id), item);
+              }
             }
           });
 
           // 2. Identificar Exclusões (Botão de Excluir da Tabela)
           cloudMap.forEach((item, id) => {
             if (!localMap.has(id)) {
-              getBatch().delete(doc(db, collectionName, id));
+              const usesAPI = ['vendas_uniao_osasco', 'estoque_uniao_osasco', 'reprovados_uniao_osasco', 'geek_docs_uniao_osasco'].includes(collectionName);
+              if (usesAPI) {
+                apiDeletes.push(id);
+              } else {
+                getBatch().delete(doc(db, collectionName, id));
+              }
             }
           });
+
+          // 3. Se for a coleção de Vendas, despacha para a nossa API no Backend
+          if (collectionName === 'vendas_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
+            try {
+              await fetch(`${API_URL}/api/vendas/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
+              });
+              hasChanges = true;
+            } catch (error) {
+              console.error("Erro na Sincronização via API Backend:", error);
+            }
+          }
+
+          // 4. Se for a coleção de Estoque, despacha para a API
+          if (collectionName === 'estoque_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
+            try {
+              await fetch(`${API_URL}/api/simcards/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
+              });
+              hasChanges = true;
+            } catch (error) {
+              console.error("Erro na Sincronização via API Backend:", error);
+            }
+          }
+
+          // 5. Se for a coleção de Reprovados, despacha para a API
+          if (collectionName === 'reprovados_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
+            try {
+              await fetch(`${API_URL}/api/reprovados/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
+              });
+              hasChanges = true;
+            } catch (error) {
+              console.error("Erro na Sincronização via API Backend:", error);
+            }
+          }
+
+          // 6. Se for a coleção de Geek Docs, despacha para a API
+          if (collectionName === 'geek_docs_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
+            try {
+              await fetch(`${API_URL}/api/geek-docs/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
+              });
+              hasChanges = true;
+            } catch (error) {
+              console.error("Erro na Sincronização via API Backend:", error);
+            }
+          }
         };
 
-        syncCollection(salesData, cloudRefs.current.sales, 'vendas_uniao_osasco');
-        syncCollection(simcardsData, cloudRefs.current.simcards, 'estoque_uniao_osasco');
-        syncCollection(reprovadosData, cloudRefs.current.reprovados, 'reprovados_uniao_osasco');
-        syncCollection(geekDocs, cloudRefs.current.geekDocs, 'geek_docs_uniao_osasco');
+        await syncCollection(salesData, cloudRefs.current.sales, 'vendas_uniao_osasco');
+        await syncCollection(simcardsData, cloudRefs.current.simcards, 'estoque_uniao_osasco');
+        await syncCollection(reprovadosData, cloudRefs.current.reprovados, 'reprovados_uniao_osasco');
+        await syncCollection(geekDocs, cloudRefs.current.geekDocs, 'geek_docs_uniao_osasco');
 
         // 3. Salva Configurações Globais apenas se houver mudança nos privilégios
         const currentConfigStr = safeStr({ usersDB, goalsDB, scheduleData, monthlyOverrides });
@@ -699,29 +844,6 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#F5F5F5] dark:bg-neutral-950 font-sans overflow-hidden print:overflow-visible print:h-auto print:block text-neutral-800 dark:text-neutral-100 print:bg-white transition-colors duration-500">
       <Toaster position="top-right" />
-
-      {/* ALERTA DE PARCIAL DE VENDAS */}
-      {/* Componente Modal que notifica gerentes em horários fixos */}
-      {showParcialAlert && ['GERENTE', 'SENIOR', 'GEEK', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO'].includes(globalUser?.role) && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-white dark:bg-neutral-900 border-l-4 border-[#E3000F] shadow-2xl rounded-r-xl rounded-l-sm p-4 flex items-start gap-4 animate-fade-in w-[90%] max-w-md no-print">
-          <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-[#E3000F] shrink-0">
-            <AlertCircle size={22} />
-          </div>
-          <div className="flex-1 pt-0.5">
-            <h3 className="font-bold text-neutral-800 dark:text-neutral-100 text-sm mb-1 uppercase tracking-wider">Atenção Gestor!</h3>
-            <p className="text-xs text-neutral-600 dark:text-neutral-400">
-              Já é hora de enviar a <strong className="text-[#E3000F]">Parcial de Vendas</strong> no grupo do WhatsApp da equipe.
-            </p>
-          </div>
-          <button 
-            onClick={() => setShowParcialAlert(false)} 
-            className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 p-1.5 bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-            title="Fechar Alerta"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
 
       {/* Overlay da Barra Lateral em dispositivos Mobile */}
       {isSidebarOpen && (

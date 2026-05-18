@@ -15,7 +15,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         .filter(Boolean);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formError, setFormError] = useState('');
-    const [filterDate, setFilterDate] = useState(getTodaySP());
+    const [filterDate, setFilterDate] = useState(getTodaySP()); // Voltando para o filtro de HOJE por padrão
     const [filterDateEnd, setFilterDateEnd] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
