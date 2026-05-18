@@ -34,8 +34,13 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
         const sumTotals = {
             grossDia: 0, metaDia: 0, total: 0, posTt: 0, controle: 0, controleTotal: 0, posPagoTotal: 0, depPg: 0, depBl: 0, depGratis: 0, migracaoPos: 0, migracaoControle: 0, grossPme: 0,
             portabilidade: 0, bl: 0, flex: 0, receita: 0, fibra: 0, tv: 0, tvBox: 0, fixo: 0, mplay: 0, mesh: 0, urPme: 0,
-            totalRes: 0, aparelho: 0, receitaAparelho: 0, seguro: 0, acessorio: 0, trocafy: 0, pelicula: 0, claroUp: 0, receitaAcessorio: 0
+            totalRes: 0, aparelho: 0, receitaAparelho: 0, receitaAparelhoBruto: 0, seguro: 0, acessorio: 0, trocafy: 0, pelicula: 0, claroUp: 0, receitaAcessorio: 0, receitaAcessorioBruto: 0
         };
+
+        const today = new Date();
+        const currentY = today.getFullYear();
+        const currentM = today.getMonth() + 1;
+        const currentD = today.getDate();
 
         for (let d = 1; d <= daysInMonth; d++) {
             const dayStr = String(d).padStart(2, '0');
@@ -58,7 +63,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
 
             let posTt = 0, controle = 0, depPg = 0, depBl = 0, depGratis = 0, migracaoPos = 0, migracaoControle = 0, grossPme = 0, portabilidade = 0;
             let bl = 0, flex = 0, receita = 0, fibra = 0, tv = 0, tvBox = 0, fixo = 0, mplay = 0, mesh = 0, urPme = 0, aparelho = 0;
-            let receitaAparelho = 0, seguro = 0, acessorio = 0, trocafy = 0, pelicula = 0, claroUp = 0, receitaAcessorio = 0;
+            let receitaAparelho = 0, receitaAparelhoBruto = 0, seguro = 0, acessorio = 0, trocafy = 0, pelicula = 0, claroUp = 0, receitaAcessorio = 0, receitaAcessorioBruto = 0;
 
             dailySales.forEach(sale => {
                 const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
@@ -66,6 +71,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                 const port = String(sale.portabilidade || '').toUpperCase();
                 const sub = String(sale.subOption || sale.subtipo || '').toUpperCase();
                 const rec = Number(sale.receita) || 0;
+                const recBruto = Number(sale.valorBruto || sale.receita) || 0;
                 const q = Number(sale.qtda) || 1;
                 const adds = sale.adicionais || [];
 
@@ -98,10 +104,10 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                 else if (pBase.includes('CLARO TV+') || pBase.includes('TV')) tv += q;
                 else if (pBase.includes('FIXO') || pBase.includes('NET FONE')) fixo += q;
                 else if (pBase.includes('MESH')) mesh += q;
-                else if (pBase.includes('APARELHO')) { aparelho += q; receitaAparelho += (rec || 0); }
+                else if (pBase.includes('APARELHO')) { aparelho += q; receitaAparelho += rec; receitaAparelhoBruto += recBruto; }
                 else if (pBase.includes('SEGURO')) seguro += q;
-                else if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { acessorio += q; receitaAcessorio += (rec || 0); }
-                else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { pelicula += q; receitaAcessorio += (rec || 0); }
+                else if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { acessorio += q; receitaAcessorio += rec; receitaAcessorioBruto += recBruto; }
+                else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { pelicula += q; receitaAcessorio += rec; receitaAcessorioBruto += recBruto; }
 
                 if (adds.includes('TROCAFY')) trocafy += 1;
                 if (adds.includes('CLARO UP')) claroUp += 1;
@@ -110,16 +116,22 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
 
             // GROSS DIA consolida Pós, Controle (Ativ+Mig), BL, Flex, PME, Dependentes
             const grossDia = posTt + controle + depPg + depBl + depGratis + migracaoPos + migracaoControle + grossPme + bl + flex;
-            accumulatedGross += grossDia;
+            
+            let isFuture = false;
+            if (year > currentY || (year === currentY && month > currentM) || (year === currentY && month === currentM && d > currentD)) {
+                isFuture = true;
+            }
+            if (!isFuture) accumulatedGross += grossDia;
+
             const totalRes = fibra + tv + tvBox + fixo + urPme;
 
             const posPagoTotal = posTt + migracaoPos + depPg + depBl + depGratis;
             const controleTotal = controle + migracaoControle;
 
             generatedRows.push({
-                data: dayStr, grossDia, metaDia, total: accumulatedGross, posTt, controle, controleTotal, posPagoTotal, depPg, depBl, depGratis, migracaoPos,
+                data: dayStr, grossDia, metaDia, total: isFuture ? null : accumulatedGross, posTt, controle, controleTotal, posPagoTotal, depPg, depBl, depGratis, migracaoPos,
                 migracaoControle, grossPme, portabilidade, bl, flex, receita, fibra, tv, tvBox, fixo, mplay, mesh,
-                urPme, totalRes, aparelho, receitaAparelho, seguro, acessorio, trocafy, pelicula, claroUp, receitaAcessorio
+                urPme, totalRes, aparelho, receitaAparelho, receitaAparelhoBruto, seguro, acessorio, trocafy, pelicula, claroUp, receitaAcessorio, receitaAcessorioBruto
             });
 
             sumTotals.grossDia += grossDia; sumTotals.metaDia += metaDia; sumTotals.posTt += posTt; sumTotals.controle += controle; sumTotals.controleTotal += controleTotal; sumTotals.posPagoTotal += posPagoTotal;
@@ -127,8 +139,8 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
             sumTotals.migracaoPos += migracaoPos; sumTotals.migracaoControle += migracaoControle; sumTotals.grossPme += grossPme;
             sumTotals.portabilidade += portabilidade; sumTotals.bl += bl; sumTotals.flex += flex; sumTotals.receita += receita;
             sumTotals.fibra += fibra; sumTotals.tv += tv; sumTotals.tvBox += tvBox; sumTotals.fixo += fixo; sumTotals.mplay += mplay; sumTotals.mesh += mesh;
-            sumTotals.urPme += urPme; sumTotals.totalRes += totalRes; sumTotals.receitaAparelho += receitaAparelho; sumTotals.aparelho += aparelho;
-            sumTotals.seguro += seguro; sumTotals.trocafy += trocafy; sumTotals.claroUp += claroUp; sumTotals.receitaAcessorio += receitaAcessorio;
+            sumTotals.urPme += urPme; sumTotals.totalRes += totalRes; sumTotals.receitaAparelho += receitaAparelho; sumTotals.receitaAparelhoBruto += receitaAparelhoBruto; sumTotals.aparelho += aparelho;
+            sumTotals.seguro += seguro; sumTotals.trocafy += trocafy; sumTotals.claroUp += claroUp; sumTotals.receitaAcessorio += receitaAcessorio; sumTotals.receitaAcessorioBruto += receitaAcessorioBruto;
         }
 
         sumTotals.total = accumulatedGross;
@@ -143,13 +155,13 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
         { key: 'portabilidade', label: 'PORTAB. POS/CTRL' }, { key: 'bl', label: 'BL' }, { key: 'flex', label: 'FLEX' },
         { key: 'receita', label: 'RECEITA (R$)', isCurrency: true, highlight: true }, { key: 'fibra', label: 'FIBRA' }, { key: 'tv', label: 'TV+' }, { key: 'tvBox', label: 'TV BOX' }, { key: 'fixo', label: 'FIXO' },
         { key: 'urPme', label: 'UR PME' }, { key: 'mesh', label: 'MESH' },
-        { key: 'totalRes', label: 'TOTAL RES.', highlight: true }, { key: 'mplay', label: 'M-PLAY' }, { key: 'aparelho', label: 'APARELHOS (UN)' }, { key: 'receitaAparelho', label: 'REC. APARELHOS', isCurrency: true },
-        { key: 'seguro', label: 'SEGURO' }, { key: 'acessorio', label: 'ACESSÓRIOS (UN)' }, { key: 'receitaAcessorio', label: 'REC. ACESSÓRIOS', isCurrency: true },
+        { key: 'totalRes', label: 'TOTAL RES.', highlight: true }, { key: 'mplay', label: 'M-PLAY' }, { key: 'aparelho', label: 'APARELHOS (UN)' }, { key: 'receitaAparelho', label: 'REC. APARELHOS', isCurrency: true }, { key: 'receitaAparelhoBruto', label: 'REC. APARELHOS BRUTO', isCurrency: true },
+        { key: 'seguro', label: 'SEGURO' }, { key: 'acessorio', label: 'ACESSÓRIOS (UN)' }, { key: 'receitaAcessorio', label: 'REC. ACESSÓRIOS', isCurrency: true }, { key: 'receitaAcessorioBruto', label: 'REC. ACESSÓRIOS BRUTO', isCurrency: true },
         { key: 'trocafy', label: 'TROCAFY' }, { key: 'claroUp', label: 'CLARO UP' }
     ];
 
     const renderValue = (val, isCurrency) => {
-        if (val === 0) return <span className="text-neutral-400 dark:text-neutral-600">-</span>;
+        if (val === null || val === undefined || val === 0) return <span className="text-neutral-400 dark:text-neutral-600">-</span>;
         return isCurrency ? applyCurrencyMask(val) : val;
     };
 

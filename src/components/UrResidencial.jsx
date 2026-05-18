@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Edit2, Save, X, Search, Calendar, Filter, Trash2, Home, User } from 'lucide-react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { applyCpfCnpjMask } from '../utils/masks';
 
 export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, usersDB = {}, globalMonth, setGlobalMonth }) {
@@ -119,6 +120,35 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
         }
     };
 
+    const handleExportExcel = () => {
+        if (filteredData.length === 0) {
+            toast.error('Nenhum dado para exportar no período selecionado.');
+            return;
+        }
+
+        const dataToExport = filteredData.map(item => ({
+            'Contrato': item.contrato || '-',
+            'Cidade': item.cidade || getCidadePorContrato(item.contrato) || '-',
+            'Data': typeof item.data === 'string' && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data,
+            'Data Inst.': item.dataInstalacao ? new Date(item.dataInstalacao + 'T12:00:00').toLocaleDateString('pt-BR') : '-',
+            'Vendedor': item.vendedor,
+            'Produto': item.produto,
+            'Qtda': item.qtda,
+            'Status': item.statusUr || 'PEND.DE INSTALAÇÃO',
+            'Agendamento': item.agendamento || '-',
+            'Nome Cliente': item.nomeCliente || '-',
+            'CPF/CNPJ': item.cpf || '-',
+            'Obs': item.obsUr || '-',
+            'Ação': item.acaoUr || '-'
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "UR Residencial");
+        XLSX.writeFile(workbook, `Relatorio_UR_Residencial_${monthFilter || 'Geral'}.xlsx`);
+        toast.success('Relatório exportado com sucesso!');
+    };
+
     return (
         <div className="h-full flex flex-col bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden animate-fade-in transition-colors">
             {/* CABEÇALHO DA SEÇÃO */}
@@ -165,6 +195,9 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                             title="Consultar Histórico do Mês"
                         />
                     </div>
+                    {isGerente && (
+                        <button type="button" onClick={handleExportExcel} className="w-full sm:w-auto px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-xl hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center justify-center gap-2 whitespace-nowrap">Exportar Excel</button>
+                    )}
                 </div>
             </div>
 

@@ -1,15 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { Target, Lock, Check, History, MonitorPlay, Smartphone, Home, Watch, ShieldCheck, Save, LineChart } from 'lucide-react';
+import { Target, Lock, Check, History, MonitorPlay, Smartphone, Home, Watch, ShieldCheck, Save, LineChart, Loader2 } from 'lucide-react';
 import { METAS_PADRAO } from '../utils/constants';
 import { applyCurrencyMask, parseCurrencyToFloat } from '../utils/masks';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase.js';
 
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
 
-export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, currentYYYYMM }) => {
+export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, currentYYYYMM, salesData = [], globalMonth }) => {
     const [selectedGoalMonth, setSelectedGoalMonth] = useState(currentYYYYMM);
     const [goalForm, setGoalForm] = useState({ ...safeMetasPadrao, receita: applyCurrencyMask(safeMetasPadrao.receita) });
     const [showGoalSuccess, setShowGoalSuccess] = useState(false);
     const [metaActiveSubTab, setMetaActiveSubTab] = useState('DEFINIR');
+
+    const [allHistoricalSales, setAllHistoricalSales] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+    useEffect(() => {
+        if (metaActiveSubTab === 'COMPARATIVO' || metaActiveSubTab === 'SEMANAL') {
+            const fetchHistory = async () => {
+                setIsLoadingHistory(true);
+                try {
+                    const snapshot = await getDocs(collection(db, 'vendas_uniao_osasco'));
+                    const data = snapshot.docs.map(doc => doc.data());
+                    setAllHistoricalSales(data);
+                } catch (error) {
+                    console.error("Erro ao buscar histórico:", error);
+                } finally {
+                    setIsLoadingHistory(false);
+                }
+            };
+            fetchHistory();
+        }
+    }, [metaActiveSubTab]);
 
     useEffect(() => {
         const data = (goalsDB || {})[selectedGoalMonth] || {
@@ -58,6 +81,116 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
 
     const monthNames = Object.keys(goalsDB || {}).sort((a, b) => b.localeCompare(a));
 
+    const weeklyMetrics = React.useMemo(() => {
+        const [yearStr, monthStr] = (globalMonth || currentYYYYMM).split('-');
+        const daysInMonth = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
+        const week5Label = daysInMonth > 28 ? `Semana 5 (29 a ${daysInMonth})` : 'Semana 5 (N/A)';
+
+        const sourceData = allHistoricalSales.length > 0 ? allHistoricalSales : salesData;
+
+        const weeks = [
+            { label: 'Semana 1 (01 a 07)', receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0 },
+            { label: 'Semana 2 (08 a 14)', receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0 },
+            { label: 'Semana 3 (15 a 21)', receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0 },
+            { label: 'Semana 4 (22 a 28)', receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0 },
+            { label: week5Label, receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0 }
+        ];
+
+        (sourceData || []).forEach(sale => {
+            if (!sale.data) return;
+            
+            // Filtragem idêntica à Seção Resultado
+            let saleIsoDate = '';
+            if (typeof sale.data === 'string') {
+                if (sale.data.includes('-')) {
+                    saleIsoDate = sale.data;
+                } else if (sale.data.includes('/')) {
+                    const parts = sale.data.split('/');
+                    if (parts.length === 3) saleIsoDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+            }
+            
+            if (!saleIsoDate.startsWith(globalMonth || currentYYYYMM)) return;
+            const day = parseInt(saleIsoDate.split('-')[2], 10);
+            
+            let wIdx = 0;
+            if (day >= 8 && day <= 14) wIdx = 1;
+            else if (day >= 15 && day <= 21) wIdx = 2;
+            else if (day >= 22 && day <= 28) wIdx = 3;
+            else if (day >= 29) wIdx = 4;
+
+            const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
+            const op = String(sale.tipoOperacao || sale.operacao || '').toUpperCase();
+            const sub = String(sale.subOption || sale.subtipo || '').toUpperCase();
+            const rec = Number(sale.receita) || 0;
+            const q = Number(sale.qtda) || 1;
+
+            weeks[wIdx].receita += rec;
+
+            // Lógica Exata Extraída da Seção "Resultado.jsx"
+            let posTt = 0, controle = 0, depPg = 0, depBl = 0, depGratis = 0, migracaoPos = 0, migracaoControle = 0, grossPme = 0;
+            let bl = 0, flex = 0, fibra = 0, tv = 0, tvBox = 0, fixo = 0, urPme = 0, aparelho = 0, acessorio = 0, pelicula = 0, seguro = 0;
+
+            if (pBase.includes('PÓS PME') || pBase === 'PME' || pBase.includes('POS PME')) { grossPme += q; }
+            else if (pBase.includes('PÓS') || pBase.includes('POS')) {
+                if (op.includes('MIGRA') || pBase.includes('MIGRA') || sub.includes('MIGRA')) migracaoPos += q;
+                else posTt += q; 
+            }
+            else if (pBase.includes('CONTROLE')) {
+                if (op.includes('MIGRA') || pBase.includes('MIGRA') || sub.includes('MIGRA')) migracaoControle += q;
+                else controle += q; 
+            }
+            else if (pBase.includes('FLEX')) {
+                if (op.includes('MIGRA') || pBase.includes('MIGRA') || sub.includes('MIGRA')) migracaoControle += q;
+                else flex += q;
+            }
+            else if (pBase.includes('DEPENDENTE') || pBase.includes('DEP')) {
+                if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || pBase.includes('GRÁTIS')) depGratis += q;
+                else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA')) depBl += q;
+                else depPg += q;
+            }
+            else if (pBase.includes('BANDA LARGA') || pBase === 'BL' || pBase.includes('CLARO NET VIRTUA')) bl += q;
+            else if (pBase.includes('FIBRA PME') || pBase.includes('UR PME')) urPme += q;
+            else if (pBase.includes('FIBRA') || pBase.includes('BANDA LARGA RESIDENCIAL')) fibra += q;
+            else if (pBase.includes('TV-BOX')) tvBox += q;
+            else if (pBase.includes('CLARO TV+') || pBase.includes('TV')) tv += q;
+            else if (pBase.includes('FIXO') || pBase.includes('NET FONE')) fixo += q;
+            else if (pBase.includes('APARELHO')) { aparelho += q; }
+            else if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { acessorio += q; }
+            else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { pelicula += q; }
+            else if (pBase.includes('SEGURO')) seguro += q;
+
+            weeks[wIdx].posTotal += (posTt + controle + depPg + depBl + depGratis + migracaoPos + migracaoControle + grossPme + bl + flex);
+            weeks[wIdx].posPago += (posTt + migracaoPos + depPg + depBl + depGratis);
+            weeks[wIdx].controle += (controle + migracaoControle);
+            weeks[wIdx].urTotal += (fibra + tv + tvBox + fixo + urPme);
+            weeks[wIdx].fibra += (fibra + bl);
+            weeks[wIdx].tv += (tv + tvBox);
+            weeks[wIdx].aparelho += aparelho;
+            weeks[wIdx].acessorio += acessorio;
+            weeks[wIdx].pelicula += pelicula;
+            weeks[wIdx].seguro += seguro;
+        });
+
+        // Cálculo Matemático de Crescimento (Semana Contra Semana)
+        for (let i = 1; i < weeks.length; i++) {
+            weeks[i].crescimentos = {};
+            ['receita', 'posTotal', 'posPago', 'controle', 'urTotal', 'fibra', 'tv', 'aparelho', 'acessorio', 'pelicula', 'seguro'].forEach(metric => {
+                const prev = weeks[i - 1][metric];
+                const curr = weeks[i][metric];
+                if (prev > 0) {
+                    weeks[i].crescimentos[metric] = ((curr - prev) / prev) * 100;
+                } else if (curr > 0) {
+                    weeks[i].crescimentos[metric] = 100;
+                } else {
+                    weeks[i].crescimentos[metric] = 0;
+                }
+            });
+        }
+
+        return weeks;
+    }, [salesData, allHistoricalSales, globalMonth, currentYYYYMM]);
+
     return (
         <div className="h-full flex flex-col animate-fade-in transition-colors">
             {!hasAccess ? (
@@ -71,9 +204,10 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
                 </div>
             ) : (
                 <div className="flex flex-col h-full bg-white dark:bg-neutral-900 rounded-3xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden">
-                    <div className="flex border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 shrink-0">
-                        <button onClick={() => setMetaActiveSubTab('DEFINIR')} className={`px-8 py-4 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${metaActiveSubTab === 'DEFINIR' ? 'border-[#E3000F] text-[#E3000F] bg-white dark:bg-neutral-900' : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}`}>Definir Metas</button>
-                        <button onClick={() => setMetaActiveSubTab('COMPARATIVO')} className={`px-8 py-4 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${metaActiveSubTab === 'COMPARATIVO' ? 'border-[#E3000F] text-[#E3000F] bg-white dark:bg-neutral-900' : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}`}>Histórico Mês a Mês</button>
+                    <div className="flex border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900 shrink-0 overflow-x-auto scrollbar-hide">
+                        <button onClick={() => setMetaActiveSubTab('DEFINIR')} className={`whitespace-nowrap px-8 py-4 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${metaActiveSubTab === 'DEFINIR' ? 'border-[#E3000F] text-[#E3000F] bg-white dark:bg-neutral-900' : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}`}>Definir Metas</button>
+                        <button onClick={() => setMetaActiveSubTab('COMPARATIVO')} className={`whitespace-nowrap px-8 py-4 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${metaActiveSubTab === 'COMPARATIVO' ? 'border-[#E3000F] text-[#E3000F] bg-white dark:bg-neutral-900' : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}`}>Histórico MxM</button>
+                        <button onClick={() => setMetaActiveSubTab('SEMANAL')} className={`whitespace-nowrap px-8 py-4 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 ${metaActiveSubTab === 'SEMANAL' ? 'border-[#E3000F] text-[#E3000F] bg-white dark:bg-neutral-900' : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-800 dark:hover:text-neutral-200'}`}>Histórico SXS</button>
                     </div>
 
                     {metaActiveSubTab === 'DEFINIR' && (
@@ -135,7 +269,13 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
                     {metaActiveSubTab === 'COMPARATIVO' && (
                         <div className="flex-1 overflow-auto p-6 md:p-8 bg-neutral-50/50 dark:bg-neutral-950/50">
                             <div className="max-w-7xl mx-auto">
-                                <div className="mb-6"><h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2"><LineChart className="text-[#E3000F]" /> Histórico Comparativo (Mês x Mês)</h2></div>
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
+                                        <LineChart className="text-[#E3000F]" /> Histórico Comparativo (MxM)
+                                        {isLoadingHistory && <Loader2 size={20} className="animate-spin text-neutral-400" />}
+                                    </h2>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Acompanhe a evolução do faturamento e compare os resultados de vendas mês a mês.</p>
+                                </div>
                                 <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm overflow-x-auto">
                                     <table className="w-full text-sm text-left whitespace-nowrap">
                                         <thead className="bg-neutral-800 dark:bg-neutral-950 text-white uppercase text-[10px] tracking-wider">
@@ -147,12 +287,165 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
                                                 const isCurrent = month === currentYYYYMM;
                                                 return (
                                                     <tr key={month} className={`hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors ${isCurrent ? 'bg-red-50/30 dark:bg-red-900/10' : ''}`}>
-                                                        <td className={`px-6 py-4 font-bold tracking-wider sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.2)] ${isCurrent ? 'bg-red-50 dark:bg-neutral-800 text-[#E3000F]' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100'}`}>{month} {isCurrent && <span className="ml-2 text-[9px] bg-[#E3000F] text-white px-2 py-0.5 rounded-full">Atual</span>}</td>
-                                                        <td className="px-6 py-4 font-black text-neutral-800 dark:text-neutral-100">{applyCurrencyMask(m.receita)}</td><td className="px-6 py-4 font-bold text-neutral-800 dark:text-neutral-100">{m.posTotal}</td><td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.posPago}</td><td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.controle}</td><td className="px-6 py-4 font-bold text-neutral-800 dark:text-neutral-100">{m.urTotal}</td><td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.fibra}</td><td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.tv}</td><td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.fixo || 0}</td><td className="px-6 py-4 font-medium text-orange-600 dark:text-orange-400">{m.aparelho}</td><td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{m.acessorio}</td><td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{m.pelicula}</td><td className="px-6 py-4 font-medium text-blue-600 dark:text-blue-400">{m.seguro}</td><td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{m.mplay}</td>
+                                                        <td className={`px-6 py-4 font-bold tracking-wider sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.2)] ${isCurrent ? 'bg-red-50 dark:bg-neutral-800 text-[#E3000F]' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100'}`}>
+                                                            {month.split('-').reverse().join('-')} {isCurrent && <span className="ml-2 text-[9px] bg-[#E3000F] text-white px-2 py-0.5 rounded-full">Atual</span>}
+                                                        </td>
+                                                        <td className="px-6 py-4 font-black text-neutral-800 dark:text-neutral-100">{applyCurrencyMask(m.receita)}</td>
+                                                        <td className="px-6 py-4 font-bold text-neutral-800 dark:text-neutral-100">{m.posTotal}</td>
+                                                        <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.posPago}</td>
+                                                        <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.controle}</td>
+                                                        <td className="px-6 py-4 font-bold text-neutral-800 dark:text-neutral-100">{m.urTotal}</td>
+                                                        <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.fibra}</td>
+                                                        <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.tv}</td>
+                                                        <td className="px-6 py-4 text-neutral-500 dark:text-neutral-400">{m.fixo || 0}</td>
+                                                        <td className="px-6 py-4 font-medium text-orange-600 dark:text-orange-400">{m.aparelho}</td>
+                                                        <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{m.acessorio}</td>
+                                                        <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{m.pelicula}</td>
+                                                        <td className="px-6 py-4 font-medium text-blue-600 dark:text-blue-400">{m.seguro}</td>
+                                                        <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">{m.mplay}</td>
                                                     </tr>
                                                 );
                                             })}
                                         </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {metaActiveSubTab === 'SEMANAL' && (
+                        <div className="flex-1 overflow-auto p-6 md:p-8 bg-neutral-50/50 dark:bg-neutral-950/50">
+                            <div className="max-w-7xl mx-auto">
+                                <div className="mb-6">
+                                    <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
+                                        <LineChart className="text-[#E3000F]" /> Histórico Semana x Semana (SxS) - {(globalMonth || currentYYYYMM).split('-').reverse().join('-')}
+                                        {isLoadingHistory && <Loader2 size={20} className="animate-spin text-neutral-400" />}
+                                    </h2>
+                                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Acompanhe as vendas faturadas semana a semana referentes ao mês selecionado no topo do sistema.</p>
+                                </div>
+                                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm overflow-x-auto">
+                                    <table className="w-full text-sm text-left whitespace-nowrap">
+                                        <thead className="bg-neutral-800 dark:bg-neutral-950 text-white uppercase text-[10px] tracking-wider">
+                                            <tr>
+                                                <th className="px-6 py-4 rounded-tl-2xl font-bold sticky left-0 z-10 bg-neutral-900 shadow-[2px_0_5px_rgba(0,0,0,0.2)]">Semana</th>
+                                                <th className="px-6 py-4 font-bold text-green-400">Receita (R$)</th>
+                                                <th className="px-6 py-4 font-bold">Gross Total</th>
+                                                <th className="px-6 py-4 font-bold text-neutral-400">Pós Pago</th>
+                                                <th className="px-6 py-4 font-bold text-neutral-400">Controle</th>
+                                                <th className="px-6 py-4 font-bold">UR Total</th>
+                                                <th className="px-6 py-4 font-bold text-neutral-400">Fibra</th>
+                                                <th className="px-6 py-4 font-bold text-neutral-400">TV</th>
+                                                <th className="px-6 py-4 font-bold text-orange-400">Aparelhos</th>
+                                                <th className="px-6 py-4 font-bold text-neutral-400">Acessórios</th>
+                                                <th className="px-6 py-4 font-bold text-neutral-400">Películas</th>
+                                                <th className="px-6 py-4 font-bold rounded-tr-2xl text-blue-400">Seguro</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                                            {weeklyMetrics.map((week, idx) => {
+                                                const renderCrescimento = (metric) => {
+                                                    if (idx === 0 || week.label.includes('N/A')) return null;
+                                                    const val = week.crescimentos?.[metric] || 0;
+                                                    if (val === 0 && week[metric] === 0) return null;
+                                                    const isPos = val > 0;
+                                                    const isNeg = val < 0;
+                                                    const color = isPos ? 'text-green-500 bg-green-50 dark:bg-green-500/10' : isNeg ? 'text-red-500 bg-red-50 dark:bg-red-500/10' : 'text-neutral-500 bg-neutral-100 dark:bg-neutral-800';
+                                                    return <span className={`ml-2 px-1.5 py-0.5 rounded text-[9px] font-bold ${color}`}>{(isPos ? '+' : '') + val.toFixed(1)}%</span>;
+                                                };
+                                                return (
+                                                    <tr key={idx} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">
+                                                        <td className="px-6 py-4 font-bold tracking-wider sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.2)] bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100">{week.label}</td>
+                                                        <td className="px-6 py-4 font-black text-neutral-800 dark:text-neutral-100 whitespace-nowrap">{applyCurrencyMask(week.receita)}{renderCrescimento('receita')}</td>
+                                                        <td className="px-6 py-4 font-bold text-neutral-800 dark:text-neutral-100 whitespace-nowrap">{week.posTotal}{renderCrescimento('posTotal')}</td>
+                                                        <td className="px-6 py-4 font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{week.posPago}{renderCrescimento('posPago')}</td>
+                                                        <td className="px-6 py-4 font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{week.controle}{renderCrescimento('controle')}</td>
+                                                        <td className="px-6 py-4 font-bold text-neutral-800 dark:text-neutral-100 whitespace-nowrap">{week.urTotal}{renderCrescimento('urTotal')}</td>
+                                                        <td className="px-6 py-4 font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{week.fibra}{renderCrescimento('fibra')}</td>
+                                                        <td className="px-6 py-4 font-medium text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{week.tv}{renderCrescimento('tv')}</td>
+                                                        <td className="px-6 py-4 font-bold text-orange-600 dark:text-orange-400 whitespace-nowrap">{week.aparelho}{renderCrescimento('aparelho')}</td>
+                                                        <td className="px-6 py-4 font-medium text-neutral-600 dark:text-neutral-400 whitespace-nowrap">{week.acessorio}{renderCrescimento('acessorio')}</td>
+                                                        <td className="px-6 py-4 font-medium text-neutral-600 dark:text-neutral-400 whitespace-nowrap">{week.pelicula}{renderCrescimento('pelicula')}</td>
+                                                        <td className="px-6 py-4 font-bold text-blue-600 dark:text-blue-500 whitespace-nowrap">{week.seguro}{renderCrescimento('seguro')}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                        <tfoot className="bg-neutral-50 dark:bg-neutral-900 sticky bottom-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                                            {(() => {
+                                                const currentMonthMeta = (goalsDB || {})[globalMonth || currentYYYYMM] || safeMetasPadrao;
+                                                return (
+                                                    <tr className="text-neutral-900 dark:text-neutral-100 font-black uppercase text-[11px]">
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-4 sticky left-0 bg-neutral-100 dark:bg-neutral-800 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-[#E3000F]">Realizado Mês</td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-black text-green-600 dark:text-green-500 whitespace-nowrap">
+                                                            <div className="flex flex-col">
+                                                                <span>{applyCurrencyMask(weeklyMetrics.reduce((acc, w) => acc + w.receita, 0))}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {applyCurrencyMask(currentMonthMeta.receita)}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-black">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.posTotal, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.posTotal}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-medium text-neutral-500 dark:text-neutral-400">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.posPago, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.posPago}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-medium text-neutral-500 dark:text-neutral-400">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.controle, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.controle}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-black">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.urTotal, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.urTotal}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-medium text-neutral-500 dark:text-neutral-400">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.fibra, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.fibra}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-medium text-neutral-500 dark:text-neutral-400">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.tv, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.tv}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-black text-orange-600 dark:text-orange-500">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.aparelho, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.aparelho}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-medium text-neutral-500 dark:text-neutral-400">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.acessorio, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.acessorio}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-medium text-neutral-500 dark:text-neutral-400">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.pelicula, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.pelicula}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-3 bg-neutral-50 dark:bg-neutral-900 font-medium text-blue-600 dark:text-blue-500">
+                                                            <div className="flex flex-col">
+                                                                <span>{weeklyMetrics.reduce((acc, w) => acc + w.seguro, 0)}</span>
+                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {currentMonthMeta.seguro}</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })()}
+                                        </tfoot>
                                     </table>
                                 </div>
                             </div>

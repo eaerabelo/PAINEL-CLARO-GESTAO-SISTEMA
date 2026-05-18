@@ -16,6 +16,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formError, setFormError] = useState('');
     const [filterDate, setFilterDate] = useState(getTodaySP());
+    const [filterDateEnd, setFilterDateEnd] = useState('');
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const fileInputRef = useRef(null);
@@ -35,6 +36,9 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         if (filterDate && globalMonth && !filterDate.startsWith(globalMonth)) {
             setFilterDate('');
         }
+        if (filterDateEnd && globalMonth && !filterDateEnd.startsWith(globalMonth)) {
+            setFilterDateEnd('');
+        }
     }, [globalMonth]);
 
     useEffect(() => {
@@ -51,6 +55,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     const requiresContrato = (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(formData?.produto || '');
     const isMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => String(formData?.produto || '').toUpperCase().includes(term));
     const showMplay = isMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(formData?.produto || '');
+    const isServico = isMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].some(term => String(formData?.produto || '').toUpperCase().includes(term));
 
     const calcularComissaoDinamica = (produto, adicionaisList, valorBruto, seguroOption) => {
         const valor = parseFloat(valorBruto || 0);
@@ -125,7 +130,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             combo: sale.combo || 'SINGLE',
             produto: sale.produtoBase || (String(sale.produto || '').includes(' (') ? String(sale.produto || '').split(' (')[0] : sale.produto),
             subOption: sale.subOption || (String(sale.produto || '').includes('(') ? String(sale.produto || '').split('(')[1].replace(')', '') : ''),
-            receita: applyCurrencyMask(sale.receita),
+            receita: applyCurrencyMask(sale.valorBruto || sale.receita),
             isReceitaReadonly: false,
             cpf: sale.cpf || '',
             contrato: sale.contrato === '-' ? '' : sale.contrato,
@@ -155,7 +160,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                 if (name === 'produto') {
                     next.contrato = '';
                     if (value === 'FIBRA') next.subOption = '350 MEGA'; else if (value === 'TV-BOX') next.subOption = 'TV BOX'; else if (value === 'FIXO') next.subOption = 'FIXO MUNDO'; else if (value === 'MESH') next.subOption = 'MESH 2UN'; else if (value === 'SEGURO') next.subOption = 'SEGURO R$ 14,00'; else if (value === 'DEPENDENTE') next.subOption = 'GRATUITO'; else next.subOption = '';
-                    if (!value.includes('POS') && !value.includes('CONTROLE')) next.tipoOperacao = '';
+                    if (!isServico && !value.includes('POS') && !value.includes('CONTROLE')) next.tipoOperacao = '';
                 }
                 const price = calculatePrice(next.produto, next.combo, next.subOption);
                 if (price !== null && price !== undefined) { next.receita = applyCurrencyMask(price); next.isReceitaReadonly = true; } else { next.isReceitaReadonly = false; if (name === 'produto') next.receita = ''; }
@@ -195,7 +200,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
 
         if (!vendedor || !data || !qtda || !produto || receita === '' || !cpf || (isMovel && !portabilidade) || (showMplay && !mplay)) { setFormError('Atenção: Você precisa preencher todas as informações obrigatórias para incluir a venda.'); return; }
         if (getSubOptions().length > 0 && !subOption) { setFormError('Atenção: Selecione a especificação (Plano/Velocidade) do produto.'); return; }
-        if ((produto.includes('POS') || produto.includes('CONTROLE')) && !tipoOperacao) { setFormError('Atenção: Selecione se a operação móvel é Ativação ou Migração.'); return; }
+        if (isServico && !tipoOperacao) { setFormError('Atenção: Selecione o Tipo de Operação (Ativação, Upgrade, etc).'); return; }
         if (requiresContrato && !contrato) { setFormError(`O campo Contrato é obrigatório para a venda de ${produto}.`); return; }
 
         let cidadeAuto = '';
@@ -208,8 +213,8 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         }
 
         const receitaFloat = parseCurrencyToFloat(receita);
-        const valorParaGravar = receitaFloat; 
         const valorComissao = isComissionado ? calcularComissaoDinamica(produto, adicionais, receitaFloat, formData.seguroOption) : receitaFloat;
+        const valorParaGravar = valorComissao;
         
         const cleanedAdicionais = produto === 'APARELHO' ? adicionais.filter(a => a !== 'SEGURO') : adicionais;
 
@@ -222,6 +227,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             produto: formData.subOption ? `${formData.produto} (${formData.subOption})` : formData.produto,
             receita: valorParaGravar,
             comissao: valorComissao,
+            valorBruto: receitaFloat,
             contrato: requiresContrato ? contrato : '-',
             portabilidade: finalPortabilidade,
             mplay: finalMplay,
@@ -244,6 +250,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                     produto: `SEGURO (${formData.seguroOption})`,
                     receita: precoSeguro,
                     comissao: precoSeguro,
+                    valorBruto: precoSeguro,
                     contrato: '-',
                     portabilidade: 'NÃO',
                     mplay: 'NÃO',
@@ -278,7 +285,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             return; 
         }
         if (getSubOptions().length > 0 && !subOption) { setFormError('Selecione a especificação do produto.'); return; }
-        if ((produto.includes('POS') || produto.includes('CONTROLE')) && !tipoOperacao) { setFormError('Selecione se é Ativação ou Migração.'); return; }
+        if (itemShowMplay && !tipoOperacao) { setFormError('Selecione o Tipo de Operação.'); return; }
 
         setComboItems(prev => [...prev, {
             vendedor, data, qtda, portabilidade: finalPortabilidade, combo: formData.combo,
@@ -337,7 +344,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             novasVendas.push({
                 id: currentId++, vendedor: item.vendedor, data: item.data, qtda: item.qtda, portabilidade: item.portabilidade, combo: item.combo,
                 produtoBase: item.produtoBase || item.produto, subOption: item.subOption, produto: item.subOption ? `${item.produtoBase || item.produto} (${item.subOption})` : (item.produtoBase || item.produto),
-                receita: receitaFloat, comissao: valorComissao, cpf: comboGlobal.cpf, contrato: isItemResidential ? comboGlobal.contrato : '-',
+                receita: valorComissao, comissao: valorComissao, valorBruto: receitaFloat, cpf: comboGlobal.cpf, contrato: isItemResidential ? comboGlobal.contrato : '-',
                 mplay: item.mplay, adicionais: cleanedAdicionais, tipoOperacao: item.tipoOperacao, seguroOption: item.seguroOption || '',
                 ...(cidadeAuto && isItemResidential ? { cidade: cidadeAuto } : {})
             });
@@ -346,7 +353,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                 const precoSeguro = calculatePrice('SEGURO', 'SINGLE', item.seguroOption) || 0;
                 novasVendas.unshift({
                     id: currentId++, vendedor: item.vendedor, data: item.data, qtda: 1, portabilidade: 'NÃO', combo: 'SINGLE', produtoBase: 'SEGURO',
-                    subOption: item.seguroOption, produto: `SEGURO (${item.seguroOption})`, receita: precoSeguro, comissao: precoSeguro, cpf: comboGlobal.cpf,
+                    subOption: item.seguroOption, produto: `SEGURO (${item.seguroOption})`, receita: precoSeguro, comissao: precoSeguro, valorBruto: precoSeguro, cpf: comboGlobal.cpf,
                     contrato: '-', mplay: 'NÃO', adicionais: [], tipoOperacao: ''
                 });
             }
@@ -368,8 +375,16 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
 
     const filteredSales = (salesData || []).filter(sale => {
         let matchDate = true;
-        if (filterDate) matchDate = parseDateToISO(sale.data) === filterDate;
+        const saleIsoDate = parseDateToISO(sale.data);
         
+        if (filterDate && filterDateEnd) {
+            matchDate = saleIsoDate >= filterDate && saleIsoDate <= filterDateEnd;
+        } else if (filterDate) {
+            matchDate = saleIsoDate === filterDate;
+        } else if (filterDateEnd) {
+            matchDate = saleIsoDate === filterDateEnd;
+        }
+
         let matchSearch = true;
         if (searchTerm) {
             const term = String(searchTerm).toLowerCase();
@@ -386,6 +401,22 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                 (Array.isArray(sale.adicionais) && sale.adicionais.filter(ad => !(String(sale.produto || '').includes('APARELHO') && ad === 'SEGURO')).join(' ').toLowerCase().includes(term));
         }
         return matchDate && matchSearch;
+    });
+
+    const summaryCount = { pos: 0, ctrl: 0, apa: 0, ace: 0, fib: 0, tv: 0, seg: 0, receita: 0 };
+    filteredSales.forEach(sale => {
+        const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
+        const q = Number(sale.qtda) || 1;
+
+        if (pBase.includes('CONTROLE')) summaryCount.ctrl += q;
+        else if (pBase.includes('POS') || pBase.includes('PÓS') || pBase.includes('DEPENDENTE') || pBase.includes('DEP') || pBase.includes('FLEX') || pBase.includes('BANDA LARGA') || pBase === 'PME' || pBase === 'BL') summaryCount.pos += q;
+        else if (pBase.includes('APARELHO')) summaryCount.apa += q;
+        else if (pBase.includes('ACESS') || pBase.includes('PELICULA') || pBase.includes('PELÍCULA')) summaryCount.ace += q;
+        else if (pBase.includes('FIBRA')) summaryCount.fib += q;
+        else if (pBase.includes('TV')) summaryCount.tv += q;
+        else if (pBase.includes('SEGURO')) summaryCount.seg += q;
+
+        summaryCount.receita += Number(sale.receita) || 0;
     });
 
     const handleExportExcel = () => {
@@ -412,7 +443,8 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Vendas");
-        XLSX.writeFile(workbook, `Relatorio_Vendas_${filterDate || 'Geral'}.xlsx`);
+        const exportDate = (filterDate && filterDateEnd) ? `${filterDate}_A_${filterDateEnd}` : (filterDate || filterDateEnd || 'Geral');
+        XLSX.writeFile(workbook, `Relatorio_Vendas_${exportDate}.xlsx`);
         toast.success('Relatório exportado com sucesso!');
     };
 
@@ -476,15 +508,26 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                             />
                         </div>
                         <div className="flex items-center gap-2 w-full sm:w-auto bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-3 py-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
-                            <Calendar size={16} className="text-neutral-500" />
-                            <input
-                                type="date"
-                                value={filterDate}
-                                onChange={(e) => setFilterDate(e.target.value)}
-                                max={getTodaySP()}
-                                className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
-                                title="Filtrar por data"
-                            />
+                            <Calendar size={16} className="text-neutral-500 shrink-0" />
+                            <div className="flex items-center gap-1 sm:gap-2 w-full">
+                                <input
+                                    type="date"
+                                    value={filterDate}
+                                    onChange={(e) => setFilterDate(e.target.value)}
+                                    max={getTodaySP()}
+                                    className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
+                                    title="Data Inicial"
+                                />
+                                <span className="text-neutral-400 text-[10px] font-bold uppercase">Até</span>
+                                <input
+                                    type="date"
+                                    value={filterDateEnd}
+                                    onChange={(e) => setFilterDateEnd(e.target.value)}
+                                    max={getTodaySP()}
+                                    className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
+                                    title="Data Final (Opcional)"
+                                />
+                            </div>
                         </div>
                         <div className="flex gap-2 w-full sm:w-auto">
                             {/* Input Oculto e Botões de Importar/Exportar (Apenas Gerente) */}
@@ -534,8 +577,18 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                         </tbody>
                     </table>
                 </div>
-                <div className="p-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/50 text-xs text-neutral-500 dark:text-neutral-400 flex justify-between items-center shrink-0">
+                <div className="p-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/50 text-xs text-neutral-500 dark:text-neutral-400 flex flex-col sm:flex-row gap-2 justify-between items-center shrink-0">
                     <span>Mostrando 1 a {filteredSales.length} de {filteredSales.length} registros</span>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 md:gap-4 font-bold uppercase tracking-wider text-[10px] md:text-xs">
+                        {summaryCount.pos > 0 && <span>PÓS: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.pos}</span></span>}
+                        {summaryCount.ctrl > 0 && <span>CTRL: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.ctrl}</span></span>}
+                        {summaryCount.apa > 0 && <span>APA: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.apa}</span></span>}
+                        {summaryCount.ace > 0 && <span>ACE: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.ace}</span></span>}
+                        {summaryCount.fib > 0 && <span>FIB: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.fib}</span></span>}
+                        {summaryCount.tv > 0 && <span>TV: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.tv}</span></span>}
+                        {summaryCount.seg > 0 && <span>SG: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.seg}</span></span>}
+                        {summaryCount.receita > 0 && <span>RECEITA: <span className="text-neutral-800 dark:text-neutral-200">{applyCurrencyMask(summaryCount.receita)}</span></span>}
+                    </div>
                 </div>
             </div>
 
@@ -565,7 +618,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" max={getTodaySP()} value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto Principal <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium"><option className="bg-white dark:bg-neutral-900" value="">Selecione o produto</option>{safeProdutos.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
                                         {getSubOptions().length > 0 && (<div className="space-y-1.5 animate-fade-in bg-yellow-50/50 dark:bg-yellow-900/20 p-2 -m-2 rounded-lg border border-yellow-100 dark:border-yellow-800"><label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1">Especificação <span className="text-[#E3000F]">*</span></label><select name="subOption" value={formData.subOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-[#E3000F]"><option className="bg-white dark:bg-neutral-900" value="">Selecione a opção</option>{getSubOptions().map(o => <option className="bg-white dark:bg-neutral-900" key={o.label} value={o.label}>{o.label}</option>)}</select></div>)}
-                                        {(formData.produto.includes('POS') || formData.produto.includes('CONTROLE')) && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
+                                        {isServico && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center justify-between"><span>{isComissionado ? 'Valor Bruto (R$)' : 'Receita (R$)'} <span className="text-[#E3000F]">*</span></span>{formData.isReceitaReadonly && <span className="text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={10} /> Automático</span>}</label>{formData.isReceitaReadonly ? (<input type="text" readOnly value={formData.receita} className="w-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />) : (<input type="text" name="receita" value={formData.receita} onChange={handleFormChange} placeholder="R$ 0,00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] focus:border-[#E3000F] outline-none text-sm font-bold" />)}</div>
                                         {isComissionado && (
                                             <div className="space-y-1.5 animate-fade-in">
@@ -600,48 +653,51 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                     <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 dark:border-neutral-800 mt-6"><button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cancelar</button><button type="submit" className="w-full sm:w-auto px-8 py-2.5 bg-[#E3000F] text-white font-medium rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">{editingId ? 'Salvar Alterações' : 'Confirmar Venda'}</button></div>
                                 </form>
                             ) : (
-                                <div className="grid grid-cols-1 lg:grid-cols-12 max-h-[75vh] overflow-hidden">
-                                    <div className="lg:col-span-7 p-4 sm:p-6 space-y-6 overflow-y-auto border-b lg:border-b-0 lg:border-r border-neutral-100 dark:border-neutral-800">
-                                        {formError && (<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[#E3000F] px-4 py-3 rounded-lg flex items-center gap-3 text-sm font-medium animate-fade-in"><AlertCircle size={18} className="shrink-0" />{formError}</div>)}
-                                        <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center gap-4 justify-between"><div><h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide">Contexto da Venda</h3><p className="text-xs text-neutral-500 dark:text-neutral-400">Selecione o formato para calcular a receita corretamente.</p></div><div className="flex flex-wrap sm:flex-nowrap bg-white dark:bg-neutral-900 rounded-lg p-1 border border-neutral-200 dark:border-neutral-700 shadow-sm w-full md:w-auto">{['SINGLE', 'MULTI', 'MULTI 3P'].map(tipo => (<button key={tipo} type="button" onClick={() => handleFormChange({ target: { name: 'combo', value: tipo } })} className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-md transition-all ${formData.combo === tipo ? 'bg-[#E3000F] text-white shadow-md' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'}`}>{tipo}</button>))}</div></div>
-                                        
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                            <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium ${isVendedor ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-[#E3000F]' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}><option className="bg-white dark:bg-neutral-900" value="">Selecione o vendedor</option>{safeVendedores.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select></div>
-                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" max={getTodaySP()} value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
-                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium"><option className="bg-white dark:bg-neutral-900" value="">Selecione o produto</option>{safeProdutos.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
-                                            {getSubOptions().length > 0 && (<div className="space-y-1.5 animate-fade-in bg-yellow-50/50 dark:bg-yellow-900/20 p-2 -m-2 rounded-lg border border-yellow-100 dark:border-yellow-800"><label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1">Especificação <span className="text-[#E3000F]">*</span></label><select name="subOption" value={formData.subOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-[#E3000F]"><option className="bg-white dark:bg-neutral-900" value="">Selecione a opção</option>{getSubOptions().map(o => <option className="bg-white dark:bg-neutral-900" key={o.label} value={o.label}>{o.label}</option>)}</select></div>)}
-                                            {(formData.produto.includes('POS') || formData.produto.includes('CONTROLE')) && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
-                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center justify-between"><span>{isComissionado ? 'Valor Bruto (R$)' : 'Receita (R$)'} <span className="text-[#E3000F]">*</span></span>{formData.isReceitaReadonly && <span className="text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={10} /> Automático</span>}</label>{formData.isReceitaReadonly ? (<input type="text" readOnly value={formData.receita} className="w-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />) : (<input type="text" name="receita" value={formData.receita} onChange={handleFormChange} placeholder="R$ 0,00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] focus:border-[#E3000F] outline-none text-sm font-bold" />)}</div>
-                                            {isComissionado && (
-                                                <div className="space-y-1.5 animate-fade-in">
-                                                    <label className="text-xs font-bold text-green-700 dark:text-green-500 uppercase tracking-wider">Comissão / Vendedor (R$)</label>
-                                                    <input type="text" readOnly value={applyCurrencyMask(calcularComissaoDinamica(formData.produto, formData.adicionais, parseCurrencyToFloat(formData.receita), formData.seguroOption))} className="w-full bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />
-                                                </div>
-                                            )}
-                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
-                                            {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
-                                            {formData.produto === 'APARELHO' && (
-                                                <div className="space-y-1.5 animate-fade-in">
-                                                    <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Seguro do Aparelho</label>
-                                                    <select name="seguroOption" value={formData.seguroOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-blue-600 dark:text-blue-400">
-                                                        <option className="bg-white dark:bg-neutral-900 text-neutral-500" value="">Sem Seguro</option>
-                                                        {SEGURO_OPTIONS.map(o => <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" key={o.label} value={o.label}>{o.label}</option>)}
-                                                    </select>
-                                                </div>
-                                            )}
-                                            {showMplay && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">M-Play <span className="text-[#E3000F]">*</span></label><select name="mplay" value={formData.mplay} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                <div className="grid grid-cols-1 lg:grid-cols-12 max-h-[75vh] overflow-y-auto lg:overflow-hidden scrollbar-thin">
+                                    <div className="lg:col-span-7 flex flex-col min-h-0 border-b lg:border-b-0 lg:border-r border-neutral-100 dark:border-neutral-800">
+                                        <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto scrollbar-thin">
+                                            {formError && (<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[#E3000F] px-4 py-3 rounded-lg flex items-center gap-3 text-sm font-medium animate-fade-in"><AlertCircle size={18} className="shrink-0" />{formError}</div>)}
+                                            <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center gap-4 justify-between"><div><h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide">Contexto da Venda</h3><p className="text-xs text-neutral-500 dark:text-neutral-400">Selecione o formato para calcular a receita corretamente.</p></div><div className="flex flex-wrap sm:flex-nowrap bg-white dark:bg-neutral-900 rounded-lg p-1 border border-neutral-200 dark:border-neutral-700 shadow-sm w-full md:w-auto">{['SINGLE', 'MULTI', 'MULTI 3P'].map(tipo => (<button key={tipo} type="button" onClick={() => handleFormChange({ target: { name: 'combo', value: tipo } })} className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-md transition-all ${formData.combo === tipo ? 'bg-[#E3000F] text-white shadow-md' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'}`}>{tipo}</button>))}</div></div>
+                                            
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                                                <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium ${isVendedor ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-[#E3000F]' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}><option className="bg-white dark:bg-neutral-900" value="">Selecione o vendedor</option>{safeVendedores.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select></div>
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" max={getTodaySP()} value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium"><option className="bg-white dark:bg-neutral-900" value="">Selecione o produto</option>{safeProdutos.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
+                                                {getSubOptions().length > 0 && (<div className="space-y-1.5 animate-fade-in bg-yellow-50/50 dark:bg-yellow-900/20 p-2 -m-2 rounded-lg border border-yellow-100 dark:border-yellow-800"><label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1">Especificação <span className="text-[#E3000F]">*</span></label><select name="subOption" value={formData.subOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-[#E3000F]"><option className="bg-white dark:bg-neutral-900" value="">Selecione a opção</option>{getSubOptions().map(o => <option className="bg-white dark:bg-neutral-900" key={o.label} value={o.label}>{o.label}</option>)}</select></div>)}
+                                                {isServico && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center justify-between"><span>{isComissionado ? 'Valor Bruto (R$)' : 'Receita (R$)'} <span className="text-[#E3000F]">*</span></span>{formData.isReceitaReadonly && <span className="text-[10px] bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 px-1.5 py-0.5 rounded flex items-center gap-1"><Check size={10} /> Automático</span>}</label>{formData.isReceitaReadonly ? (<input type="text" readOnly value={formData.receita} className="w-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-500 dark:text-neutral-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />) : (<input type="text" name="receita" value={formData.receita} onChange={handleFormChange} placeholder="R$ 0,00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] focus:border-[#E3000F] outline-none text-sm font-bold" />)}</div>
+                                                {isComissionado && (
+                                                    <div className="space-y-1.5 animate-fade-in">
+                                                        <label className="text-xs font-bold text-green-700 dark:text-green-500 uppercase tracking-wider">Comissão / Vendedor (R$)</label>
+                                                        <input type="text" readOnly value={applyCurrencyMask(calcularComissaoDinamica(formData.produto, formData.adicionais, parseCurrencyToFloat(formData.receita), formData.seguroOption))} className="w-full bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-400 px-3 py-2.5 rounded-lg outline-none text-sm font-bold cursor-not-allowed" />
+                                                    </div>
+                                                )}
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                                {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                                {formData.produto === 'APARELHO' && (
+                                                    <div className="space-y-1.5 animate-fade-in">
+                                                        <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Seguro do Aparelho</label>
+                                                        <select name="seguroOption" value={formData.seguroOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium text-blue-600 dark:text-blue-400">
+                                                            <option className="bg-white dark:bg-neutral-900 text-neutral-500" value="">Sem Seguro</option>
+                                                            {SEGURO_OPTIONS.map(o => <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" key={o.label} value={o.label}>{o.label}</option>)}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                                {showMplay && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">M-Play <span className="text-[#E3000F]">*</span></label><select name="mplay" value={formData.mplay} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                            </div>
                                         </div>
-                                        
-                                        <div className="pt-4 border-t border-neutral-100 dark:border-neutral-800 flex justify-end">
-                                            <button type="button" onClick={handleAddComboItem} className="w-full sm:w-auto px-6 py-3 bg-neutral-900 dark:bg-neutral-800 text-white font-medium rounded-xl hover:bg-black transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"><Plus size={16}/> Adicionar Produto ao Combo</button>
+                                        <div className="p-4 sm:px-6 sm:pb-6 border-t border-neutral-100 dark:border-neutral-800 shrink-0 bg-white dark:bg-neutral-900">
+                                            <div className="flex justify-end">
+                                                <button type="button" onClick={handleAddComboItem} className="w-full sm:w-auto px-6 py-3 bg-neutral-900 dark:bg-neutral-800 text-white font-medium rounded-xl hover:bg-black transition-colors shadow-sm flex items-center justify-center gap-2 text-sm"><Plus size={16} /> Adicionar Produto ao Combo</button>
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="lg:col-span-5 bg-neutral-50 dark:bg-neutral-800/50 p-4 sm:p-6 flex flex-col overflow-y-auto">
-                                        <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide mb-4">Resumo do Combo</h3>
-                                        <div className="flex-1 space-y-3 mb-6 min-h-[150px] overflow-y-auto pr-2">
+                                    <div className="lg:col-span-5 bg-neutral-50 dark:bg-neutral-800/50 p-4 sm:p-6 flex flex-col lg:overflow-y-auto scrollbar-thin">
+                                        <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide mb-4 shrink-0">Resumo do Combo</h3>
+                                        <div className="flex-1 space-y-3 mb-6 min-h-[150px] max-h-[250px] lg:max-h-none overflow-y-auto pr-2 scrollbar-thin">
                                             {comboItems.length === 0 ? (
-                                                <div className="text-center text-neutral-400 py-10 border-2 border-dashed border-neutral-200 dark:border-neutral-700 rounded-xl flex flex-col items-center justify-center gap-2"><Briefcase size={24} className="opacity-50"/> Nenhum produto adicionado.</div>
+                                                <div className="text-center text-neutral-400 py-10 border-2 border-dashed border-neutral-200 dark:border-neutral-700 rounded-xl flex flex-col items-center justify-center gap-2"><Briefcase size={24} className="opacity-50" /> Nenhum produto adicionado.</div>
                                             ) : (
                                                 comboItems.map((item, idx) => (
                                                     <div key={idx} className="bg-white dark:bg-neutral-900 p-3.5 rounded-xl border border-neutral-200 dark:border-neutral-700 flex justify-between items-center shadow-sm relative overflow-hidden group">
@@ -652,7 +708,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                                         </div>
                                                         <div className="flex items-center gap-3">
                                                             <span className="text-xs font-black text-green-600 dark:text-green-500">{item.receita}</span>
-                                                            <button type="button" onClick={() => removeComboItem(idx)} className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><Trash2 size={14}/></button>
+                                                            <button type="button" onClick={() => removeComboItem(idx)} className="text-red-500 hover:text-red-700 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><Trash2 size={14} /></button>
                                                         </div>
                                                     </div>
                                                 ))
@@ -660,14 +716,14 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                         </div>
 
                                         <div className="space-y-4 pt-4 border-t border-neutral-200 dark:border-neutral-700 shrink-0">
-                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">CPF / CNPJ do Titular <span className="text-[#E3000F]">*</span></label><input type="text" value={comboGlobal.cpf} onChange={e => setComboGlobal({...comboGlobal, cpf: applyCpfCnpjMask(e.target.value)})} placeholder="000.000.000-00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm font-mono text-neutral-800 dark:text-neutral-100" /></div>
+                                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">CPF / CNPJ do Titular <span className="text-[#E3000F]">*</span></label><input type="text" value={comboGlobal.cpf} onChange={e => setComboGlobal({ ...comboGlobal, cpf: applyCpfCnpjMask(e.target.value) })} placeholder="000.000.000-00" className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 px-3 py-2.5 rounded-lg outline-none focus:ring-1 focus:ring-[#E3000F] text-sm font-mono text-neutral-800 dark:text-neutral-100" /></div>
                                             
                                             {(() => {
                                                 const hasResidential = comboItems.some(i => (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(i.produtoBase || i.produto));
                                                 return (
                                                     <div className="space-y-1.5 relative">
                                                         <label className={`text-xs font-bold uppercase tracking-wider flex justify-between ${hasResidential ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-400 dark:text-neutral-500'}`}><span>Contrato {hasResidential && <span className="text-[#E3000F]">*</span>}</span>{!hasResidential && <Lock size={12} />}</label>
-                                                        <input type="text" value={comboGlobal.contrato} onChange={e => setComboGlobal({...comboGlobal, contrato: applyContratoMask(e.target.value)})} placeholder={hasResidential ? "Ex: 000/000000000" : "Não aplicável"} disabled={!hasResidential} className={`w-full px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono border ${hasResidential ? 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100' : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'}`} />
+                                                        <input type="text" value={comboGlobal.contrato} onChange={e => setComboGlobal({ ...comboGlobal, contrato: applyContratoMask(e.target.value) })} placeholder={hasResidential ? "Ex: 000/000000000" : "Não aplicável"} disabled={!hasResidential} className={`w-full px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-mono border ${hasResidential ? 'bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100' : 'bg-neutral-100 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 text-neutral-400 dark:text-neutral-500 cursor-not-allowed'}`} />
                                                     </div>
                                                 );
                                             })()}

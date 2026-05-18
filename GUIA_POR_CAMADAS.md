@@ -26,6 +26,7 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 
 ### Camada 4: Acompanhamento Pessoal (Colaboradores e Escala)
 - **Placar em Tempo Real:** Na aba "Colaboradores", você clica na sua própria foto para abrir seu Dashboard e ver exatamente quanto você já vendeu versus a sua meta individual do mês.
+- **Projeção Fator RV:** A aba "Fator RV" calcula exatamente o que está acontecendo com a sua comissão (Bônus, Aceleradores, Fator Multi 1.2x a 1.8x, Portabilidades e Bônus Unitário Acima da Meta). Você sabe em tempo real se já bateu a "Elegibilidade de 80%" nas 3 frentes para liberar seu pagamento e recebe "Dicas de Foco" sugeridas pela própria plataforma sobre o que você deve oferecer.
 - **Hall da Fama (Gamificação):** As caixinhas dos melhores vendedores ganham destaque! Se você tiver a maior receita da loja no mês, receberá a coroa (👑) de Top 1. Se for o líder em Pós-pago, ganha a medalha (🥇) de Destaque Pós.
 - **Sua Escala:** Você tem permissão de leitura na Escala de Trabalho, podendo verificar seus horários, folgas programadas da semana ou exceções cadastradas pelo seu gerente.
 
@@ -35,6 +36,7 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 
 ### Camada 6: Ferramentas de Produtividade (Scripts e Wi-Fi)
 - **Wi-Fi Rápido:** Precisa conectar o cliente à internet da loja? Clique no ícone de Wi-Fi no topo da tela para abrir o QR Code e peça para o cliente escanear.
+- **Aba Geek:** O espaço de conhecimento. Uma prateleira cheia de materiais de treinamento, apostilas e arquivos úteis.
 - **Textos Prontos (Scripts):** Na aba "Scripts", você encontra os textos padrões da loja para solicitações (como Cancelamento, Troca de Chip, etc). O sistema já coloca o seu nome na assinatura automaticamente. Basta clicar no botão de copiar e colar no sistema da Claro!
 
 ---
@@ -47,6 +49,7 @@ As camadas a seguir possuem privilégios escalados. O perfil Sênior tem forte v
 - **Distribuição Inteligente (Metas):** O Gestor informa apenas o "Bolo Total" (A meta global da loja no mês). O sistema divide esse valor matematicamente pela quantidade de consultores ativos.
 - **Run Rate e DRE (Resultado):** O coração da operação. Visualize no formato nativo da aplicação ou utilize o botão verde "Exportar Excel" tanto nas abas de Venda ou Resultados para enviar as planilhas prontas para a Regional.
 - **Traffic Target:** O cálculo da meta diária da loja é inteligente: Sábados e Domingos recebem "Peso 2", puxando mais meta para os dias de maior fluxo no shopping.
+- **Auditoria e Bônus (Fator RV):** Diferente do vendedor que só vê a própria prévia, a Gerência possui uma caixa de seleção rápida no Fator RV para consultar a remuneração de qualquer colaborador da equipe, checando a aplicação dos Aceleradores Multi e os Redutores de PME.
 
 ### Camada 2: Gestão de Pessoas (Colaboradores e Escalas)
 - **Visão 360 (Colaboradores):** Diferente dos vendedores (que só veem a si mesmos), a Gestão visualiza a régua completa, com nomes completos e batimento de meta de 100% da equipe em tempo real.

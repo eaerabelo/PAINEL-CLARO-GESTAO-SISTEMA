@@ -8,7 +8,8 @@ export const SistemasClaro = () => {
     const extraLinks = [
         { name: 'PORTAL CLARO', url: 'http://portalclarobrasil/' },
         { name: 'CEMI', url: 'https://cemi/mudancastatus/jsp/login.jsp' },
-        { name: 'RH SOLUTIONS', url: 'https://portalrh.claro.com.br/ords/rhportal/rhlgweb.show' }
+        { name: 'RH SOLUTIONS', url: 'https://portalrh.claro.com.br/ords/rhportal/rhlgweb.show' },
+        { name: 'CONEXÃO APRENDER', url: 'https://hdim.fa.us2.oraclecloud.com/fscmUI/redwood/learner/learn/browse-learning-items' }
     ];
 
     // Junta os links dinamicamente garantindo que não existam duplicados

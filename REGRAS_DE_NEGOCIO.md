@@ -25,7 +25,7 @@
 - **REGRA 11:** Vendas de produtos móveis (Pós, Controle, etc.) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração), além dos campos de "M-Play" e "Portabilidade". Para serviços residenciais, o campo de "M-Play" também é exibido para preenchimento. Para produtos físicos (Aparelhos, Acessórios), esses campos são ocultos da interface. A tabela de listagem exibe a coluna "Operação".
 - **REGRA 11.1:** Na venda de um "APARELHO", caso o adicional "SEGURO" seja selecionado na caixa flutuante, o sistema desmembra a venda ao salvar, registrando automaticamente uma linha adicional e individual para o produto "SEGURO". A comissão de 6% sobre o aparelho original é preservada, e a palavra "Seguro" é ocultada da coluna de adicionais do aparelho na interface para melhor leitura visual.
 - **REGRA 11.2:** A tela de Vendas conta com um "Modo Combo" (Venda Múltipla). O vendedor pode adicionar vários serviços (ex: Pós + 3 Dependentes + Fibra + TV) em um carrinho de compras. O sistema exige a especificação do titular, compartilha o contrato residencial entre as linhas necessárias, e salva todos os produtos simultaneamente e de forma desmembrada na base de dados.
-- **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, aos perfis de liderança/backoffice (SÊNIOR e equivalentes) ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado).
+- **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, aos perfis de liderança/backoffice (SÊNIOR e equivalentes) ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado). No rodapé, o sistema consolida o sumário diário/mensal de vendas na tela e o somatório da Receita (baseado sempre na receita comissionada da venda, sem a coloração de destaque verde da meta para diferenciação).
 - **REGRA 13:** A tabela de visualização exibe as vendas pertencentes ao Mês Selecionado no seletor global do sistema. A barra de pesquisa possui uma inteligência abrangente para filtrar as vendas listadas por Vendedor, Produto, CPF/CNPJ, Adicionais (ex: Trocafy, Seguro), Portabilidade, M-Play e Tipo de Operação.
 - **REGRA 13.1:** A importação e exportação em Excel são **exclusivos do perfil GESTOR** para proteção dos dados da loja. O sistema possui uma inteligência de mapeamento (Smart Mapper) que converte automaticamente formatações antigas e lê datas seriais.
 
@@ -117,8 +117,8 @@
 ## 13. MÓDULO GEEK (CENTRAL DE DOCUMENTOS)
 
 - **REGRA 52:** A seção [GEEK] atua como uma biblioteca virtual para os consultores acessarem PDFs e Documentos da operação, agrupados em categorias ("BOOK DE OFERTAS", "MÓDULOS BUNDLE", etc).
-- **REGRA 53:** Para preservar o limite de peso de 1MB por documento no banco de dados Firestore, a arquitetura do painel GEEK exige que o gestor forneça uma **URL externa (ex: Link do Google Drive/OneDrive)** ao invés de realizar o upload físico do PDF.
-- **REGRA 54:** O privilégio de Adicionar e Excluir "balões" de documentos é ESTRITAMENTE restrito ao perfil GEEK. Nem a Gerência nem os Vendedores possuem permissão para apagar ou inserir documentos.
+- **REGRA 53:** Para preservar o limite de peso de 1MB por documento no banco de dados Firestore, a arquitetura exige a inserção de uma URL externa. A tela dispõe de categorias predefinidas e possui um motor reativo que permite a "Criação de Novas Categorias" (escrevendo seu nome no banco) dinamicamente.
+- **REGRA 54:** O privilégio de Adicionar e Excluir "balões" de documentos é restrito aos perfis GEEK, ADMINISTRAÇÃO e GERENTE. Os Vendedores possuem apenas permissão de visualização.
 
 ## 14. MÓDULO SCRIPTS (TEXTOS PADRÕES)
 
@@ -128,3 +128,14 @@
 ## 15. ATALHOS GLOBAIS (CABEÇALHO)
 
 - **REGRA 57:** O ícone de Wi-Fi, localizado no cabeçalho global, abre um modal de visualização contendo um QR Code pré-configurado. Qualquer usuário logado, independente da hierarquia, possui permissão para acionar este modal e exibi-lo ao cliente no salão de vendas.
+
+## 16. MÓDULO FATOR RV (CÁLCULO E PRÉVIA DE COMISSIONAMENTO)
+
+- **REGRA 58:** O módulo "Fator RV" processa matematicamente o comissionamento simulado do vendedor baseando-se nas cartilhas operacionais do IW (Etapas 1, 2 e 3).
+- **REGRA 59:** O Vendedor tem acesso bloqueado ao seletor de usuários na tela, visualizando exclusivamente o seu próprio fator de remuneração. O Gestor pode simular o fator de qualquer colaborador.
+- **REGRA 60 (ELEGIBILIDADE E TETO):** O recebimento de qualquer comissão está atrelado à elegibilidade primária: bater **80,00% simultaneamente em 3 indicadores** (Receita, Gross Total e Residencial). Se algum indicador ficar abaixo de 80%, o Fator é zerado. Há também o limitador monetário (Teto) de R$ 6.000,00 aplicável na comissão final.
+- **REGRA 61 (RECEITA E FAIXAS):** O multiplicador de ganho (Etapa 2) funciona por faixas de atingimento na meta de Receita: Abaixo de 80% (0%), de 80 a 99% (4,5%), 100 a 119% (7%), 120 a 149% (9%) e a partir de 150% (11%).
+- **REGRA 62 (ACELERADORES MÓVEL E FIXO):** Vendas atreladas ao Claro Multi disparam multiplicadores que variam de 1.2x a 1.8x, escalonados de acordo com o atingimento **INDIVIDUAL** da meta de Receita. A Portabilidade traz um bônus fixo de +30%. Operações como Upgrades (50%) e Sidegrades (25%) são processadas automaticamente.
+- **REGRA 63 (BÔNUS E EXCEÇÕES PME):** O Dashboard contém dicas proativas que sugerem o que o vendedor deve focar no dia para bater o placar. Além disso, as vendas da categoria PME e Flex Recarga são retiradas das metas quantitativas (Gross) da base de RV, mas pontuam seus valores monetários na Etapa 2 de Receita com fator 100%.
+- **REGRA 64 (BÔNUS ACIMA DA META):** Se o atingimento de determinados produtos (Pós, Fibra e TV) passar de 100%, é acrescentado ao Vendedor um Bônus Unitário Variável de R$10 por venda. Se passar de 115%, remunera R$15 por venda na Etapa 3.
+- **REGRA 65 (NPS):** O painel do Fator RV fornece um indicador interativo para inserção da Nota NPS (Qualidade). Caso o índice inserido seja maior ou igual a 8.0, o sistema adiciona passivamente o bônus de 5,00% sobre o total da RV.

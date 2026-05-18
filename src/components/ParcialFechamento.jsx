@@ -44,6 +44,7 @@ export function ParcialFechamento({ hasAccess, salesData = [], goalsDB = {}, glo
             const sub = String(sale.subOption || sale.subtipo || '').toUpperCase();
             const port = String(sale.portabilidade || '').toUpperCase();
             const rec = Number(sale.receita) || 0;
+            const recBruto = Number(sale.valorBruto || sale.receita) || 0;
             const q = Number(sale.qtda) || 1;
             const adds = sale.adicionais || [];
 
@@ -72,13 +73,13 @@ export function ParcialFechamento({ hasAccess, salesData = [], goalsDB = {}, glo
             else if (pBase.includes('FIBRA PME') || pBase.includes('UR PME')) sumTotals.virtuaPme += q;
             else if (pBase.includes('FIBRA') || pBase.includes('BANDA LARGA RESIDENCIAL')) sumTotals.fibra += q;
             else if (pBase.includes('TV-BOX')) sumTotals.tvBox += q;
-            else if (pBase.includes('CLARO TV+') || pBase.includes('TV')) sumTotals.tv += q;
+            else if (pBase.includes('CLARO TV+') || pBase.includes('TV') || pBase.includes('PONTO ADICIONAL')) sumTotals.tv += q;
             else if (pBase.includes('FIXO')) sumTotals.fixo += q;
             else if (pBase.includes('MESH')) sumTotals.mesh += q;
             if (pBase.includes('APARELHO')) { sumTotals.aparelho += q; sumTotals.receitaAparelho += rec; }
             if (pBase.includes('SEGURO')) sumTotals.seguro += q;
-            if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { sumTotals.acessorio += q; sumTotals.receitaAcessorio += rec; sumTotals.qtdaAcessorioFisico += q; }
-            if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { sumTotals.pelicula += q; sumTotals.receitaAcessorio += rec; sumTotals.qtdaAcessorioFisico += q; }
+            if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { sumTotals.acessorio += q; sumTotals.receitaAcessorio += recBruto; sumTotals.qtdaAcessorioFisico += q; }
+            if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { sumTotals.pelicula += q; sumTotals.receitaAcessorio += recBruto; sumTotals.qtdaAcessorioFisico += q; }
 
             if (adds.includes('TROCAFY')) sumTotals.trocafy += 1;
             if (adds.includes('CLARO UP')) sumTotals.claroUp += 1;
@@ -95,7 +96,7 @@ export function ParcialFechamento({ hasAccess, salesData = [], goalsDB = {}, glo
 
         // Mapeamento compatível para a Parcial Antiga
         sumTotals.gross = sumTotals.grossDia;
-        sumTotals.virtua = sumTotals.fibra;
+        sumTotals.virtua = sumTotals.fibra + sumTotals.bl;
 
         return { totals: sumTotals, dailyGoals: dGoals };
     }, [salesData, globalMonth, goalsDB, todayISO, dateBr, yearStr, monthStr]);
@@ -116,8 +117,8 @@ export function ParcialFechamento({ hasAccess, salesData = [], goalsDB = {}, glo
             ...prev, hora: String(h),
             metaGross: dailyGoals.gross || 0, feitoGross: totals.gross || 0, metaGrossPme: dailyGoals.grossPme || 0, feitoGrossPme: totals.grossPme || 0,
             metaAparelho: dailyGoals.aparelho || 0, feitoAparelho: totals.aparelho || 0, metaSeguro: dailyGoals.seguro || 0, feitoSeguro: totals.seguro || 0,
-            metaAcessorio: dailyGoals.acessorio || 0, feitoAcessorio: totals.acessorio || 0, metaVirtua: dailyGoals.virtua || 0, feitoVirtua: totals.virtua || 0,
-            metaVirtuaPme: dailyGoals.virtuaPme || 0, feitoVirtuaPme: totals.virtuaPme || 0, metaTv: dailyGoals.tv || 0, feitoTv: totals.tv || 0,
+            metaAcessorio: dailyGoals.acessorio || 0, feitoAcessorio: (totals.acessorio + totals.pelicula) || 0, metaVirtua: dailyGoals.virtua || 0, feitoVirtua: totals.virtua || 0,
+            metaVirtuaPme: dailyGoals.virtuaPme || 0, feitoVirtuaPme: totals.virtuaPme || 0, metaTv: dailyGoals.tv || 0, feitoTv: (totals.tv + totals.tvBox) || 0,
             metaMplay: dailyGoals.mplay || 0, feitoMplay: totals.mplay || 0, feitoClaroUp: totals.claroUp || 0
         }));
     }, [totals, dailyGoals]);

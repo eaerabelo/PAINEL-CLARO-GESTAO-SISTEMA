@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertOctagon, Plus, Search, Calendar, Edit3, Trash2, X, Lock, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { applyCpfCnpjMask, getTodaySP } from '../utils/masks';
 
 export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGerente, isVendedor, usersDB = {}, globalMonth }) {
@@ -151,6 +152,32 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
         setIsModalOpen(false);
     };
 
+    const handleExportExcel = () => {
+        if (filteredData.length === 0) {
+            toast.error('Nenhum dado para exportar no período selecionado.');
+            return;
+        }
+        
+        const dataToExport = filteredData.map(item => ({
+            'Data': typeof item.data === 'string' && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : item.data,
+            'Vendedor': item.vendedor,
+            'Produto': item.produto,
+            'Motivo': item.motivo,
+            'Cliente': item.cliente,
+            'CPF/CNPJ': item.cpf || '-',
+            'CEP': item.cep,
+            'Logradouro': item.logradouro,
+            'Nº': item.numero || 'S/N',
+            'Observações': item.obs || '-'
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Reprovados");
+        XLSX.writeFile(workbook, `Relatorio_Reprovados_${filterDate || 'Geral'}.xlsx`);
+        toast.success('Relatório exportado com sucesso!');
+    };
+
     return (
         <>
             <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden flex flex-col h-full animate-fade-in transition-colors">
@@ -174,6 +201,9 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
                                 <Calendar size={16} className="text-neutral-500" />
                                 <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full" title="Filtrar por data" />
                             </div>
+                            {isGerente && (
+                                <button type="button" onClick={handleExportExcel} className="flex-1 sm:flex-none px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-xl hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center justify-center gap-2 whitespace-nowrap">Exportar Excel</button>
+                            )}
                             <button onClick={openModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-2 whitespace-nowrap"><Plus size={16} /> Novo Registro</button>
                         </div>
                     </div>

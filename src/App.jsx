@@ -6,7 +6,7 @@ import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy, Calculator
 } from 'lucide-react';
 
 // Importação de biblioteca de Toasts para feedback visual de ações em tela
@@ -42,6 +42,7 @@ import { Login } from './components/Login.jsx';
 import { ParcialFechamento } from './components/ParcialFechamento.jsx';
 import { Geek } from './components/Geek.jsx';
 import { Scripts } from './components/Scripts.jsx';
+import { FatorRvv } from './components/FatorRvv.jsx';
 import qrWifiImg from './assets/qr-wifi.png';
 
 // Variáveis seguras (Fallback) caso as constantes falhem ou estejam ausentes
@@ -586,6 +587,7 @@ export default function App() {
     { name: 'COLABORADORES', icon: <Users size={18} /> },
     { name: 'CONTROLE-SIMCARD', icon: <Phone size={18} /> },
     { name: 'ESCALA DE TRABALHO', icon: <CalendarDays size={18} /> },
+    { name: 'FATOR RV', icon: <Calculator size={18} /> },
     { name: 'META', icon: <Target size={18} /> },
     { name: 'PROPOSTA', icon: <FileText size={18} /> },
     { name: 'REPROVADOS', icon: <AlertOctagon size={18} /> },
@@ -681,12 +683,13 @@ export default function App() {
           setUsersDB={setUsersDB} 
           onLogin={(userData, username) => {
             const userWithTime = { ...userData, username, loginTime: Date.now() };
-            setGlobalUser(userWithTime);
+
             localStorage.setItem('sessionUser', JSON.stringify(userWithTime));
-            if (userData.role === 'VENDEDOR') setSelectedSeller(userData.name);
-            if (activeTab === 'META' && !['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK', 'JOVEM APRENDIZ', 'ASSISTENTE RELACIONAMENTO'].includes(userData.role)) setActiveTab('VENDA');
-            if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK'].includes(userData.role)) setActiveTab('VENDA');
-            if (activeTab === 'PARCIAL & FECHAMENTO' && !['GERENTE', 'SENIOR', 'GEEK', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO'].includes(userData.role)) setActiveTab('VENDA');
+                
+            toast.loading('Iniciando e buscando atualizações...', { duration: 1500 });
+            setTimeout(() => {
+              window.location.reload();
+            }, 1200);
           }} 
         />
       </>
@@ -859,12 +862,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Barra de Busca (Placeholder Decorativa na Header Global) */}
-            <div className="relative hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
-              <input type="text" placeholder="Buscar CPF ou Contrato..." className="pl-9 pr-4 py-1.5 bg-neutral-100 dark:bg-neutral-800 border-transparent rounded-full text-sm focus:bg-white dark:focus:bg-neutral-900 focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all w-64 outline-none dark:text-neutral-100" />
-            </div>
-
             {/* Identificação de Empresa */}
             <div className="hidden sm:flex items-center justify-center mx-2">
               <div className="text-[#E3000F] font-black text-xl tracking-tighter uppercase">CLARO UNIÃO OSASCO - AT1M</div>
@@ -897,7 +894,7 @@ export default function App() {
 
           {/* Roteador/Renderizador do Conteúdo Principal conforme as Abas ativas */}
           {activeTab === 'META' ? (
-            <Meta hasAccess={hasMetaAccess} canEdit={canEditMeta} setAuthModal={setAuthModal} goalsDB={goalsDB} setGoalsDB={setGoalsDB} currentYYYYMM={currentYYYYMM} usersDB={usersDB} />
+            <Meta hasAccess={hasMetaAccess} canEdit={canEditMeta} setAuthModal={setAuthModal} goalsDB={goalsDB} setGoalsDB={setGoalsDB} currentYYYYMM={currentYYYYMM} usersDB={usersDB} salesData={salesData} globalMonth={globalMonth} />
           ) : activeTab === 'VENDA' ? (
             <Venda salesData={salesData} setSalesData={handleSetSalesData} isVendedor={isVendedor} globalUser={globalUser} usersDB={usersDB} globalMonth={globalMonth} />
           ) : activeTab === 'CONTROLE-SIMCARD' ? (
@@ -924,6 +921,8 @@ export default function App() {
             <Geek geekDocs={geekDocs} setGeekDocs={handleSetGeekDocs} isGerente={isGerente} globalUser={globalUser} />
           ) : activeTab === 'SCRIPTS' ? (
             <Scripts globalUser={globalUser} />
+          ) : activeTab === 'FATOR RV' ? (
+            <FatorRvv globalUser={globalUser} salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} globalMonth={globalMonth} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-neutral-400 dark:text-neutral-500 animate-fade-in border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50">
               <Database size={48} className="mb-4 text-neutral-300" />

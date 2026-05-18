@@ -64,6 +64,12 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 *   Para otimizar o tempo (UX), campos como M-Play e Portabilidade ficam inativos (NÃO) se o produto selecionado não for Móvel.
 *   Importação/Exportação do Excel foram blindadas exclusivamente para `globalUser?.role === 'GERENTE'`. A lógica de importação foi abstraída para `excelImporter.js` (Smart Mapping).
 
+### `rules.js` e `FatorRvv.jsx` (Motor Financeiro)
+*   O `rules.js` é um arquivo puro de funções utilitárias projetado com o Padrão *Strategy*. O desacoplamento matemático tira a complexidade das telas do React.
+*   A função `aplicarRegrasDeProduto()` percorre o objeto da venda item a item aplicando Aceleradores e Redutores da matriz da Claro (Portabilidade 1.30x, Multi 1.2 a 1.8x, Upgrade 0.50x, Exclusão TV+App, etc). 
+*   A função `calcularFatorRV()` implementa as barreiras de Comissionamento (Tríplice Elegibilidade de 80%), Teto Máximo de R$ 6.000 e acoplamento do Bônus NPS (5%).
+*   O `FatorRvv.jsx` renderiza de forma Premium esses cruzamentos num Dashboard Interativo, revelando Dicas de Foco (baseadas nas porcentagens restantes de metas unitárias) sem a necessidade de intervenção do Gestor, isolando os dados de consulta ao ID do Vendedor Logado.
+
 ### `UrResidencial.jsx` (Auditoria Logística)
 *   A tabela incorpora a função utilitária `applyCpfCnpjMask` dinamicamente no `onChange` de edição. O layout de data usa fuso compensado (`T12:00:00`) para renderizar precisamente em padrão `pt-BR`. Contém um seletor unificado para filtrar o acompanhamento focado em um Vendedor específico.
 
@@ -82,7 +88,7 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 
 ### `Geek.jsx` (Central de Documentos)
 *   Projetado como uma grade de "Balões" (Cards) flexíveis que hospedam hiperlinks para PDFs e materiais promocionais.
-*   Para contornar o limite restrito de 1 Megabyte do Firestore e não depender do Firebase Storage (que exigiria configurações de bucket), o sistema não faz a ingestão em binário/Base64. A persistência é feita via referenciamento URL.
+*   Para contornar o limite restrito de 1 Megabyte do Firestore e não depender do Firebase Storage, o sistema não faz a ingestão em binário/Base64. A persistência é feita via referenciamento URL e conta com uma modelagem semântica para os usuários (Adicionar Categoria Dinâmica) sem precisar de telas extras.
 *   **Isolamento Absoluto:** Modificado a flag `canEdit` para suportar `globalUser?.role === 'GEEK'` de maneira estrita, subtraindo poderes da Gerência Geral para esse módulo específico.
 
 ### `Scripts.jsx` (Produtividade)
@@ -157,6 +163,7 @@ painel-claro/
 │   │   ├── Meta.jsx          # Distribuição mensal de metas da loja
 │   │   ├── Proposta.jsx      # Simulador de combos e gerador do layout para PDF
 │   │   ├── Geek.jsx          # Repositório de Books, Promomemos e arquivos PDF
+│   │   ├── FatorRvv.jsx      # Painel de comissionamento, atingimento e bônus (Etapas IW)
 │   │   ├── ParcialFechamento.jsx # Consolidação automática de KPIs do dia e envio de WhatsApp
 │   │   ├── Reprovados.jsx    # Controle de vendas não concluídas e ViaCEP
 │   │   ├── Resultado.jsx     # Cálculo macro da loja (Run Rate, Excel-like)
@@ -168,6 +175,7 @@ painel-claro/
 │   ├── utils/                # Funções globais e utilitários
 │   │   ├── constants.js      # Tabelas de preços, regras fixas, horários e dropdowns
 │   │   └── masks.js          # Funções de formatação (CPF, Moeda, Telefone, Datas)
+│   │   └── rules.js          # Motor de inteligência matemática do Fator RV
 │   │
 │   ├── App.jsx               # Componente Raiz, Roteamento das Abas e Lógicas Cloud (onSnapshot/setDoc)
 │   ├── firebase.js           # Inicialização e conexão com o Google Firestore

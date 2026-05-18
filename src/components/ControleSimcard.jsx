@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Lock, Unlock, FileSpreadsheet, Trash2, X } from 'lucide-react';
+import toast from 'react-hot-toast';
+import * as XLSX from 'xlsx';
 import { applyDateShortMask, applyOvMask, applyCpfCnpjMask, applyCurrencyMask, getTodaySP } from '../utils/masks';
 
 export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcard, globalUser, setAuthModal, usersDB = {} }) => {
@@ -18,6 +20,14 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
     const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
     const [batchData, setBatchData] = useState({ fisicos: '', esims: '', data: getTodaySP() });
 
+    const [selection, setSelection] = useState({ type: null, start: null, end: null });
+    const [isDragging, setIsDragging] = useState(false);
+    const [editingCell, setEditingCell] = useState(null);
+    const selectionRef = useRef({ selection: null, data: null, currentTab: null, canModifySimcard });
+
+    const dynamicTabs = ['GESTAO', ...safeVendedores, 'SOBREPOSIÇÃO'];
+    const currentTab = dynamicTabs.includes(simcardActiveTab) ? simcardActiveTab : (dynamicTabs[0] || 'GESTAO');
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (e.key === 'Escape' && isBatchModalOpen) {
@@ -28,8 +38,100 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isBatchModalOpen]);
 
-    const dynamicTabs = ['GESTAO', ...safeVendedores, 'SOBREPOSIÇÃO'];
-    const currentTab = dynamicTabs.includes(simcardActiveTab) ? simcardActiveTab : (dynamicTabs[0] || 'GESTAO');
+    useEffect(() => {
+        selectionRef.current = { selection, simcardsData, currentTab, canModifySimcard };
+    }, [selection, simcardsData, currentTab, canModifySimcard]);
+
+    useEffect(() => {
+        const handleGlobalMouseUp = () => setIsDragging(false);
+        const handleClickOutside = (e) => {
+            if (!e.target.closest('.iccid-cell')) {
+                setSelection({ type: null, start: null, end: null });
+                setEditingCell(null);
+            }
+        };
+        
+        const handleKeyDown = (e) => {
+            const { selection, simcardsData, currentTab, canModifySimcard } = selectionRef.current;
+            
+            if ((e.ctrlKey || e.metaKey) && selection && selection.type && selection.start !== null && selection.end !== null) {
+                const start = Math.min(selection.start, selection.end);
+                const end = Math.max(selection.start, selection.end);
+                
+                // Só executa o Ctrl+C/V global se não houver um campo de texto aberto (evita sobrepor o navegador)
+                if (start !== end || (document.activeElement && document.activeElement.tagName !== 'INPUT')) {
+                    const isFisico = selection.type === 'FÍSICO';
+
+                    // Ação de COPIAR Múltiplas células (CTRL+C)
+                    if (e.key.toLowerCase() === 'c') {
+                        e.preventDefault();
+                        const filteredData = (simcardsData || []).filter(item => {
+                            if (item.owner !== currentTab) return false;
+                            if (isFisico) {
+                                return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
+                            } else {
+                                return item.simcardEsim && !item.simcardFisico;
+                            }
+                        });
+
+                        const selectedItems = filteredData.slice(start, end + 1);
+                        const textToCopy = selectedItems.map(item => isFisico ? item.simcardFisico : item.simcardEsim).filter(Boolean).join('\n');
+                        
+                        if (textToCopy) {
+                            navigator.clipboard.writeText(textToCopy);
+                            toast.success(`${selectedItems.length} ICCID(s) copiado(s)!`);
+                        }
+                    }
+
+                    // Ação de COLAR para Múltiplas Células (CTRL+V) - Exclusivo Gestão
+                    if (e.key.toLowerCase() === 'v' && canModifySimcard) {
+                        e.preventDefault();
+                        navigator.clipboard.readText().then(text => {
+                            if (!text) return;
+                            const pastedLines = text.split(/\r?\n/).map(l => l.trim().replace(/\D/g, '').slice(0, 20)).filter(Boolean);
+                            if (pastedLines.length === 0) return;
+                            
+                            setSimcardsData(prev => {
+                                const currentFiltered = (prev || []).filter(item => {
+                                    if (item.owner !== currentTab) return false;
+                                    if (isFisico) {
+                                        return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
+                                    } else {
+                                        return item.simcardEsim && !item.simcardFisico;
+                                    }
+                                });
+
+                                const itemsToUpdate = currentFiltered.slice(start, start + pastedLines.length);
+                                if (itemsToUpdate.length === 0) return prev;
+                                
+                                const itemsToUpdateIds = itemsToUpdate.map(i => i.id);
+                                toast.success(`${Math.min(itemsToUpdate.length, pastedLines.length)} ICCID(s) colado(s)!`);
+
+                                return prev.map(item => {
+                                    const idx = itemsToUpdateIds.indexOf(item.id);
+                                    if (idx !== -1 && pastedLines[idx]) {
+                                        return { ...item, [isFisico ? 'simcardFisico' : 'simcardEsim']: pastedLines[idx] };
+                                    }
+                                    return item;
+                                });
+                            });
+                        }).catch(() => {
+                            toast.error('O seu navegador bloqueou o acesso à área de transferência.');
+                        });
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('mouseup', handleGlobalMouseUp);
+        window.addEventListener('mousedown', handleClickOutside);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('mouseup', handleGlobalMouseUp);
+            window.removeEventListener('mousedown', handleClickOutside);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
 
     const handleBatchSubmit = (e) => {
         e.preventDefault();
@@ -132,6 +234,52 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
         ));
     };
 
+    const handleExportExcel = () => {
+        const filteredData = (simcardsData || []).filter(item => item.owner === currentTab);
+        if (filteredData.length === 0) {
+            toast.error('Nenhum dado para exportar na aba atual.');
+            return;
+        }
+
+        const dataToExport = filteredData.map(item => {
+            const isFisico = item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
+            if (currentTab === 'SOBREPOSIÇÃO') {
+                return {
+                    'SIMCARD/E-SIM': isFisico ? item.simcardFisico : item.simcardEsim,
+                    'Data': item.data,
+                    'Data Portin': item.dataPortin || '-',
+                    'Nº Portado': item.numPortado || '-',
+                    'Nº Provisório': item.numProvisorio || '-',
+                    'OV': item.ov,
+                    'Cód. Aut.': item.codAutorizacao,
+                    'CPF | CNPJ': item.cpf,
+                    'Plano': item.plano,
+                    'Cliente': item.cliente,
+                    'Observação': item.observacao || '-'
+                };
+            } else {
+                return {
+                    'SIMCARD/E-SIM': isFisico ? item.simcardFisico : item.simcardEsim,
+                    'Data': item.data,
+                    'OV': item.ov,
+                    'Cód. Aut.': item.codAutorizacao,
+                    'CPF | CNPJ': item.cpf,
+                    'Plano': item.plano,
+                    'Cliente': item.cliente,
+                    'Pagamento': item.pagamento || '-',
+                    'Valor': item.valor || '-',
+                    'Observação': item.observacao || '-'
+                };
+            }
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, currentTab);
+        XLSX.writeFile(workbook, `Relatorio_Simcards_${currentTab}.xlsx`);
+        toast.success('Relatório exportado com sucesso!');
+    };
+
     return (
         <>
             <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden flex flex-col h-full animate-fade-in transition-colors">
@@ -149,7 +297,10 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                             <button onClick={() => setAuthModal({ isOpen: true, pendingAction: null, pendingId: null })} className="px-3 py-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-medium rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors flex items-center gap-1"><Lock size={14} /> Autenticar</button>
                         )}
                         {canModifySimcard && (
-                            <button onClick={() => setIsBatchModalOpen(true)} className="px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center gap-2"><FileSpreadsheet size={16} /> + Lote de Simcards</button>
+                            <>
+                                <button type="button" onClick={handleExportExcel} className="px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center gap-2">Exportar Excel</button>
+                                <button onClick={() => setIsBatchModalOpen(true)} className="px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center gap-2"><FileSpreadsheet size={16} /> + Lote</button>
+                            </>
                         )}
                     </div>
                 </div>
@@ -216,58 +367,89 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                                                 <td colSpan="12" className="text-center py-6 text-neutral-400 dark:text-neutral-500 bg-white dark:bg-neutral-900 font-medium">Nenhum registro encontrado nesta seção.</td>
                                             </tr>
                                         ) : (
-                                            filteredData.map((item) => (
-                                                <tr key={item.id} className={`transition-colors group ${item.statusColor === 'green' ? 'bg-green-200 dark:bg-green-900/40 hover:bg-green-300/60 dark:hover:bg-green-900/60' :
-                                                    item.statusColor === 'yellow' ? 'bg-yellow-200 dark:bg-yellow-900/40 hover:bg-yellow-300/60 dark:hover:bg-yellow-900/60' :
-                                                        item.statusColor === 'red' ? 'bg-red-200 dark:bg-red-900/40 hover:bg-red-300/60 dark:hover:bg-red-900/60' :
-                                                            'hover:bg-blue-50/40 dark:hover:bg-blue-900/20'
-                                                    }`}>
-                                                    <td className={`border border-neutral-200 dark:border-neutral-800 p-0 relative ${!canModifySimcard ? 'bg-neutral-100/50 dark:bg-neutral-800/50' : ''}`}><input type="text" value={isFisico ? item.simcardFisico : item.simcardEsim} onChange={e => handleInlineChange(item.id, isFisico ? 'simcardFisico' : 'simcardEsim', e.target.value)} readOnly={!canModifySimcard} className={`w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs ${!canModifySimcard ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-800 dark:text-neutral-200'}`} />{!canModifySimcard && (isFisico ? item.simcardFisico : item.simcardEsim) && <Lock size={12} onClick={handleProtectedClick} title="Desbloquear Edição" className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 cursor-pointer hover:text-[#E3000F] transition-colors" />}</td>
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative w-24"><input type="text" value={item.data} onChange={e => handleInlineChange(item.id, 'data', e.target.value)} placeholder="DD/MM/AA" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400 text-center" /></td>
-                                                
-                                                    {currentTab === 'SOBREPOSIÇÃO' && (
-                                                        <>
-                                                            <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.dataPortin || ''} onChange={e => handleInlineChange(item.id, 'dataPortin', e.target.value)} placeholder="DD/MM/AA HH:MM" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200 text-center" /></td>
-                                                            <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numPortado || ''} onChange={e => handleInlineChange(item.id, 'numPortado', e.target.value)} placeholder="(11) 90000-0000" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                            <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numProvisorio || ''} onChange={e => handleInlineChange(item.id, 'numProvisorio', e.target.value)} placeholder="(11) 90000-0000" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                        </>
-                                                    )}
+                                            filteredData.map((item, idx) => {
+                                                const isSelected = selection.type === tipoLote && selection.start !== null && selection.end !== null && idx >= Math.min(selection.start, selection.end) && idx <= Math.max(selection.start, selection.end);
+                                                const isEditing = editingCell?.id === item.id && editingCell?.type === tipoLote && canModifySimcard;
+                                                const val = isFisico ? item.simcardFisico : item.simcardEsim;
 
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.ov} onChange={e => handleInlineChange(item.id, 'ov', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.codAutorizacao} onChange={e => handleInlineChange(item.id, 'codAutorizacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cpf} onChange={e => handleInlineChange(item.id, 'cpf', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.plano} onChange={e => handleInlineChange(item.id, 'plano', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs font-bold text-neutral-800 dark:text-neutral-200 uppercase" /></td>
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cliente} onChange={e => handleInlineChange(item.id, 'cliente', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-800 dark:text-neutral-200 uppercase" /></td>
-                                                
-                                                    {currentTab !== 'SOBREPOSIÇÃO' && (
-                                                        <>
-                                                            <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative">
-                                                                <select value={item.pagamento} onChange={e => handleInlineChange(item.id, 'pagamento', e.target.value)} className="w-full h-full min-h-[36px] px-2 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-[10px] font-bold text-neutral-700 dark:text-neutral-300 uppercase"><option className="bg-white dark:bg-neutral-900" value=""></option><option className="bg-white dark:bg-neutral-900" value="LPAY">LPAY</option><option className="bg-white dark:bg-neutral-900" value="PIX">PIX</option><option className="bg-white dark:bg-neutral-900" value="LINK DE PAGAMENTO">LINK DE PAGAMENTO</option><option className="bg-white dark:bg-neutral-900" value="DINHEIRO">DINHEIRO</option><option className="bg-white dark:bg-neutral-900" value="DOA">DOA</option></select>
-                                                            </td>
-                                                            <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.valor} onChange={e => handleInlineChange(item.id, 'valor', e.target.value)} placeholder="R$ 0,00" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs font-bold text-neutral-800 dark:text-neutral-200" /></td>
-                                                        </>
-                                                    )}
-
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.observacao} onChange={e => handleInlineChange(item.id, 'observacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400" /></td>
-                                                    <td className="border border-neutral-200 dark:border-neutral-800 p-0 text-center align-middle">
-                                                        <div className="flex items-center justify-center gap-1.5 h-full min-h-[36px] px-2">
-                                                            {canModifySimcard && (
-                                                                <div className="flex items-center gap-1.5 border-r border-neutral-300 dark:border-neutral-700 pr-2 mr-1">
-                                                                    <button onClick={() => handleChangeColor(item.id, 'green')} className="w-3.5 h-3.5 rounded-full bg-green-500 hover:bg-green-600 shadow-sm transition-colors" title="Tudo Certo" />
-                                                                    <button onClick={() => handleChangeColor(item.id, 'yellow')} className="w-3.5 h-3.5 rounded-full bg-yellow-500 hover:bg-yellow-600 shadow-sm transition-colors" title="Atenção" />
-                                                                    <button onClick={() => handleChangeColor(item.id, 'red')} className="w-3.5 h-3.5 rounded-full bg-red-500 hover:bg-red-600 shadow-sm transition-colors" title="Com Erro" />
-                                                                    {item.statusColor && (
-                                                                        <button onClick={() => handleChangeColor(item.id, null)} className="w-3.5 h-3.5 rounded-full bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-500 text-[8px] flex items-center justify-center font-bold shadow-sm transition-colors" title="Limpar Cor">X</button>
-                                                                    )}
-                                                                </div>
+                                                return (
+                                                    <tr key={item.id} className={`transition-colors group ${item.statusColor === 'green' ? 'bg-green-200 dark:bg-green-900/40 hover:bg-green-300/60 dark:hover:bg-green-900/60' :
+                                                        item.statusColor === 'yellow' ? 'bg-yellow-200 dark:bg-yellow-900/40 hover:bg-yellow-300/60 dark:hover:bg-yellow-900/60' :
+                                                            item.statusColor === 'red' ? 'bg-red-200 dark:bg-red-900/40 hover:bg-red-300/60 dark:hover:bg-red-900/60' :
+                                                                'hover:bg-blue-50/40 dark:hover:bg-blue-900/20'
+                                                        }`}>
+                                                        <td 
+                                                            className={`border border-neutral-200 dark:border-neutral-800 p-0 relative iccid-cell ${!canModifySimcard ? 'bg-neutral-100/50 dark:bg-neutral-800/50' : ''} ${isSelected && !isEditing ? 'bg-blue-100 dark:bg-blue-900/40 ring-inset ring-2 ring-blue-500 z-10' : ''}`}
+                                                            onMouseDown={(e) => {
+                                                                if (e.target.closest('svg') || isEditing) return;
+                                                                setIsDragging(true);
+                                                                setSelection({ type: tipoLote, start: idx, end: idx });
+                                                                setEditingCell(null);
+                                                            }}
+                                                            onMouseEnter={() => {
+                                                                if (isDragging && selection.type === tipoLote) {
+                                                                    setSelection(prev => ({ ...prev, end: idx }));
+                                                                }
+                                                            }}
+                                                            onClick={() => {
+                                                                if (canModifySimcard && selection.start === selection.end) {
+                                                                    setEditingCell({ id: item.id, type: tipoLote });
+                                                                }
+                                                            }}
+                                                        >
+                                                            {isEditing ? (
+                                                                <input type="text" autoFocus value={val || ''} onChange={e => handleInlineChange(item.id, isFisico ? 'simcardFisico' : 'simcardEsim', e.target.value)} onBlur={() => setEditingCell(null)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingCell(null); }} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-2 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" />
+                                                            ) : (
+                                                                <div className={`w-full h-full min-h-[36px] px-3 py-1.5 font-mono text-xs flex items-center ${!canModifySimcard ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-800 dark:text-neutral-200'} ${isSelected ? 'text-blue-800 dark:text-blue-200' : ''} cursor-cell select-none`}>{val}</div>
                                                             )}
-                                                            <button onClick={() => handleDeleteRequest(item.id)} className={`flex items-center justify-center transition-colors ${canModifySimcard ? 'text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded' : 'text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400'}`} title={canModifySimcard ? "Excluir Linha" : "Autenticação Necessária"}>
-                                                                {canModifySimcard ? <Trash2 size={14} /> : <Lock size={12} />}
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))
+                                                            {!canModifySimcard && val && <Lock size={12} onClick={handleProtectedClick} title="Desbloquear Edição" className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 cursor-pointer hover:text-[#E3000F] transition-colors" />}
+                                                        </td>
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative w-24"><input type="text" value={item.data} onChange={e => handleInlineChange(item.id, 'data', e.target.value)} placeholder="DD/MM/AA" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400 text-center" /></td>
+                                                
+                                                        {currentTab === 'SOBREPOSIÇÃO' && (
+                                                            <>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.dataPortin || ''} onChange={e => handleInlineChange(item.id, 'dataPortin', e.target.value)} placeholder="DD/MM/AA HH:MM" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200 text-center" /></td>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numPortado || ''} onChange={e => handleInlineChange(item.id, 'numPortado', e.target.value)} placeholder="(11) 90000-0000" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numProvisorio || ''} onChange={e => handleInlineChange(item.id, 'numProvisorio', e.target.value)} placeholder="(11) 90000-0000" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                            </>
+                                                        )}
+
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.ov} onChange={e => handleInlineChange(item.id, 'ov', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.codAutorizacao} onChange={e => handleInlineChange(item.id, 'codAutorizacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cpf} onChange={e => handleInlineChange(item.id, 'cpf', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.plano} onChange={e => handleInlineChange(item.id, 'plano', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs font-bold text-neutral-800 dark:text-neutral-200 uppercase" /></td>
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cliente} onChange={e => handleInlineChange(item.id, 'cliente', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-800 dark:text-neutral-200 uppercase" /></td>
+                                                
+                                                        {currentTab !== 'SOBREPOSIÇÃO' && (
+                                                            <>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative">
+                                                                    <select value={item.pagamento} onChange={e => handleInlineChange(item.id, 'pagamento', e.target.value)} className="w-full h-full min-h-[36px] px-2 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-[10px] font-bold text-neutral-700 dark:text-neutral-300 uppercase"><option className="bg-white dark:bg-neutral-900" value=""></option><option className="bg-white dark:bg-neutral-900" value="LPAY">LPAY</option><option className="bg-white dark:bg-neutral-900" value="PIX">PIX</option><option className="bg-white dark:bg-neutral-900" value="LINK DE PAGAMENTO">LINK DE PAGAMENTO</option><option className="bg-white dark:bg-neutral-900" value="DINHEIRO">DINHEIRO</option><option className="bg-white dark:bg-neutral-900" value="DOA">DOA</option></select>
+                                                                </td>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.valor} onChange={e => handleInlineChange(item.id, 'valor', e.target.value)} placeholder="R$ 0,00" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs font-bold text-neutral-800 dark:text-neutral-200" /></td>
+                                                            </>
+                                                        )}
+
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.observacao} onChange={e => handleInlineChange(item.id, 'observacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400" /></td>
+                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 text-center align-middle">
+                                                            <div className="flex items-center justify-center gap-1.5 h-full min-h-[36px] px-2">
+                                                                {canModifySimcard && (
+                                                                    <div className="flex items-center gap-1.5 border-r border-neutral-300 dark:border-neutral-700 pr-2 mr-1">
+                                                                        <button onClick={() => handleChangeColor(item.id, 'green')} className="w-3.5 h-3.5 rounded-full bg-green-500 hover:bg-green-600 shadow-sm transition-colors" title="Tudo Certo" />
+                                                                        <button onClick={() => handleChangeColor(item.id, 'yellow')} className="w-3.5 h-3.5 rounded-full bg-yellow-500 hover:bg-yellow-600 shadow-sm transition-colors" title="Atenção" />
+                                                                        <button onClick={() => handleChangeColor(item.id, 'red')} className="w-3.5 h-3.5 rounded-full bg-red-500 hover:bg-red-600 shadow-sm transition-colors" title="Com Erro" />
+                                                                        {item.statusColor && (
+                                                                            <button onClick={() => handleChangeColor(item.id, null)} className="w-3.5 h-3.5 rounded-full bg-neutral-200 hover:bg-neutral-300 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-500 text-[8px] flex items-center justify-center font-bold shadow-sm transition-colors" title="Limpar Cor">X</button>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                <button onClick={() => handleDeleteRequest(item.id)} className={`flex items-center justify-center transition-colors ${canModifySimcard ? 'text-neutral-400 dark:text-neutral-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded' : 'text-neutral-300 dark:text-neutral-600 hover:text-neutral-500 dark:hover:text-neutral-400'}`} title={canModifySimcard ? "Excluir Linha" : "Autenticação Necessária"}>
+                                                                    {canModifySimcard ? <Trash2 size={14} /> : <Lock size={12} />}
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>

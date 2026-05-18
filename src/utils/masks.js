@@ -1,3 +1,4 @@
+// Aplicar máscara de CPF/CNPJ
 export const applyCpfCnpjMask = (value) => {
     if (!value) return '';
     let v = value.replace(/\D/g, '').slice(0, 14);
@@ -13,14 +14,14 @@ export const applyCpfCnpjMask = (value) => {
     }
     return v;
 };
-
+// Aplicar máscara de contrato
 export const applyContratoMask = (value) => {
     if (!value) return '';
     let v = value.replace(/\D/g, '').slice(0, 12);
     v = v.replace(/^(\d{3})(\d)/, '$1/$2');
     return v;
 };
-
+// Aplicar máscara de moeda
 export const applyCurrencyMask = (value) => {
     if (value === null || value === undefined || value === '') return '';
     if (typeof value === 'number') value = value.toFixed(2);
@@ -31,13 +32,13 @@ export const applyCurrencyMask = (value) => {
     v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
     return `R$ ${v}`;
 };
-
+// Aplicar máscara de data
 export const parseCurrencyToFloat = (value) => {
     if (!value) return 0;
     let v = String(value).replace(/\D/g, '');
     return parseFloat(v) / 100;
 };
-
+// Aplicar máscara de data E hora
 export const applyDateShortMask = (value) => {
     if (!value) return '';
     let v = value.replace(/\D/g, '').slice(0, 6);
@@ -48,15 +49,15 @@ export const applyDateShortMask = (value) => {
     }
     return v;
 };
-
+// Aplicar máscara de OV
 export const applyOvMask = (value) => {
     if (!value) return '';
     return value.replace(/\D/g, '').slice(0, 10);
 };
-
+// Aplicar máscara de data EM horario local
 export const getTodaySP = () => {
     return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 };
-
+// Aplicar máscara de semana
 export const weekDaysMap = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 export const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();

@@ -42,6 +42,10 @@ Gerenciamento duplo (Semanal Fixo x Calendário Dinâmico) de horários, exibind
 Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de autorização, dados de cliente, e regras rígidas contra exclusões não autorizadas (Modal de Cofre Master).
 - *Diferenciais:* Inclusão "Em Lote" simultânea para simplificar o recebimento de inventários. Foco automático na aba do Vendedor quando ele acessa a tela, removendo atritos.
 
+### 6. Fator RV (Remuneração Variável)
+Painel de projeção financeira (IW) do vendedor. Calcula a elegibilidade tríplice (80% em Receita, Gross e Residencial) e as comissões por faixas.
+- *Diferenciais:* Motor avançado (`rules.js`) que processa matematicamente regras como: Fatores Claro Multi (1.2x a 1.8x), Portabilidade (+30%), Upgrades, Bônus Acima da Meta (Etapa 3) e Isenções do PME de forma autônoma. Traz Dicas de Foco baseadas nos indicadores faltantes para bater a meta.
+
 ### 7. UR-Residencial, Reprovados & Propostas
 - **Residencial:** Acompanhamento logístico refinado com filtro exclusivo por Vendedores, formatação nativa de datas (BR) e máscara de edição para documentos (CPF/CNPJ).
 - **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`) para preenchimento inteligente e automático de endereços no Estado de São Paulo.
