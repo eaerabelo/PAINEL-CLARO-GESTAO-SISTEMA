@@ -44,7 +44,7 @@ Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de au
 
 ### 6. Fator RV (Remuneração Variável)
 Painel de projeção financeira (IW) do vendedor. Calcula a elegibilidade tríplice (80% em Receita, Gross e Residencial) e as comissões por faixas.
-- *Diferenciais:* Motor avançado (`rules.js`) que processa matematicamente regras como: Fatores Claro Multi (1.2x a 1.8x), Portabilidade (+30%), Upgrades, Bônus Acima da Meta (Etapa 3) e Isenções do PME de forma autônoma. Traz Dicas de Foco baseadas nos indicadores faltantes para bater a meta.
+- *Diferenciais:* Motor avançado (`rules.js`) que processa matematicamente regras como: Fatores Claro Multi (1.2x a 1.8x) atrelado diretamente à anexação do **M-Play**, Portabilidade (+30%), Upgrades e Bônus Acima da Meta (Etapa 3). Traz **Dicas de Foco** que se adaptam dinamicamente com mensagens encorajadoras ou de alerta, e isola a representatividade financeira real de Aparelhos e Seguros.
 
 ### 7. UR-Residencial, Reprovados & Propostas
 - **Residencial:** Acompanhamento logístico refinado com filtro exclusivo por Vendedores, formatação nativa de datas (BR) e máscara de edição para documentos (CPF/CNPJ).

@@ -66,9 +66,9 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 
 ### `rules.js` e `FatorRvv.jsx` (Motor Financeiro)
 *   O `rules.js` é um arquivo puro de funções utilitárias projetado com o Padrão *Strategy*. O desacoplamento matemático tira a complexidade das telas do React.
-*   A função `aplicarRegrasDeProduto()` percorre o objeto da venda item a item aplicando Aceleradores e Redutores da matriz da Claro (Portabilidade 1.30x, Multi 1.2 a 1.8x, Upgrade 0.50x, Exclusão TV+App, etc). 
+*   A função `aplicarRegrasDeProduto()` percorre o objeto da venda aplicando Aceleradores e Redutores da matriz da Claro. O Acelerador do Claro Multi foi refatorado para depender estritamente da meta de anexação do **M-Play**. Vendas no combo só recebem faixas de aceleração se o M-Play individual for escalonado e anexado (SIM) no ato da venda.
 *   A função `calcularFatorRV()` implementa as barreiras de Comissionamento (Tríplice Elegibilidade de 80%), Teto Máximo de R$ 6.000 e acoplamento do Bônus NPS (5%).
-*   O `FatorRvv.jsx` renderiza de forma Premium esses cruzamentos num Dashboard Interativo, revelando Dicas de Foco (baseadas nas porcentagens restantes de metas unitárias) sem a necessidade de intervenção do Gestor, isolando os dados de consulta ao ID do Vendedor Logado.
+*   O `FatorRvv.jsx` renderiza de forma Premium esses cruzamentos. Adiciona o isolamento financeiro de **Aparelhos & Seguros** (volume separado vs comissão agrupada), e revela **Dicas de Foco** gamificadas (mensagens de urgência <50%, revisão nos 50-69% e otimismo >=70%) atrelando os dados estritamente ao ID do Vendedor.
 
 ### `UrResidencial.jsx` (Auditoria Logística)
 *   A tabela incorpora a função utilitária `applyCpfCnpjMask` dinamicamente no `onChange` de edição. O layout de data usa fuso compensado (`T12:00:00`) para renderizar precisamente em padrão `pt-BR`. Contém um seletor unificado para filtrar o acompanhamento focado em um Vendedor específico.

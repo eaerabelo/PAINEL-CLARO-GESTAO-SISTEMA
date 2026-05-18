@@ -93,7 +93,8 @@
   - **PORTAB. POS/CTRL:** Total de vendas móveis (Pós/Controle) com Portabilidade = SIM.
   - **REC. ACESSÓRIOS / REC. APARELHOS:** Consolida a receita exata proveniente dessas categorias (com ou sem seguro).
   - **BL:** Soma todas as vendas correspondentes a BL ou BANDA LARGA.
-  - **GROSS DIA:** Calcula todos os serviços móveis do dia (Pós, Controle, Dependentes, Flex, Banda Larga e PME), sem misturar com Residencial ou Aparelhos.
+  - **GROSS DIA:** Calcula todos os serviços móveis do dia (Pós, Controle, Dependentes, Flex, Banda Larga e PME).
+  - **PÓS-PAGO / CONTROLE:** O totalizador de "Pós-Pago" diário engloba Pós, Migrações, Dependentes (pagos e gratuitos) e Banda Larga.
 - **REGRA 41.1:** A contagem de volumes físicos de Aparelhos, Acessórios e Películas nas tabelas de Resultados e Dashboards espelha exatamente a quantidade bruta lançada pelo vendedor (Aparelhos UN e Acessórios UN). O cálculo do Ticket Médio é realizado sobre essa quantidade real física (PHC), para evitar perda de dados e garantir acuracidade total do estoque da loja.
 - **REGRA 42:** No rodapé do módulo, duas linhas fixas ("TOTAL" e "META LOJA") consolidam os resultados totais do mês corrente. A visão completa pode ser exportada para um arquivo nativo `.xlsx` (Excel) para controle de diretoria.
 
@@ -135,7 +136,7 @@
 - **REGRA 59:** O Vendedor tem acesso bloqueado ao seletor de usuários na tela, visualizando exclusivamente o seu próprio fator de remuneração. O Gestor pode simular o fator de qualquer colaborador.
 - **REGRA 60 (ELEGIBILIDADE E TETO):** O recebimento de qualquer comissão está atrelado à elegibilidade primária: bater **80,00% simultaneamente em 3 indicadores** (Receita, Gross Total e Residencial). Se algum indicador ficar abaixo de 80%, o Fator é zerado. Há também o limitador monetário (Teto) de R$ 6.000,00 aplicável na comissão final.
 - **REGRA 61 (RECEITA E FAIXAS):** O multiplicador de ganho (Etapa 2) funciona por faixas de atingimento na meta de Receita: Abaixo de 80% (0%), de 80 a 99% (4,5%), 100 a 119% (7%), 120 a 149% (9%) e a partir de 150% (11%).
-- **REGRA 62 (ACELERADORES MÓVEL E FIXO):** Vendas atreladas ao Claro Multi disparam multiplicadores que variam de 1.2x a 1.8x, escalonados de acordo com o atingimento **INDIVIDUAL** da meta de Receita. A Portabilidade traz um bônus fixo de +30%. Operações como Upgrades (50%) e Sidegrades (25%) são processadas automaticamente.
-- **REGRA 63 (BÔNUS E EXCEÇÕES PME):** O Dashboard contém dicas proativas que sugerem o que o vendedor deve focar no dia para bater o placar. Além disso, as vendas da categoria PME e Flex Recarga são retiradas das metas quantitativas (Gross) da base de RV, mas pontuam seus valores monetários na Etapa 2 de Receita com fator 100%.
+- **REGRA 62 (ACELERADORES M-PLAY):** Vendas atreladas ao Claro Multi disparam multiplicadores (1.2x a 1.8x), escalonados **EXCLUSIVAMENTE** pelo atingimento da meta de anexação do **M-Play** (100%, 130%, 160%). O multiplicador só se aplica à venda combo se ela tiver o M-Play marcado como "SIM". Caso contrário, o fator mantém-se em 1.0x. A Portabilidade traz bônus fixo de +30%.
+- **REGRA 63 (BÔNUS E EXCEÇÕES PME):** O Dashboard contém "Dicas de Foco" dinâmicas que alteram seu tom de abordagem (Alerta <50%, Formal 50-69%, Encorajador >=70%) para engajar o vendedor. Vendas PME e Flex Recarga não compõem as metas quantitativas (Gross), mas somam integralmente na Receita (Fator 100%).
 - **REGRA 64 (BÔNUS ACIMA DA META):** Se o atingimento de determinados produtos (Pós, Fibra e TV) passar de 100%, é acrescentado ao Vendedor um Bônus Unitário Variável de R$10 por venda. Se passar de 115%, remunera R$15 por venda na Etapa 3.
 - **REGRA 65 (NPS):** O painel do Fator RV fornece um indicador interativo para inserção da Nota NPS (Qualidade). Caso o índice inserido seja maior ou igual a 8.0, o sistema adiciona passivamente o bônus de 5,00% sobre o total da RV.

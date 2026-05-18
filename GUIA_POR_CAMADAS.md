@@ -26,7 +26,7 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 
 ### Camada 4: Acompanhamento Pessoal (Colaboradores e Escala)
 - **Placar em Tempo Real:** Na aba "Colaboradores", você clica na sua própria foto para abrir seu Dashboard e ver exatamente quanto você já vendeu versus a sua meta individual do mês.
-- **Projeção Fator RV:** A aba "Fator RV" calcula exatamente o que está acontecendo com a sua comissão (Bônus, Aceleradores, Fator Multi 1.2x a 1.8x, Portabilidades e Bônus Unitário Acima da Meta). Você sabe em tempo real se já bateu a "Elegibilidade de 80%" nas 3 frentes para liberar seu pagamento e recebe "Dicas de Foco" sugeridas pela própria plataforma sobre o que você deve oferecer.
+- **Projeção Fator RV:** A aba "Fator RV" calcula sua comissão com exatidão. O Acelerador Automático Claro Multi (1.2x a 1.8x) agora é ativado pelo atingimento da sua meta individual de **M-Play**! O painel exibe **"Dicas de Foco"** dinâmicas (avisos de alerta, formais ou de sucesso) baseadas no seu desempenho. Além disso, você tem a visão separada de quanto suas vendas de Aparelhos e Seguros representam na sua comissão.
 - **Hall da Fama (Gamificação):** As caixinhas dos melhores vendedores ganham destaque! Se você tiver a maior receita da loja no mês, receberá a coroa (👑) de Top 1. Se for o líder em Pós-pago, ganha a medalha (🥇) de Destaque Pós.
 - **Sua Escala:** Você tem permissão de leitura na Escala de Trabalho, podendo verificar seus horários, folgas programadas da semana ou exceções cadastradas pelo seu gerente.
 
