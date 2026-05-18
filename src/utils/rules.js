@@ -17,7 +17,7 @@ export const FATORES_CLARO_MULTI = {
  * Aplica os aceleradores e redutores por produto individualmente.
  * (Ex: Portabilidade, Fator Multi).
  */
-export const aplicarRegrasDeProduto = (sale, metricasLoja = {}) => {
+export const aplicarRegrasDeProduto = (sale, metricasVendedor = {}) => {
     let receitaBase = Number(sale.comissao !== undefined ? sale.comissao : sale.receita) || 0;
     let isMovel = false;
     let isResidencial = false;
@@ -51,17 +51,20 @@ export const aplicarRegrasDeProduto = (sale, metricasLoja = {}) => {
 
         // Fatores Claro Multi (Acelerador Múltiplo)
         if (combo.includes('MULTI')) {
-            const pctMulti = metricasLoja.pctAtingimentoMulti || 0;
-            let fatorMulti = FATORES_CLARO_MULTI.FAIXA_1; // Fator Base 1.2 (Abaixo de 100%)
+            const pctMplay = metricasVendedor.pctAtingimentoMplay || metricasVendedor.pctAtingimentoMPlay || 0;
+            const temMplay = String(sale.mplay || '').toUpperCase() === 'SIM';
+            if (temMplay) {
+                let fatorMulti = FATORES_CLARO_MULTI.FAIXA_1; // Fator Base 1.2 (Abaixo de 100%)
             
-            if (pctMulti >= 160.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_4; // Fator 1.8
-            else if (pctMulti >= 130.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_3; // Fator 1.6
-            else if (pctMulti >= 100.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_2; // Fator 1.4
+                if (pctMplay >= 160.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_4; // Fator 1.8
+                else if (pctMplay >= 130.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_3; // Fator 1.6
+                else if (pctMplay >= 100.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_2; // Fator 1.4
 
-            receitaBase *= fatorMulti;
-        } else {
-            // Vendas Single (Fator fixo de 1.0 - Sem bônus Multi)
-            receitaBase *= 1.0;
+                receitaBase *= fatorMulti;
+            } else {
+                // Vendas Single (Fator fixo de 1.0 - Sem bônus Multi)
+                receitaBase *= 1.0;
+            }
         }
     }
 
@@ -74,14 +77,19 @@ export const aplicarRegrasDeProduto = (sale, metricasLoja = {}) => {
 
         // Fatores Claro Multi Residencial (Mesmos multiplicadores do Móvel de 1.2 a 1.8)
         if (combo.includes('MULTI')) {
-            const pctMulti = metricasLoja.pctAtingimentoMulti || 0;
-            let fatorMulti = FATORES_CLARO_MULTI.FAIXA_1; // Fator Base 1.2 (Abaixo de 100%)
+            const pctMplay = metricasVendedor.pctAtingimentoMplay || metricasVendedor.pctAtingimentoMPlay || 0;
+            const temMplay = String(sale.mplay || '').toUpperCase() === 'SIM';
+            if (temMplay) {
+                let fatorMulti = FATORES_CLARO_MULTI.FAIXA_1; // Fator Base 1.2 (Abaixo de 100%)
             
-            if (pctMulti >= 160.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_4; // Fator 1.8
-            else if (pctMulti >= 130.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_3; // Fator 1.6
-            else if (pctMulti >= 100.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_2; // Fator 1.4
+                if (pctMplay >= 160.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_4; // Fator 1.8
+                else if (pctMplay >= 130.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_3; // Fator 1.6
+                else if (pctMplay >= 100.00) fatorMulti = FATORES_CLARO_MULTI.FAIXA_2; // Fator 1.4
 
-            receitaBase *= fatorMulti;
+                receitaBase *= fatorMulti;
+            } else {
+                receitaBase *= 1.0;
+            }
         } else {
             // Vendas residenciais no modelo "single" possuem fator fixo de 1.0
             receitaBase *= 1.0;

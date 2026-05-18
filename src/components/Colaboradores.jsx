@@ -131,7 +131,7 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
 
         const generatedRows = [];
         const sumTotals = {
-            grossDia: 0, posTt: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, receita: 0
+            grossDia: 0, posPagoTotal: 0, controleTotal: 0, urTotal: 0, fibra: 0, tv: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, receita: 0
         };
 
         for (let d = 1; d <= daysInMonth; d++) {
@@ -190,14 +190,14 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
 
             const grossDia = posTt + controle + depPg + depBl + depGratis + migracaoPos + migracaoControle + grossPme + bl + flex;
             const urTotal = fibra + tv + tvBox + fixo + urPme;
-            const posPagoTotal = posTt + migracaoPos + depPg + depBl + depGratis;
+            const posPagoTotal = posTt + migracaoPos + depPg + depBl + depGratis + bl;
             const controleTotal = controle + migracaoControle;
 
             generatedRows.push({
                 data: dayStr, grossDia, posPagoTotal, controleTotal, urTotal, fibra: fibra + bl, tv: tv + tvBox, aparelho, acessorio, pelicula, seguro, receita
             });
 
-            sumTotals.grossDia += grossDia; sumTotals.posTt += posPagoTotal; sumTotals.controle += controleTotal;
+            sumTotals.grossDia += grossDia; sumTotals.posPagoTotal += posPagoTotal; sumTotals.controleTotal += controleTotal;
             sumTotals.urTotal += urTotal; sumTotals.fibra += (fibra + bl); sumTotals.tv += (tv + tvBox);
             sumTotals.aparelho += aparelho; sumTotals.acessorio += acessorio; sumTotals.pelicula += pelicula; sumTotals.seguro += seguro; sumTotals.receita += receita;
         }

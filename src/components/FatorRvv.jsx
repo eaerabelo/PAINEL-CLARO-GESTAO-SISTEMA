@@ -36,19 +36,22 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
         const sellerSales = monthSales.filter(s => s.vendedor === selectedSeller || s.vendedor === String(selectedSeller || '').split(' ')[0]);
 
         let sellerTotalReceita = 0;
+        let volMplay = 0;
         sellerSales.forEach(s => {
             sellerTotalReceita += Number(s.valorBruto || s.receita) || 0;
+            if (s.mplay === 'SIM') volMplay += 1;
         });
 
         const metaReceita = (Number(activeMetas.receita) || 0) / numSellers;
+        const metaMplay = Math.ceil((Number(activeMetas.mplay) || 0) / numSellers);
 
         // 3. Calcula o Fator Multiplicador baseado no atingimento INDIVIDUAL
-        const automaticMultiPct = metaReceita > 0 ? (sellerTotalReceita / metaReceita) * 100 : 0;
+        const pctAtingimentoMplay = metaMplay > 0 ? (volMplay / metaMplay) * 100 : (volMplay > 0 ? 100 : 0);
 
         let fatorMultiplicador = 1.2;
-        if (automaticMultiPct >= 160.00) fatorMultiplicador = 1.8;
-        else if (automaticMultiPct >= 130.00) fatorMultiplicador = 1.6;
-        else if (automaticMultiPct >= 100.00) fatorMultiplicador = 1.4;
+        if (pctAtingimentoMplay >= 160.00) fatorMultiplicador = 1.8;
+        else if (pctAtingimentoMplay >= 130.00) fatorMultiplicador = 1.6;
+        else if (pctAtingimentoMplay >= 100.00) fatorMultiplicador = 1.4;
 
         let totalReceita = 0;
         let totalComissao = 0;
@@ -61,6 +64,10 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
         let volPortabilidade = 0;
         let volMulti = 0;
         let volPme = 0;
+        let volAparelho = 0;
+        let comissaoAparelho = 0;
+        let volSeguro = 0;
+        let comissaoSeguro = 0;
 
         sellerSales.forEach(sale => {
             const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
@@ -71,6 +78,15 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
             if (port === 'SIM') volPortabilidade += q;
             if (combo.includes('MULTI')) volMulti += q;
             if (pBase.includes('PME')) volPme += q;
+
+            if (pBase.includes('APARELHO')) {
+                volAparelho += q;
+                comissaoAparelho += aplicarRegrasDeProduto(sale, { pctAtingimentoMplay });
+            }
+            if (pBase.includes('SEGURO')) {
+                volSeguro += q;
+                comissaoSeguro += aplicarRegrasDeProduto(sale, { pctAtingimentoMplay });
+            }
 
             if ((pBase.includes('POS') || pBase.includes('PÓS') || pBase.includes('CONTROLE') || pBase.includes('FLEX') || pBase.includes('DEPENDENTE') || pBase.includes('DEP') || pBase.includes('BANDA LARGA') || pBase === 'BL') && !pBase.includes('PME') && pBase !== 'PME') {
                 totalPos += q;
@@ -92,7 +108,7 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
 
             totalReceita += Number(sale.valorBruto || sale.receita) || 0;
             // MODIFICADO: Aplica portabilidade e acelerador Multi na matemática
-            totalComissao += aplicarRegrasDeProduto(sale, { pctAtingimentoMulti: automaticMultiPct });
+            totalComissao += aplicarRegrasDeProduto(sale, { pctAtingimentoMplay });
         });
 
         const metaPos = (Number(activeMetas.posTotal) || 0) / numSellers;
@@ -132,15 +148,21 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
             pctAtingimento,
             pctAtingimentoPos,
             pctAtingimentoUr,
+            pctAtingimentoMplay,
+            volMplay,
+            metaMplay,
             previaPagamento: resultRV.previaPagamento,
             fatorSimulado: resultRV.fatorAplicado,
             elegivel: resultRV.elegivel,
             bonusUnitario: resultRV.bonusUnitario,
-            automaticMultiPct,
             fatorMultiplicador,
             volPortabilidade,
             volMulti,
-            volPme
+            volPme,
+            volAparelho,
+            comissaoAparelho,
+            volSeguro,
+            comissaoSeguro
         };
     }, [salesData, selectedSeller, globalMonth, goalsDB, safeVendedores.length, isVendedor]);
 
@@ -277,19 +299,31 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
                                         {metrics.pctAtingimento < 100 && (
                                             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 p-3 rounded-xl">
                                                 <h4 className="text-[11px] font-bold text-blue-800 dark:text-blue-400 uppercase tracking-wider mb-1">Foco na Receita</h4>
-                                                <p className="text-[10px] text-blue-600 dark:text-blue-300 leading-relaxed">Você está quase lá! Foque em planos de maior valor, combos Claro Multi e oferte seguros e acessórios para alavancar sua receita.</p>
+                                                <p className="text-[10px] text-blue-600 dark:text-blue-300 leading-relaxed">
+                                                    {metrics.pctAtingimento >= 70 ? "Você está quase lá! Foque em planos de maior valor, combos Claro Multi e oferte seguros e acessórios para bater a meta de receita." : 
+                                                        metrics.pctAtingimento >= 50 ? "É necessário revisar as ofertas para aumentar o ticket médio. Foque na rentabilização oferecendo Upgrades e serviços adicionais." : 
+                                                            "Atenção: Resultado de receita muito abaixo do esperado. Mude sua estratégia de imediato e ofereça combos de alto valor em todo atendimento."}
+                                                </p>
                                             </div>
                                         )}
                                         {metrics.pctAtingimentoPos < 100 && (
                                             <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/30 p-3 rounded-xl">
                                                 <h4 className="text-[11px] font-bold text-purple-800 dark:text-purple-400 uppercase tracking-wider mb-1">Acelere o Gross (Móvel)</h4>
-                                                <p className="text-[10px] text-purple-600 dark:text-purple-300 leading-relaxed">Sempre ofereça a portabilidade para trazer o número do cliente e lembre de perguntar se mais alguém da família precisa de um plano novo. Cada linha faz a diferença!</p>
+                                                <p className="text-[10px] text-purple-600 dark:text-purple-300 leading-relaxed">
+                                                    {metrics.pctAtingimentoPos >= 70 ? "Falta pouco para a meta de móvel! Lembre-se de ofertar portabilidade e planos com dependentes para fechar essa lacuna." : 
+                                                        metrics.pctAtingimentoPos >= 50 ? "O volume de vendas móveis requer atenção. Aborde de forma mais consultiva e apresente os benefícios reais dos planos Pós e Controle." : 
+                                                            "Alerta: Baixíssima conversão no móvel. Rever urgentemente a abordagem de venda e focar na busca ativa por novos clientes."}
+                                                </p>
                                             </div>
                                         )}
                                         {metrics.pctAtingimentoUr < 100 && (
                                             <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-800/30 p-3 rounded-xl">
                                                 <h4 className="text-[11px] font-bold text-orange-800 dark:text-orange-400 uppercase tracking-wider mb-1">Venda mais Residencial</h4>
-                                                <p className="text-[10px] text-orange-600 dark:text-orange-300 leading-relaxed">Convergência é o segredo. Todo cliente móvel é um potencial cliente de Fibra ou Claro TV+. Explore a venda casada!</p>
+                                                <p className="text-[10px] text-orange-600 dark:text-orange-300 leading-relaxed">
+                                                    {metrics.pctAtingimentoUr >= 70 ? "Bom progresso no Residencial! Continue explorando a venda casada, todo cliente móvel é um potencial cliente de Fibra ou TV." : 
+                                                        metrics.pctAtingimentoUr >= 50 ? "Aumente a oferta de serviços residenciais. Investigue a necessidade de internet fixa e TV em todas as interações de rotina." : 
+                                                            "Crítico: O indicador residencial está comprometendo seus ganhos. Oferte Fibra e TV proativamente para reverter este cenário."}
+                                                </p>
                                             </div>
                                         )}
                                         {metrics.pctAtingimento >= 100 && metrics.pctAtingimentoPos >= 100 && metrics.pctAtingimentoUr >= 100 && (
@@ -314,13 +348,15 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
                                     <div className="space-y-4">
                                         <div>
                                             <div className="flex justify-between items-end mb-1">
-                                                <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400">Atingimento Claro Multi (Individual)</span>
-                                                <span className={`text-xs font-black ${metrics.automaticMultiPct >= 100 ? 'text-green-500' : 'text-[#E3000F]'}`}>{metrics.automaticMultiPct.toFixed(1)}%</span>
+                                                <span className="text-xs font-bold text-neutral-600 dark:text-neutral-400">Fator Aceleração M-Play ({metrics.volMplay}/{metrics.metaMplay})</span>
+                                                <span className={`text-xs font-black ${metrics.pctAtingimentoMplay >= 100 ? 'text-green-500' : 'text-blue-500'}`}>{metrics.pctAtingimentoMplay.toFixed(1)}%</span>
                                             </div>
                                             <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-1.5 overflow-hidden mb-2">
-                                                <div className={`h-full rounded-full transition-all duration-1000 ${metrics.automaticMultiPct >= 100 ? 'bg-green-500' : 'bg-[#E3000F]'}`} style={{ width: `${Math.min(metrics.automaticMultiPct, 100)}%` }}></div>
+                                                <div className={`h-full rounded-full transition-all duration-1000 ${metrics.pctAtingimentoMplay >= 100 ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(metrics.pctAtingimentoMplay, 100)}%` }}></div>
                                             </div>
-                                            <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-medium leading-tight">Fator Automático Aplicado: <strong className="text-neutral-700 dark:text-neutral-300">{metrics.fatorMultiplicador}x</strong> nas vendas Combo.</span>
+                                            <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-medium leading-tight mt-1 block">
+                                                Fator Automático Aplicado: <strong className="text-neutral-700 dark:text-neutral-300">{metrics.fatorMultiplicador}x</strong> nas vendas Combo com M-Play.
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -349,9 +385,21 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
                                         <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug mt-1">Linhas trazidas de outra operadora recebem bônus sobre o valor do plano.</p>
                                     </div>
                                     <div className="space-y-1">
-                                        <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produtos Multi (Acelerador)</span>
-                                        <div className="text-2xl font-black text-neutral-800 dark:text-neutral-100">{metrics.volMulti} <span className="text-xs font-bold text-neutral-400 dark:text-neutral-500">itens</span></div>
-                                        <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug mt-1">Vendas dentro do combo multiplicam a receita de 1.2x até 1.8x.</p>
+                                        <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Aparelhos & Seguros</span>
+                                        <div className="flex items-center gap-4">
+                                            <div>
+                                                <span className="text-2xl font-black text-neutral-800 dark:text-neutral-100">{metrics.volAparelho}</span>
+                                                <span className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase ml-1">Aparelhos</span>
+                                            </div>
+                                            <div className="w-px h-6 bg-neutral-200 dark:bg-neutral-700"></div>
+                                            <div>
+                                                <span className="text-2xl font-black text-neutral-800 dark:text-neutral-100">{metrics.volSeguro}</span>
+                                                <span className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase ml-1">Seguros</span>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-neutral-500 dark:text-neutral-400 leading-snug mt-1">
+                                            Representam <strong className="text-neutral-700 dark:text-neutral-300">{applyCurrencyMask(metrics.comissaoAparelho + metrics.comissaoSeguro)}</strong> ({metrics.totalComissao > 0 ? (((metrics.comissaoAparelho + metrics.comissaoSeguro) / metrics.totalComissao) * 100).toFixed(1) : 0}%) da sua receita de comissão. Fique atento à composição!
+                                        </p>
                                     </div>
                                     <div className="space-y-1">
                                         <span className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Vendas PME (100% Receita)</span>
