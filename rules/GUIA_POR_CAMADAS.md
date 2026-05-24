@@ -8,15 +8,18 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 
 ### Camada 1: Autenticação e Acesso
 - **Login Seguro:** O acesso é feito obrigatoriamente com a sua Matrícula (iniciada em 9 ou F) e sua senha pessoal.
+- **Tela de Login Personalizada:** O sistema se adapta ao seu dispositivo (PC ou Celular) carregando um papel de parede temático esticado (Claro Wallpaper), mudando o design de acordo com o tamanho da tela.
 - **Sessão Inteligente:** A plataforma mantém você logado enquanto trabalha, mas por segurança, sua sessão expira automaticamente se você ficar inativo por 30 minutos ou se trocar de navegador.
 - **Modo Noturno:** Para quem atua horas no salão de vendas, clique no atalho de Sol/Lua para ativar a versão Escura do sistema. O tema realiza uma transição suave para não agredir os olhos e melhora a legibilidade de todas as tabelas.
 - **Central de Notificações:** Fique de olho no sininho (🔔) no topo da tela. Ele avisará automaticamente sempre que a Gestão atualizar suas Metas ou quando houver lembretes operacionais importantes.
+- **Espaço de Tela Otimizado:** Precisa de mais espaço para ver as planilhas? Dê um "Duplo Clique" no título da tela (Ex: "Registro de Vendas Diárias") para esconder os filtros! Você também pode fechar a barra lateral clicando de novo na aba atual que você já está trabalhando, ou dando duplo clique no nome da aba lá em cima.
 
 ### Camada 2: Lançamento e Caixa (Vendas)
 - **Registro Rápido:** Você registra as vendas de todos os produtos: Aparelhos, Acessórios, Móvel e Fibra.
 - **Automação Financeira:** Ao colocar o valor bruto da venda, o sistema calcula sua comissão instantaneamente (15% para Acessórios/Películas e 5% para Aparelhos, subindo para 6% se você vincular um Seguro).
 - **Travas Anti-Erro:** Preços de combos tabelados são preenchidos e bloqueados automaticamente. Para facilitar o preenchimento, ao vender um "Aparelho" ou "Fibra", as caixas de "M-Play" e "Portabilidade" desaparecem, pulando direto para a Receita!
 - **Venda Múltipla (Combo):** Quando um cliente levar muitos serviços (ex: Celular + Internet + TV + Dependentes), alterne para a aba "Venda Múltipla (Combo)". Você adiciona os produtos em um "carrinho" e o painel distribui CPFs, Contratos e Descontos automaticamente antes de registrar tudo de uma vez.
+- **Resumo Inteligente:** O painel conta até as vendas do serviço M-Play na barra inferior e, ao buscar relatórios de venda, ela vai mostrar desde a primeira venda disponível na história até o dia de hoje.
 - **Seus Registros:** Você é dono das suas vendas. Seu nome é preenchido automaticamente (apenas o primeiro nome) e você pode consultar seus registros a qualquer momento pelo calendário.
 
 ### Camada 3: Atendimento e Negociação (Propostas)
@@ -32,6 +35,7 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 
 ### Camada 5: Rotina e Processos (Reprovados)
 - **Acompanhamento Logístico (UR):** A aba UR-Residencial exibirá exclusivamente as suas vendas residenciais de forma sigilosa, protegendo os seus contratos dos outros vendedores.
+- **Notificações de Campanhas:** O sistema rastreia e avisa na hora, com balões e alertas no sininho, sempre que a liderança lançar novas Campanhas Promocionais ou divulgar a lista de Ganhadores com troféus de destaque!
 - **Gestão de Inviabilidades:** Caso uma venda residencial caia por falta de crédito ou cabeamento, você a registra na aba de Reprovados.
 - **Busca Mágica (ViaCEP):** Basta digitar o CEP do cliente (no estado de SP) que o sistema puxa o endereço na hora, poupando o seu tempo.
 

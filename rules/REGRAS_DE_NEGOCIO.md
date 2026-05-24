@@ -22,11 +22,12 @@
 - **REGRA 8:** Ao abrir o modal de "Nova Venda" com um usuário VENDEDOR logado, o campo "Vendedor" deve ser preenchido automaticamente com seu PRIMEIRO NOME e travado para edição.
 - **REGRA 9:** Se a venda envolver produtos comissionados, o campo "Receita" muda sua lógica para ler o "Valor Bruto" da venda. A comissão é fracionada dinamicamente: 5% para Aparelhos Celulares (subindo para 6% se o adicional de "Seguro" estiver vinculado) e 15% para Acessórios e Películas. Serviços de Telecom (Pós, Controle, Fibra) computam 100% do valor para o Run Rate.
 - **REGRA 10:** A Receita (preço) é preenchida e bloqueada automaticamente se a combinação de Produto + Tipo de Combo + Especificação for encontrada na tabela de preços do sistema. Caso contrário, o campo fica livre para digitação.
-- **REGRA 11:** Vendas de produtos móveis (Pós, Controle, etc.) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração), além dos campos de "M-Play" e "Portabilidade". Para serviços residenciais, o campo de "M-Play" também é exibido para preenchimento. Para produtos físicos (Aparelhos, Acessórios), esses campos são ocultos da interface. A tabela de listagem exibe a coluna "Operação".
+- **REGRA 11:** Vendas de produtos móveis (Pós, Controle, etc.) exigem obrigatoriamente que o usuário informe o "Tipo de Operação" (Ativação ou Migração), além dos campos de "M-Play" e "Portabilidade". Para serviços residenciais, o "Tipo de Operação" não é exigido/oculto, mas o campo de "M-Play" também é exibido para preenchimento. Para produtos físicos (Aparelhos, Acessórios), esses campos são ocultos da interface. A tabela de listagem exibe a coluna "Operação".
 - **REGRA 11.1:** Na venda de um "APARELHO", caso o adicional "SEGURO" seja selecionado na caixa flutuante, o sistema desmembra a venda ao salvar, registrando automaticamente uma linha adicional e individual para o produto "SEGURO". A comissão de 6% sobre o aparelho original é preservada, e a palavra "Seguro" é ocultada da coluna de adicionais do aparelho na interface para melhor leitura visual.
 - **REGRA 11.2:** A tela de Vendas conta com um "Modo Combo" (Venda Múltipla). O vendedor pode adicionar vários serviços (ex: Pós + 3 Dependentes + Fibra + TV) em um carrinho de compras. O sistema exige a especificação do titular, compartilha o contrato residencial entre as linhas necessárias, e salva todos os produtos simultaneamente e de forma desmembrada na base de dados.
 - **REGRA 12:** A edição de uma venda já lançada (botão Lápis) ou a exclusão (botão Lixeira) só é permitida ao GESTOR, aos perfis de liderança/backoffice (SÊNIOR e equivalentes) ou ao VENDEDOR que foi o autor exato daquela venda. Se for outro vendedor, as ações ficam bloqueadas (Cadeado). No rodapé, o sistema consolida o sumário diário/mensal de vendas na tela e o somatório da Receita (baseado sempre na receita comissionada da venda, sem a coloração de destaque verde da meta para diferenciação).
 - **REGRA 13:** A tabela de visualização exibe as vendas pertencentes ao Mês Selecionado no seletor global do sistema. A barra de pesquisa possui uma inteligência abrangente para filtrar as vendas listadas por Vendedor, Produto, CPF/CNPJ, Adicionais (ex: Trocafy, Seguro), Portabilidade, M-Play e Tipo de Operação.
+- **REGRA 13.1:** O filtro de datas inicializa com a "Data de Início" vazia e a "Data Final" com o dia corrente, trazendo por padrão todas as vendas até hoje para o período selecionado. O rodapé da tabela também consolida o volume total de M-Play vendido.
 - **REGRA 13.1:** A importação e exportação em Excel são **exclusivos do perfil GESTOR** para proteção dos dados da loja. O sistema possui uma inteligência de mapeamento (Smart Mapper) que converte automaticamente formatações antigas e lê datas seriais.
 
 ## 3. MÓDULO UR-RESIDENCIAL (ACOMPANHAMENTO)
@@ -34,7 +35,8 @@
 - **REGRA 14:** O painel UR-Residencial é alimentado de forma passiva e automática. Toda venda cadastrada no módulo de "Vendas" que pertença à família de produtos residenciais (e possua contrato) é espelhada aqui. O formato de visualização segue estilo planilha (Excel), semelhante ao Controle de Simcards.
 - **REGRA 15:** O campo "Data de Instalação" é o único calendário em todo o sistema liberado para selecionar datas futuras.
 - **REGRA 16:** O campo "Status" possui 3 opções exclusivas e coloridas: PEND.DE INSTALAÇÃO (Amarelo), CONECTADO (Verde) ou CANCELADO (Vermelho). O campo "Agendamento" restringe-se a faixas (08:00 A 12:00, 12:00 A 15:00, 15:00 A 18:00). O campo "Ação" restringe-se a (REAGENDADO, RETENÇÃO EM FALTA, DESISTIU).
-- **REGRA 17:** O GESTOR GERAL é o único perfil autorizado a apagar um registro de venda ou a modificar os dados do "Contrato" e do "CPF/CNPJ" do cliente por esta tela. Perfis menores encontram esses campos bloqueados (Cursor Not Allowed) e não visualizam o botão de apagar.
+- **REGRA 17:** O GESTOR GERAL e SÊNIOR têm visão de todas as pendências e podem filtrar por qualquer consultor. Já o VENDEDOR ao acessar a aba, visualizará apenas as suas próprias vendas (o filtro fica travado em seu nome e protegido com um cadeado de sigilo). 
+- **REGRA 17.1:** O GESTOR GERAL é o único perfil autorizado a apagar um registro de venda ou a modificar os dados do "Contrato" e do "CPF/CNPJ" do cliente por esta tela. Perfis menores encontram esses campos bloqueados (Cursor Not Allowed) e não visualizam o botão de apagar.
 - **REGRA 18:** Os campos de "Produto" e "Vendedor" são travados com opções restritas. A aba conta com um filtro rápido por "Vendedor", formatação de CPF/CNPJ automática durante a edição e leitura de datas forçada no padrão brasileiro (DD/MM/AAAA).
 - **REGRA 19:** A aba carrega dinamicamente as vendas do dia 1 a 30/31 do mês vigente. Após a virada do mês, o sistema salva as informações que podem ser consultadas a qualquer momento através do botão/filtro de meses salvo na página.
 
@@ -66,12 +68,12 @@
 
 ## 7. BANCO DE DADOS E ARMAZENAMENTO
 
-- **REGRA 32:** O sistema utiliza o Firebase Firestore (Google) como Banco de Dados NoSQL em nuvem. A arquitetura é dividida em múltiplas coleções (`vendas_uniao_osasco`, `estoque_uniao_osasco`, `reprovados_uniao_osasco`) para garantir escalabilidade infinita e evitar o limite estrutural de 1 Megabyte.
-- **REGRA 33:** As ações de salvar, editar e excluir disparam a função de autossave para a nuvem. Há um sistema de "Smart Diff com Debounce" que aguarda 1,2 segundos de inatividade, compara as mudanças locais com a nuvem, e envia apenas as atualizações exatas em lotes (`writeBatch`) para economizar drasticamente as requisições de rede.
-- **REGRA 34:** A plataforma opera com Sincronização em Tempo Real (onSnapshot). Qualquer alteração feita por um vendedor na loja é propagada automaticamente e instantaneamente para a tela do Gestor e dos outros computadores conectados.
-- **REGRA 35:** A captura dos dados implementa um **Carregamento Sob Demanda**. Para otimizar a cota de leitura do banco e evitar custos ou interrupções, o sistema restringe o carregamento de "Vendas" e "Reprovados" exclusivamente aos registros do mês selecionado pelo seletor de Mês Global localizado no topo da interface.
+- **REGRA 32:** O sistema adota uma arquitetura Client-Server com **Backend Node.js** e Firebase Firestore. O Backend mantém os dados cacheados na memória RAM para zerar o custo de leitura e impedir sobrecargas (Quota Exceeded).
+- **REGRA 33:** As ações de salvar, editar e excluir disparam a função de autossave para a nuvem. Há um sistema de "Smart Diff com Debounce" que aguarda 1,5 segundos de inatividade, compara as mudanças locais com a nuvem, e envia as atualizações (`upserts` e `deletes`) via API REST para o Backend, que processa a gravação (`writeBatch`) no banco.
+- **REGRA 34:** A plataforma opera com Sincronização em Tempo Real usando **Socket.io**. Qualquer alteração gravada dispara eventos instantâneos (`vendas-atualizadas`) para todas as telas logadas na loja.
+- **REGRA 35:** A captura dos dados implementa um **Carregamento Sob Demanda**. O frontend consome os dados do Backend filtrando rigorosamente "Vendas" e "Reprovados" pela data de início e fim (`start` e `end`) do mês selecionado pelo seletor de Mês Global.
 - **REGRA 35.1:** A ordenação dos dados baixados do banco emprega uma "Inteligência Cronológica", ordenando os itens primariamente pela data física registrada pelo usuário, e utilizando a Ordem de Lançamento (ID) apenas como método de desempate, impedindo assim o embaralhamento da tabela com lançamentos retroativos.
-- **REGRA 35.2:** O sistema conta com uma Central de Notificações global (Sininho). Ele alerta os usuários logados quando a gestão atualiza o Espelho de Metas (com o aviso "Novas Metas Definidas!") e notifica os gestores automaticamente em horários de pico (10h, 12h, 14h, 16h, 18h, 20h) para envio da Parcial.
+- **REGRA 35.2:** O sistema conta com uma Central de Notificações global e rastreável. Dispara alertas ("Sininho" e Toasts) na tela para: Atualização de Metas, Horário de Parcial (Gestores), Novas Campanhas Lançadas e Ganhadores de Campanhas anunciados.
 
 ## 8. MÓDULO DE REPROVADOS (RESIDENCIAL)
 
@@ -96,7 +98,7 @@
   - **GROSS DIA:** Calcula todos os serviços móveis do dia (Pós, Controle, Dependentes, Flex, Banda Larga e PME).
   - **PÓS-PAGO / CONTROLE:** O totalizador de "Pós-Pago" diário engloba Pós, Migrações, Dependentes (pagos e gratuitos) e Banda Larga.
 - **REGRA 41.1:** A contagem de volumes físicos de Aparelhos, Acessórios e Películas nas tabelas de Resultados e Dashboards espelha exatamente a quantidade bruta lançada pelo vendedor (Aparelhos UN e Acessórios UN). O cálculo do Ticket Médio é realizado sobre essa quantidade real física (PHC), para evitar perda de dados e garantir acuracidade total do estoque da loja.
-- **REGRA 42:** No rodapé do módulo, duas linhas fixas ("TOTAL" e "META LOJA") consolidam os resultados totais do mês corrente. A visão completa pode ser exportada para um arquivo nativo `.xlsx` (Excel) para controle de diretoria.
+- **REGRA 42:** O campo Acessórios consolida automaticamente as vendas de Acessórios e Películas. No rodapé do módulo, duas linhas fixas ("TOTAL" e "META LOJA") consolidam os resultados totais do mês corrente.
 
 ## 10. MÓDULO DE PROPOSTAS (SIMULADOR)
 
@@ -107,6 +109,7 @@
 
 ## 11. INTERFACE E ACESSIBILIDADE
 - **REGRA 47:** O sistema possui suporte nativo ao Modo Noturno (Dark Mode) com transição de cores suave (500ms). A preferência do usuário é salva no `localStorage` do navegador e aplica um CSS adaptativo em todas as telas, preservando a visibilidade e o conforto visual.
+- **REGRA 47.1:** Ocultação de UI (Focus Mode): Um duplo clique duplo (Double-Click) nos títulos das seções recolhe filtros e campos de controle (Minimizar) expandindo a visão das tabelas. O menu lateral se recolhe automaticamente ao clicar duplamente no cabeçalho ou ao clicar repetidamente na aba ativa atual.
 
 ## 12. MÓDULO DE PARCIAL E FECHAMENTO
 
@@ -130,9 +133,9 @@
 
 - **REGRA 57:** O ícone de Wi-Fi, localizado no cabeçalho global, abre um modal de visualização contendo um QR Code pré-configurado. Qualquer usuário logado, independente da hierarquia, possui permissão para acionar este modal e exibi-lo ao cliente no salão de vendas.
 
-## 16. MÓDULO FATOR RV (CÁLCULO E PRÉVIA DE COMISSIONAMENTO)
+## 16. MÓDULO FATOR RV (SIMULADOR E PRÉVIA DE COMISSIONAMENTO)
 
-- **REGRA 58:** O módulo "Fator RV" processa matematicamente o comissionamento simulado do vendedor baseando-se nas cartilhas operacionais do IW (Etapas 1, 2 e 3).
+- **REGRA 58:** O módulo "Fator RV" atua como um SIMULADOR das regras oficiais do IW. Processa matematicamente a prévia baseando-se nas cartilhas operacionais (Etapas 1, 2 e 3). Um aviso destacado em vermelho avisa que o sistema do IW continua sendo o canal primário e definitivo.
 - **REGRA 59:** O Vendedor tem acesso bloqueado ao seletor de usuários na tela, visualizando exclusivamente o seu próprio fator de remuneração. O Gestor pode simular o fator de qualquer colaborador.
 - **REGRA 60 (ELEGIBILIDADE E TETO):** O recebimento de qualquer comissão está atrelado à elegibilidade primária: bater **80,00% simultaneamente em 3 indicadores** (Receita, Gross Total e Residencial). Se algum indicador ficar abaixo de 80%, o Fator é zerado. Há também o limitador monetário (Teto) de R$ 6.000,00 aplicável na comissão final.
 - **REGRA 61 (RECEITA E FAIXAS):** O multiplicador de ganho (Etapa 2) funciona por faixas de atingimento na meta de Receita: Abaixo de 80% (0%), de 80 a 99% (4,5%), 100 a 119% (7%), 120 a 149% (9%) e a partir de 150% (11%).

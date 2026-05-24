@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { calcularFatorRV, aplicarRegrasDeProduto } from './utils/rules.js';
+import { calcularFatorRV, aplicarRegrasDeProduto, calcularFatorRVSenior, calcularFatorRVGerente, calcularFatorRVGeek, calcularFatorRVAssistente, calcularFatorRVAdministrativo } from './utils/rules.js';
 import { db } from './firebase.js'; // <-- Importando o banco de dados seguro
 
 dotenv.config();
@@ -34,6 +34,16 @@ let cacheVendas = [];
 let cacheSimcards = [];
 let cacheReprovados = [];
 let cacheGeekDocs = [];
+let cacheCampanhas = [];
+let cacheConfig = {};
+
+// Promises para o Servidor não responder VAZIO enquanto o Firebase ainda está baixando os dados
+let resolveVendas; const vendasReady = new Promise(r => resolveVendas = r);
+let resolveSimcards; const simcardsReady = new Promise(r => resolveSimcards = r);
+let resolveReprovados; const reprovadosReady = new Promise(r => resolveReprovados = r);
+let resolveGeekDocs; const geekDocsReady = new Promise(r => resolveGeekDocs = r);
+let resolveCampanhas; const campanhasReady = new Promise(r => resolveCampanhas = r);
+let resolveConfig; const configReady = new Promise(r => resolveConfig = r);
 
 console.log("⏳ Iniciando o Cache em Memória do Banco de Dados...");
 
@@ -41,19 +51,37 @@ console.log("⏳ Iniciando o Cache em Memória do Banco de Dados...");
 db.collection('vendas_uniao_osasco').onSnapshot(snap => { 
     cacheVendas = snap.docs.map(doc => doc.data()); 
     console.log(`✅ Vendas cacheadas: ${cacheVendas.length}`);
+    resolveVendas();
     io.emit('vendas-atualizadas'); // Notifica os clientes que os dados de vendas foram atualizados no cache
 });
 db.collection('estoque_uniao_osasco').onSnapshot(snap => { 
     cacheSimcards = snap.docs.map(doc => doc.data());
+    resolveSimcards();
     io.emit('simcards-atualizados');
 });
 db.collection('reprovados_uniao_osasco').onSnapshot(snap => { 
     cacheReprovados = snap.docs.map(doc => doc.data());
+    resolveReprovados();
     io.emit('reprovados-atualizados');
 });
 db.collection('geek_docs_uniao_osasco').onSnapshot(snap => { 
     cacheGeekDocs = snap.docs.map(doc => doc.data());
+    resolveGeekDocs();
     io.emit('geek-docs-atualizados');
+});
+db.collection('campanhas_uniao_osasco').onSnapshot(snap => { 
+    cacheCampanhas = snap.docs.map(doc => doc.data());
+    resolveCampanhas();
+    io.emit('campanhas-atualizadas');
+});
+db.collection('lojas').doc('uniao_osasco_config').onSnapshot(snap => { 
+    if (snap.exists) {
+        cacheConfig = snap.data();
+    } else {
+        cacheConfig = {};
+    }
+    resolveConfig();
+    io.emit('config-atualizada');
 });
 
 // Rota Inicial de Teste (Health Check)
@@ -86,6 +114,9 @@ app.get('/api/test-db', async (req, res) => {
 // Rota para listar todas as vendas filtradas por data
 app.get('/api/vendas', async (req, res) => {
     try {
+        // Trava a rota até o Firebase terminar de colocar as vendas na Memória RAM
+        await vendasReady; 
+
         const { start, end } = req.query;
         
         // Puxa as vendas direto da MEMÓRIA RAM (Custo de Leitura Firebase = ZERO)
@@ -142,6 +173,7 @@ app.post('/api/vendas/sync', async (req, res) => {
 // Rota para listar estoque de simcards
 app.get('/api/simcards', async (req, res) => {
     try {
+        await simcardsReady;
         const simcards = cacheSimcards;
         res.json(simcards);
     } catch (error) {
@@ -182,6 +214,8 @@ app.post('/api/simcards/sync', async (req, res) => {
 // Rota para listar Reprovados
 app.get('/api/reprovados', async (req, res) => {
     try {
+        await reprovadosReady;
+
         const { start, end } = req.query;
         
         // Puxa as vendas direto da MEMÓRIA RAM
@@ -236,6 +270,7 @@ app.post('/api/reprovados/sync', async (req, res) => {
 // Rota para listar Geek Docs
 app.get('/api/geek-docs', async (req, res) => {
     try {
+        await geekDocsReady;
         const docs = cacheGeekDocs;
         res.json(docs);
     } catch (error) {
@@ -269,6 +304,70 @@ app.post('/api/geek-docs/sync', async (req, res) => {
         res.json({ success: true, message: 'Geek Docs sincronizados com sucesso!' });
     } catch (error) {
         console.error("Erro ao sincronizar geek docs:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para listar Campanhas
+app.get('/api/campanhas', async (req, res) => {
+    try {
+        await campanhasReady;
+        const campanhas = cacheCampanhas;
+        res.json(campanhas);
+    } catch (error) {
+        console.error("Erro ao buscar campanhas:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota de Sincronização em Lote de Campanhas
+app.post('/api/campanhas/sync', async (req, res) => {
+    try {
+        const { upserts, deletes } = req.body;
+        const batch = db.batch();
+        
+        if (upserts && upserts.length > 0) {
+            upserts.forEach(item => {
+                const docRef = db.collection('campanhas_uniao_osasco').doc(String(item.id));
+                batch.set(docRef, item);
+            });
+        }
+        
+        if (deletes && deletes.length > 0) {
+            deletes.forEach(id => {
+                const docRef = db.collection('campanhas_uniao_osasco').doc(String(id));
+                batch.delete(docRef);
+            });
+        }
+        
+        await batch.commit();
+        // O onSnapshot do backend já vai detectar a mudança e emitir o 'campanhas-atualizadas' automaticamente.
+        res.json({ success: true, message: 'Campanhas sincronizadas com sucesso!' });
+    } catch (error) {
+        console.error("Erro ao sincronizar campanhas:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota para listar configurações globais (Usuários, Metas, Escalas)
+app.get('/api/config', async (req, res) => {
+    try {
+        await configReady;
+        res.json(cacheConfig);
+    } catch (error) {
+        console.error("Erro ao buscar configurações:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Rota de Sincronização em Lote de Configurações Globais
+app.post('/api/config/sync', async (req, res) => {
+    try {
+        const configData = req.body;
+        await db.collection('lojas').doc('uniao_osasco_config').set(configData);
+        res.json({ success: true, message: 'Configurações sincronizadas com sucesso!' });
+    } catch (error) {
+        console.error("Erro ao sincronizar configurações:", error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -307,8 +406,31 @@ app.post('/api/calcular-lote-receita', (req, res) => {
 
 app.post('/api/calcular-rv', (req, res) => {
     try {
-        const { pctAtingimento, totalComissao, metricasExtras } = req.body;
-        const resultado = calcularFatorRV(pctAtingimento, totalComissao, metricasExtras || {});
+        const { pctAtingimento, totalComissao, role, metricasExtras } = req.body;
+        let resultado;
+        
+        switch (role) {
+            case 'SENIOR':
+                resultado = calcularFatorRVSenior(pctAtingimento, totalComissao, metricasExtras || {});
+                break;
+            case 'GERENTE':
+                resultado = calcularFatorRVGerente(pctAtingimento, totalComissao, metricasExtras || {});
+                break;
+            case 'GEEK':
+                resultado = calcularFatorRVGeek(pctAtingimento, totalComissao, metricasExtras || {});
+                break;
+            case 'ASSISTENTE RELACIONAMENTO':
+                resultado = calcularFatorRVAssistente(pctAtingimento, totalComissao, metricasExtras || {});
+                break;
+            case 'ADMINISTRAÇÃO':
+                resultado = calcularFatorRVAdministrativo(pctAtingimento, totalComissao, metricasExtras || {});
+                break;
+            case 'VENDEDOR':
+            default:
+                resultado = calcularFatorRV(pctAtingimento, totalComissao, metricasExtras || {});
+                break;
+        }
+        
         res.json(resultado);
     } catch (error) {
         res.status(500).json({ error: error.message });

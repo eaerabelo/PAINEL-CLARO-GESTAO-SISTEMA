@@ -7,10 +7,12 @@ Este sistema foi desenvolvido como uma Single Page Application (SPA) para revolu
 
 ## 🚀 Tecnologias Utilizadas
 - **Linguagem:** JavaScript (ES6+) / JSX
+- **Backend:** Node.js (Express) com Cache de RAM + Socket.io (Tempo Real)
 - **Framework/Biblioteca:** React.js
 - **Bundler:** Vite (Extrema velocidade em HMR)
 - **Estilização:** Tailwind CSS (Utility-first framework)
 - **Ícones:** Lucide React
+- **Exportações:** XLSX (Excel) e Imagens via HTML2Canvas
 - **Persistência de Dados:** Firebase Firestore (Banco de Dados em Nuvem NoSQL em tempo real)
 
 ---
@@ -42,16 +44,16 @@ Gerenciamento duplo (Semanal Fixo x Calendário Dinâmico) de horários, exibind
 Gestão rigorosa de liberação de chips físicos e E-SIM, com amarração de autorização, dados de cliente, e regras rígidas contra exclusões não autorizadas (Modal de Cofre Master).
 - *Diferenciais:* Inclusão "Em Lote" simultânea para simplificar o recebimento de inventários. Foco automático na aba do Vendedor quando ele acessa a tela, removendo atritos.
 
-### 6. Fator RV (Remuneração Variável)
-Painel de projeção financeira (IW) do vendedor. Calcula a elegibilidade tríplice (80% em Receita, Gross e Residencial) e as comissões por faixas.
-- *Diferenciais:* Motor avançado (`rules.js`) que processa matematicamente regras como: Fatores Claro Multi (1.2x a 1.8x) atrelado diretamente à anexação do **M-Play**, Portabilidade (+30%), Upgrades e Bônus Acima da Meta (Etapa 3). Traz **Dicas de Foco** que se adaptam dinamicamente com mensagens encorajadoras ou de alerta, e isola a representatividade financeira real de Aparelhos e Seguros.
+### 7. Fator RV (Simulador de Remuneração Variável)
+Painel atuando como simulador das regras financeiras oficiais do IW para o vendedor. Calcula a elegibilidade tríplice (80% em Receita, Gross e Residencial) e as comissões por faixas.
+- *Diferenciais:* Motor avançado (`rules.js`) que processa matematicamente regras como: Fatores Claro Multi (1.2x a 1.8x) atrelado diretamente à anexação do **M-Play**, Portabilidade (+30%), Upgrades e Bônus Acima da Meta (Etapa 3). Traz **Dicas de Foco** dinâmicas, alertas visuais informando ser uma simulação, e isola a representatividade financeira real de Aparelhos e Seguros.
 
-### 7. UR-Residencial, Reprovados & Propostas
-- **Residencial:** Acompanhamento logístico refinado com filtro exclusivo por Vendedores, formatação nativa de datas (BR) e máscara de edição para documentos (CPF/CNPJ).
-- **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`) para preenchimento inteligente e automático de endereços no Estado de São Paulo.
+### 8. UR-Residencial, Reprovados & Propostas
+- **Residencial:** Acompanhamento logístico refinado com filtro exclusivo por Vendedores (Vendedores têm visão restrita apenas aos próprios contratos), formatação nativa de datas (BR) e máscara de edição para documentos (CPF/CNPJ).
+- **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`).
 - **Propostas:** Simulador de ofertas com cálculo de abatimento em combos (Single, Multi, Multi 3P). Integrado nativamente com botão de geração de orçamentos em formato **Imagem (PNG)** e atalho Flutuante de disparo pro **WhatsApp**.
 
-### 8. Scripts (Textos Padrões)
+### 9. Scripts (Textos Padrões)
 Módulo de produtividade contendo textos padronizados e pré-montados para facilitar o registro de observações e solicitações em sistemas da Claro.
 - *Diferenciais:* Assinatura dinâmica que preenche automaticamente o nome e cargo do usuário logado (ex: "MATHEUS RABELO / GERENTE"), botão de cópia rápida (1-click) para a área de transferência.
 
@@ -60,6 +62,7 @@ Módulo de produtividade contendo textos padronizados e pré-montados para facil
 ## 🛡️ Usabilidade e Concorrência (Multi-usuários)
 O sistema foi arquitetado para suportar múltiplos computadores operando simultaneamente no salão de vendas, garantindo uma experiência fluida e sem conflitos:
 - **Isolamento Visual (Local State):** A navegação entre abas, preenchimento de formulários e abertura de modais ocorrem na memória local. A tela de um usuário nunca sofre interferência ou troca inesperada pelas ações de outro.
+- **Collapse Dinâmico:** Seções recebem eventos de duplo clique (Double-Click) que recolhem filtros, proporcionando experiência Widescreen focada em dados.
 - **Notificações Globais:** Um "Sininho" de lembretes no topo da interface alerta os vendedores caso o Gestor altere as metas do mês atual, e notifica o gestor sobre os prazos fixos para envio da Parcial.
 - **Tolerância a Falhas (WSoD Proof):** Programação defensiva avançada com `Error Boundary` e checagens rígidas de tipo (Type-Safety), garantindo que bancos de dados mal preenchidos ou "sujos" não consigam derrubar o React.
 - **Sincronização Real-Time:** Apenas os dados confirmados (salvar, editar, excluir) são transmitidos via rede, atualizando as tabelas e o estoque da loja inteira em milissegundos sem a necessidade de recarregar a página (F5).
@@ -77,18 +80,25 @@ Todas as regras, lógicas de bloqueio, cálculos de receita e travas sistêmicas
 
 ## 💻 Como Rodar o Sistema Localmente
 
-Este projeto exige Node.js instalado no seu ambiente de desenvolvimento.
+O projeto agora requer a execução simultânea do Backend (Node.js) e do Frontend (React).
 
-1. Clone o repositório ou navegue até a pasta raiz `c:\PAINEL CLARO\painel-claro`.
-2. Instale as dependências:
+**1. Iniciar o Backend:**
+Navegue até a pasta do backend:
+```bash
+cd BACKEND
+npm install
+npm run dev
+```
+*O backend será inicializado, sincronizará com o Firebase e ouvirá na porta padrão.*
+
+**2. Iniciar o Frontend:**
+Abra um novo terminal e navegue para a pasta frontend:
    ```bash
+cd FRONTEND
    npm install
-   ```
-3. Inicie o servidor de desenvolvimento:
-   ```bash
    npm run dev
    ```
-4. O painel estará disponível e atualizará automaticamente na porta indicada (geralmente `http://localhost:5173/`).
+O painel estará disponível no seu navegador (geralmente `http://localhost:5173/`).
 
 ### Construir para Produção (Build)
 Para gerar os artefatos otimizados, execute:

@@ -6,6 +6,7 @@ Bem-vindo à documentação oficial para desenvolvedores do **Painel de Gestão 
 
 ## 1. Arquitetura Base (Tech Stack)
 *   **Core:** React.js (via Vite)
+*   **Backend:** Node.js, Express, Socket.io (WebSocket)
 *   **Estilização:** Tailwind CSS (Utility-First)
 *   **Acessibilidade Visual:** Configuração adaptativa do Tailwind `darkMode: 'class'` integrado ao `localStorage`, com transições globais de tema mapeadas em `duration-500` e paletas cromáticas exclusivas por Role.
 *   **Ícones:** `lucide-react`
@@ -13,24 +14,25 @@ Bem-vindo à documentação oficial para desenvolvedores do **Painel de Gestão 
 *   **Geração de Relatórios e Midia:** `xlsx` (Excel), `html2canvas` (Geração de propostas visuais por Imagem) e envio API-URI `WhatsApp`.
 *   **Banco de Dados:** Firebase Firestore (NoSQL, Client-Side).
 *   **Gamificação:** Rankings dinâmicos calculados em tempo real (`topReceitaName`, `topPosName`).
-*   **Notificações:** Estado persistente no `localStorage` vinculado a timestamps do Firebase para emissão de badges de notificação global.
+*   **Notificações:** Estado persistente no `localStorage` com responsividade mobile inteligente (`max-w-[calc(100vw-32px)]`) e detecção de recência. Emissão de badges e Toasts (Campanhas, Vencedores, Parciais, Metas).
 *   **Programação Defensiva:** Fallbacks (`|| ''`, `|| []`, `?.`) implementados ativamente em todas as funções nativas do JS (`.split`, `.includes`, `.toUpperCase`) protegendo a Árvore do React contra exceções nulas do Banco de Dados (WSoD - White Screen of Death), junto a um robusto `ErrorBoundary`.
 
 ---
 
 ## 2. Estrutura do Banco de Dados (Firestore)
-A aplicação utiliza uma arquitetura escalável de **Múltiplas Coleções Separadas (Collections)**, garantindo crescimento infinito sem esbarrar em limites de tamanho por documento.
+A aplicação agora utiliza uma arquitetura com **Backend em Node.js**, que atua como uma barreira de proteção e cache de memória RAM para o Firebase Firestore.
 
 *   **Coleções Principais:** `vendas_uniao_osasco`, `estoque_uniao_osasco`, `reprovados_uniao_osasco`
 *   **Documento de Configuração:** `lojas/uniao_osasco_config` (Para usuários, escalas e metas)
 
-**Fluxo de Sincronização (`App.jsx`):**
-1.  O sistema estabelece listeners ativos (`onSnapshot`) para cada coleção. Se outro cliente alterar uma venda, o listener atualiza o React State instantaneamente e ordena os dados.
-2.  A consulta usa queries filtradas por datas com base no seletor do usuário (`where('data', '>=', startStr)` e `where('data', '<=', endStr)`), garantindo que um **Carregamento Sob Demanda** poupe limites diários do plano gratuito. O retorno local é organizado através de uma Função de Ordenação Cronológica customizada.
-3.  Para evitar excesso de gravações (Writes), há um algoritmo de **Smart Diff com Batch Write e Debounce de 1.500ms**. A aplicação compara o estado local com a última referência da nuvem e envia (`writeBatch`) *apenas* os documentos exatos alterados.
+**Fluxo de Sincronização (`App.jsx` e `server.js`):**
+1.  O Backend carrega todas as coleções na memória RAM ao ser inicializado (`onSnapshot`), tornando as respostas aos clientes incrivelmente rápidas.
+2.  O Frontend consome os dados do Backend via **API REST** (`/api/...`) com parâmetros de filtragem de data (`start`, `end`), gerando zero custo adicional de leitura no Firestore. A ordenação cronológica garante os dados mais recentes no topo.
+3.  O Frontend estabelece uma conexão WebSocket (`Socket.io`). Quando uma alteração é salva por qualquer cliente, o servidor emite eventos (ex: `vendas-atualizadas`) e as telas recarregam passivamente a API.
+4.  O salvamento (Auto-Save) usa um **Smart Diff com Debounce de 1.500ms**, postando o *delta* de diferença (`upserts`, `deletes`) para o Backend, que escreve os dados agrupados (`writeBatch`) em definitivo no banco.
 
 ### ✅ Tech Debt Resolvido (Escalabilidade)
-O limite hard de **1 MiB por documento** do Firestore foi contornado. A divisão em subcoleções escaláveis suporta grande volume de registros, enquanto as leituras foram enxugadas para buscar dados fragmentados por ciclos de meses.
+O limite de Leituras gratuitas foi extinto graças ao uso do Cache do Node.js. Adicionalmente, O limite hard de **1 MiB por documento** do Firestore foi contornado.
 
 ---
 
@@ -50,15 +52,20 @@ A aba é visível no menu EXCLUSIVAMENTE para usuários com perfil de `GESTOR`, 
 
 Quando o botão de apagar usuário é ativado (validado internamente para `role === 'GESTOR'`), a exclusão mapeia tanto a string de `Nome Completo` quanto a string de `Primeiro Nome` para garantir que exceções não fiquem órfãs e aplica as mudanças no DB sem uso de merge para forçar a deleção na nuvem. A listagem agora adota um design visual cromático por "Badge" baseada no Nível de Acesso da pessoa.
 
+**Tela de Login (UX/UI):**
+Possui design com renderização condicional por tamanho de tela (`window.innerWidth < 768`) alterando a imagem de fundo nativamente entre Desktop e Mobile. Suporta saudações customizadas baseadas no dia (Feriados/Aniversários).
+
 ---
 
 ## 4. Componentes e Lógicas Específicas
 
 ### `Venda.jsx` (Lançamento)
 *   Trata as comissões através da função `calcularComissaoDinamica()`.
+*   A interface suporta UI Collapse: Os títulos das seções recebem eventos de duplo clique (`onDoubleClick`) que esconde as seções de menu (filtros), ampliando o espaço de trabalho. O menu lateral recolhe inteligentemente ao clicar de novo na aba já ativa.
 *   Acessórios e películas possuem `15%`, enquanto Aparelhos possuem `5%` ou `6%` (caso tenha o adicional "Seguro" anexado no array `adicionais`).
 *   **Modo Combo (Venda Múltipla):** A tela suporta alternância via estado `vendaMode`. Produtos são estocados temporariamente em `comboItems` e propriedades globais (CPF, Adicionais do Titular, Contrato) ficam em `comboGlobal`, permitindo o despacho (`unshift` e `push`) massivo de Múltiplos Serviços para a tabela.
 *   **Nova Funcionalidade:** Caso a `seguroOption` esteja selecionada em um APARELHO, a página desmembra o pacote salvando a Venda de Seguro como um registro individual e oculta a tag "Seguro" da coluna do aparelho para limpeza visual.
+*   Obrigatoriedade do campo "Tipo de Operação" (Ativação/Migração) agora é exlusiva da lógica `isMovel`, não sendo mais solicitada para produtos residenciais.
 *   **Barra de Pesquisa Global:** Pesquisa termos não apenas por CPF ou Vendedor, mas busca registros por propriedades de Combos, Serviços M-Play atrelados e Serviços Operacionais (Ativação vs Migração).
 *   Bloqueia a edição do campo "Receita" caso a matriz de produtos (`PRICING_MOVEL` no `constants.js`) possua um valor tabelado.
 *   Para otimizar o tempo (UX), campos como M-Play e Portabilidade ficam inativos (NÃO) se o produto selecionado não for Móvel.
@@ -68,15 +75,30 @@ Quando o botão de apagar usuário é ativado (validado internamente para `role 
 *   O `rules.js` é um arquivo puro de funções utilitárias projetado com o Padrão *Strategy*. O desacoplamento matemático tira a complexidade das telas do React.
 *   A função `aplicarRegrasDeProduto()` percorre o objeto da venda aplicando Aceleradores e Redutores da matriz da Claro. O Acelerador do Claro Multi foi refatorado para depender estritamente da meta de anexação do **M-Play**. Vendas no combo só recebem faixas de aceleração se o M-Play individual for escalonado e anexado (SIM) no ato da venda.
 *   A função `calcularFatorRV()` implementa as barreiras de Comissionamento (Tríplice Elegibilidade de 80%), Teto Máximo de R$ 6.000 e acoplamento do Bônus NPS (5%).
-*   O `FatorRvv.jsx` renderiza de forma Premium esses cruzamentos. Adiciona o isolamento financeiro de **Aparelhos & Seguros** (volume separado vs comissão agrupada), e revela **Dicas de Foco** gamificadas (mensagens de urgência <50%, revisão nos 50-69% e otimismo >=70%) atrelando os dados estritamente ao ID do Vendedor.
+*   O `FatorRvv.jsx` renderiza de forma Premium esses cruzamentos. Possui um alerta em destaque (Vermelho) reforçando tratar-se de um **Simulador** focado no espelhamento das regras. Adiciona o isolamento financeiro de **Aparelhos & Seguros** (volume separado vs comissão agrupada), e revela **Dicas de Foco** gamificadas atrelando os dados estritamente ao ID do Vendedor.
 
 ### `UrResidencial.jsx` (Auditoria Logística)
-*   A tabela incorpora a função utilitária `applyCpfCnpjMask` dinamicamente no `onChange` de edição. O layout de data usa fuso compensado (`T12:00:00`) para renderizar precisamente em padrão `pt-BR`. Contém um seletor unificado para filtrar o acompanhamento focado em um Vendedor específico.
+*   A tabela incorpora a função utilitária `applyCpfCnpjMask` dinamicamente no `onChange` de edição. O layout de data usa fuso compensado (`T12:00:00`) para renderizar precisamente em padrão `pt-BR`. Contém um seletor unificado para filtrar o acompanhamento focado em um Vendedor específico. Caso o usuário logado seja um `VENDEDOR`, o filtro de pesquisa é cravado no seu nome e travado com um cadeado, impedindo a visualização dos contratos da operação de outros vendedores.
 
 ### `Resultado.jsx` (DRE/Run Rate)
 *   O coração financeiro do sistema. Utiliza `useMemo` pesados para varrer a array completa de vendas e alocá-las nos devidos "baldes" (Migração, Pós Total, Dependentes) via varredura por `includes()` e RegExp de texto no Produto/TipoOperação.
-*   **Matemática de Volume:** As tabelas assumem a responsabilidade 1:1 física para volume de Aparelhos/Acessórios, enquanto o Ticket Médio continua utilizando a Receita Bruta integral/Quantidade Física (Cálculo PHC). Adicionada a coluna consolidada `CONTROLE` com `controleTotal` e alterado nomes vitais para `GROSS ACUM.`.
+*   **Matemática de Volume:** A coluna de "Acessórios" unifica perfeitamente as adições de Acessórios comuns e Películas. O Ticket Médio continua utilizando a Receita Bruta integral/Quantidade Física (Cálculo PHC).
 
+**1. Subindo o Backend (Node.js):**
+```bash
+cd BACKEND
+npm install
+npm run dev
+```
+*O servidor será iniciado na porta 3000.*
+
+**2. Subindo o Frontend (React):**
+Em um novo terminal, na pasta raiz do painel:
+```bash
+cd FRONTEND
+npm install
+npm run dev
+```
 ### `ParcialFechamento.jsx` (DRE Intraday)
 *   Restrito ao gerente. Transita por todas as vendas registradas com a data correspondente ao dia de hoje (em variadas formatações compatíveis) e alimenta dois quadros centrais.
 *   As equações embutidas não apenas contam serviços como também executam contas de KPIs (Key Performance Indicators) sob a forma de Ticket Médio, Conversão em Porcentagem, Anexação, etc.
