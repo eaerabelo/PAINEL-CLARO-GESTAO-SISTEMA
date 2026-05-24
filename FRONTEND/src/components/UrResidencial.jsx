@@ -10,6 +10,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
+    const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(false);
     
     const isVendedor = globalUser?.role === 'VENDEDOR';
     const loggedName = String(globalUser?.name || '').split(' ')[0];
@@ -173,52 +174,58 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                     <div className="w-10 h-10 rounded-xl bg-[#E3000F]/10 flex items-center justify-center text-[#E3000F]">
                         <Home size={22} />
                     </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100">Acompanhamento UR-Residencial</h2>
+                    <div 
+                        onDoubleClick={() => setIsOptionsCollapsed(!isOptionsCollapsed)}
+                        className="cursor-pointer select-none hover:text-[#E3000F] transition-colors"
+                        title="Duplo clique para expandir/recolher as opções"
+                    >
+                        <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 inherit">Acompanhamento UR-Residencial</h2>
                         <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Controle de instalações e acompanhamento de Vendas Residenciais</p>
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-3">
-                    <div className="relative w-full sm:w-auto">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
-                        <input
-                            type="text"
-                            placeholder="Buscar Contrato, CPF, Data..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full sm:w-56 pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
-                        />
+                {!isOptionsCollapsed && (
+                    <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-3">
+                        <div className="relative w-full sm:w-auto">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Buscar Contrato, CPF, Data..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full sm:w-56 pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
+                            />
+                        </div>
+                        <div className={`relative w-full sm:w-auto flex items-center bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 focus-within:border-[#E3000F] focus-within:ring-1 focus-within:ring-[#E3000F] transition-all ${isVendedor ? 'opacity-80' : ''}`}>
+                            {isVendedor ? <Lock className="text-[#E3000F] shrink-0" size={16} title="Acesso restrito aos seus próprios dados" /> : <Filter className="text-neutral-400 dark:text-neutral-500 shrink-0" size={16} />}
+                            <select
+                                value={sellerFilter}
+                                onChange={(e) => setSellerFilter(e.target.value)}
+                                disabled={isVendedor}
+                                className={`w-full sm:w-40 bg-transparent py-2 pl-2 pr-1 text-sm text-neutral-800 dark:text-neutral-100 outline-none ${isVendedor ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                                {!isVendedor && <option className="bg-white dark:bg-neutral-900" value="">Todos Vendedores</option>}
+                                {isVendedor 
+                                    ? <option className="bg-white dark:bg-neutral-900" value={loggedName}>{loggedName}</option>
+                                    : VENDEDORES_OPTIONS.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)
+                                }
+                            </select>
+                        </div>
+                        <div className="relative w-full sm:w-auto">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
+                            <input
+                                type="month"
+                                value={monthFilter}
+                                onChange={(e) => setMonthFilter(e.target.value)}
+                                className="w-full sm:w-44 pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F] transition-all cursor-pointer"
+                                title="Consultar Histórico do Mês"
+                            />
+                        </div>
+                        {isLideranca && (
+                            <button type="button" onClick={handleExportExcel} className="w-full sm:w-auto px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-xl hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center justify-center gap-2 whitespace-nowrap">Exportar Excel</button>
+                        )}
                     </div>
-                    <div className={`relative w-full sm:w-auto flex items-center bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 focus-within:border-[#E3000F] focus-within:ring-1 focus-within:ring-[#E3000F] transition-all ${isVendedor ? 'opacity-80' : ''}`}>
-                        {isVendedor ? <Lock className="text-[#E3000F] shrink-0" size={16} title="Acesso restrito aos seus próprios dados" /> : <Filter className="text-neutral-400 dark:text-neutral-500 shrink-0" size={16} />}
-                        <select
-                            value={sellerFilter}
-                            onChange={(e) => setSellerFilter(e.target.value)}
-                            disabled={isVendedor}
-                            className={`w-full sm:w-40 bg-transparent py-2 pl-2 pr-1 text-sm text-neutral-800 dark:text-neutral-100 outline-none ${isVendedor ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                        >
-                            {!isVendedor && <option className="bg-white dark:bg-neutral-900" value="">Todos Vendedores</option>}
-                            {isVendedor 
-                                ? <option className="bg-white dark:bg-neutral-900" value={loggedName}>{loggedName}</option>
-                                : VENDEDORES_OPTIONS.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)
-                            }
-                        </select>
-                    </div>
-                    <div className="relative w-full sm:w-auto">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
-                        <input
-                            type="month"
-                            value={monthFilter}
-                            onChange={(e) => setMonthFilter(e.target.value)}
-                            className="w-full sm:w-44 pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F] transition-all cursor-pointer"
-                            title="Consultar Histórico do Mês"
-                        />
-                    </div>
-                    {isLideranca && (
-                        <button type="button" onClick={handleExportExcel} className="w-full sm:w-auto px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-xl hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center justify-center gap-2 whitespace-nowrap">Exportar Excel</button>
-                    )}
-                </div>
+                )}
             </div>
 
             {/* TABELA ESTILO EXCEL */}

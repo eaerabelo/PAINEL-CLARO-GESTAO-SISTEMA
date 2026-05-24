@@ -6,7 +6,7 @@ import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy, Calculator, Megaphone
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy, Calculator, Megaphone, Trophy
 } from 'lucide-react';
 
 // Importação de biblioteca de Toasts para feedback visual de ações em tela
@@ -47,6 +47,7 @@ import { Scripts } from './components/Scripts.jsx';
 import { FatorRvv } from './components/FatorRvv.jsx';
 import { Campanha } from './components/Campanha.jsx';
 import qrWifiImg from './assets/qr-wifi.png';
+import claroLogo from './assets/LOGO_CLARO.png.webp';
 
 // URL base da API configurada via variável de ambiente (Vite) ou fallback para localhost
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -159,7 +160,7 @@ export default function App() {
           
           // Usa o Toast nativo para garantir que a notificação apareça sempre no topo, livre de problemas visuais
           toast.custom((t) => (
-            <div className={`${t.visible ? 'animate-fade-in' : 'opacity-0'} max-w-md w-full bg-white dark:bg-neutral-900 shadow-2xl rounded-xl border-l-4 border-[#E3000F] pointer-events-auto flex ring-1 ring-black/5 dark:ring-white/5 transition-all duration-300`}>
+            <div className={`${t.visible ? 'animate-fade-in' : 'opacity-0'} max-w-[calc(100vw-32px)] sm:max-w-md w-full mx-auto bg-white dark:bg-neutral-900 shadow-2xl rounded-xl border-l-4 border-[#E3000F] pointer-events-auto flex ring-1 ring-black/5 dark:ring-white/5 transition-all duration-300`}>
               <div className="flex-1 w-0 p-4">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center text-[#E3000F] shrink-0">
@@ -252,6 +253,52 @@ export default function App() {
       }
     }
   }, [goalsDB, currentYYYYMM, isFirebaseReady]);
+
+  // --- ALERTA DE CAMPANHAS (LANÇAMENTOS E VENCEDORES) ---
+  useEffect(() => {
+    if (!isFirebaseReady || !campanhasData) return;
+
+    const savedLastSeenStr = localStorage.getItem('last_seen_campanhas');
+    const savedLastSeen = savedLastSeenStr ? JSON.parse(savedLastSeenStr) : null;
+    const currentSeen = savedLastSeen || {};
+    let hasUpdates = false;
+
+    campanhasData.forEach(camp => {
+      const seen = currentSeen[camp.id];
+
+      // 1. Detectar Lançamento de Nova Campanha
+      if (!seen) {
+        // Se o cache local já existia OU se a campanha foi criada agora mesmo (nos últimos 10s), notifica!
+        const isRecent = camp.id > Date.now() - 10000;
+        
+        if (savedLastSeen !== null || isRecent) {
+          setNotifications(prev => {
+            const newNotif = { id: `camp-${camp.id}`, title: `Nova Campanha!`, desc: `A campanha "${camp.titulo}" foi lançada pela liderança. Confira as regras e participe!`, time: Date.now(), read: false, type: 'campanha' };
+            return [newNotif, ...(Array.isArray(prev) ? prev : []).filter(n => n.id !== newNotif.id)].slice(0, 20);
+          });
+          toast(`Nova Campanha Lançada: ${camp.titulo}`, { icon: '📣', duration: 5000 });
+        }
+        
+        currentSeen[camp.id] = { ganhadores: camp.ganhadores || '' };
+        hasUpdates = true;
+      } 
+      // 2. Detectar Adição/Alteração de Ganhadores
+      else if (camp.ganhadores && camp.ganhadores !== seen.ganhadores) {
+        setNotifications(prev => {
+          const newNotif = { id: `camp-win-${camp.id}-${Date.now()}`, title: `Temos Ganhadores! 🏆`, desc: `O resultado da campanha "${camp.titulo}" foi divulgado! Confira os vencedores.`, time: Date.now(), read: false, type: 'campanha_win' };
+          return [newNotif, ...(Array.isArray(prev) ? prev : []).filter(n => n.id !== newNotif.id)].slice(0, 20);
+        });
+        toast(`Ganhadores anunciados na campanha: ${camp.titulo}`, { icon: '🏆', duration: 6000 });
+        
+        currentSeen[camp.id].ganhadores = camp.ganhadores;
+        hasUpdates = true;
+      }
+    });
+
+    if (hasUpdates || savedLastSeen === null) {
+      localStorage.setItem('last_seen_campanhas', JSON.stringify(currentSeen));
+    }
+  }, [campanhasData, isFirebaseReady]);
 
   // --- ESTADOS DO DASHBOARD DE VENDAS ---
   // Seleção e visualização global de determinado colaborador
@@ -830,9 +877,9 @@ export default function App() {
       {/* Sidebar - Menu de Navegação Esquerdo */}
       <aside className={`${isSidebarOpen ? 'translate-x-0 w-64' : '-translate-x-full w-64 md:w-0 md:translate-x-0'} no-print overflow-hidden shrink-0 transition-all duration-500 ease-in-out bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col z-30 fixed md:relative top-0 left-0 h-full shadow-[4px_0_24px_rgba(0,0,0,0.02)] dark:shadow-none`}>
         <div className="h-16 flex items-center px-6 border-b border-neutral-100 dark:border-neutral-800 min-w-[16rem] shrink-0">
-          <div className="flex items-center gap-2 text-[#E3000F] font-bold text-xl tracking-tight">
-            <div className="w-6 h-6 rounded-full bg-[#E3000F] flex items-center justify-center text-white text-xs">C</div>
-            Painel Gestão
+          <div className="flex items-center text-[#E3000F] font-bold text-xl tracking-tight">
+            <img src={claroLogo} alt="Logo Claro" className="w-22 h-14 m-0 object-contain -mr-3" />
+            <span>Painel Gestão</span>
           </div>
         </div>
         <nav className="flex-1 overflow-y-auto py-4 min-w-[16rem] scrollbar-hide">
@@ -846,7 +893,18 @@ export default function App() {
 
               return (
                 <li key={section.name}>
-                  <button onClick={() => { setActiveTab(section.name); if (window.innerWidth < 768) setIsSidebarOpen(false); }} className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === section.name ? 'bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F]' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'}`}>
+                  <button 
+                    onClick={() => { 
+                      if (activeTab === section.name) {
+                        setIsSidebarOpen(false);
+                      } else {
+                        setActiveTab(section.name); 
+                      }
+                      if (window.innerWidth < 768) setIsSidebarOpen(false); 
+                    }} 
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === section.name ? 'bg-red-50 dark:bg-[#E3000F]/10 text-[#E3000F]' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100'}`}
+                    title={activeTab === section.name ? "Clique para recolher o menu lateral" : ""}
+                  >
                     <div className="flex items-center gap-3"><span className={`${activeTab === section.name ? 'text-[#E3000F]' : 'text-neutral-400'}`}>{section.icon}</span>{section.name}</div>
                     {activeTab === section.name && <ChevronRight size={14} />}
                   </button>
@@ -864,9 +922,15 @@ export default function App() {
         <header className="h-16 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-4 lg:px-8 shrink-0 no-print transition-colors duration-500">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-md text-neutral-500 dark:text-neutral-400 transition-colors"><Menu size={20} /></button>
-            <h1 className="text-lg font-medium text-neutral-800 dark:text-neutral-100 hidden sm:block">{activeTab}</h1>
+            <h1 
+              onDoubleClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+              className="text-lg font-medium text-neutral-800 dark:text-neutral-100 hidden sm:block cursor-pointer select-none hover:text-[#E3000F] transition-colors"
+              title="Duplo clique para expandir/recolher o menu lateral"
+            >
+              {activeTab}
+            </h1>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-2 sm:gap-5">
 
             {/* Botão de Desfazer Exclusão */}
             {undoStack.length > 0 && (
@@ -923,14 +987,14 @@ export default function App() {
               </button>
 
               {isNotificationsOpen && (
-                <div className="absolute top-12 right-0 md:-right-4 w-80 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-2xl rounded-2xl overflow-hidden z-50 animate-fade-in origin-top-right">
+                <div className="fixed top-16 left-2 right-2 sm:absolute sm:top-12 sm:left-auto sm:right-0 md:-right-4 sm:w-80 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 shadow-2xl rounded-2xl overflow-hidden z-50 animate-fade-in origin-top-right">
                   <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex items-center justify-between bg-neutral-50 dark:bg-neutral-800/50">
                     <h3 className="font-bold text-neutral-800 dark:text-neutral-100">Notificações</h3>
                     {notifications.length > 0 && (
                       <button onClick={() => setNotifications([])} className="text-[10px] font-bold text-neutral-500 hover:text-[#E3000F] uppercase tracking-wider">Limpar tudo</button>
                     )}
                   </div>
-                  <div className="max-h-[350px] overflow-y-auto scrollbar-thin">
+                  <div className="max-h-[60vh] sm:max-h-[350px] overflow-y-auto scrollbar-thin">
                     {(!Array.isArray(notifications) || notifications.length === 0) ? (
                       <div className="p-6 text-center text-neutral-500 dark:text-neutral-400">
                         <Bell size={32} className="mx-auto mb-2 opacity-20" />
@@ -941,12 +1005,19 @@ export default function App() {
                         {notifications.map(notif => (
                           <div key={notif.id} className={`p-4 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors ${!notif.read ? 'bg-red-50/30 dark:bg-[#E3000F]/5' : ''}`}>
                             <div className="flex gap-3">
-                              <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${notif.type === 'parcial' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-red-100 text-[#E3000F] dark:bg-red-900/30'}`}>
-                                {notif.type === 'parcial' ? <ClipboardCheck size={16} /> : <Target size={16} />}
+                              <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${notif.type === 'parcial' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 
+                                notif.type === 'campanha' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 
+                                  notif.type === 'campanha_win' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-500' : 
+                                    'bg-red-100 text-[#E3000F] dark:bg-red-900/30'
+                                }`}>
+                                {notif.type === 'parcial' ? <ClipboardCheck size={16} /> : 
+                                  notif.type === 'campanha' ? <Megaphone size={16} /> : 
+                                    notif.type === 'campanha_win' ? <Trophy size={16} /> : 
+                                      <Target size={16} />}
                               </div>
-                              <div>
-                                <h4 className={`text-sm mb-0.5 ${!notif.read ? 'font-bold text-neutral-900 dark:text-white' : 'font-medium text-neutral-700 dark:text-neutral-300'}`}>{notif.title}</h4>
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-snug">{notif.desc}</p>
+                              <div className="flex-1 min-w-0">
+                                <h4 className={`text-sm mb-0.5 leading-tight ${!notif.read ? 'font-bold text-neutral-900 dark:text-white' : 'font-medium text-neutral-700 dark:text-neutral-300'}`}>{notif.title}</h4>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 leading-relaxed break-words">{notif.desc}</p>
                                 <span className="text-[9px] font-bold text-neutral-400 uppercase tracking-widest mt-2 block">
                                   {new Date(notif.time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                 </span>
@@ -967,9 +1038,9 @@ export default function App() {
             </div>
 
             {/* Dropdown/Perfil do Usuário Global Logado */}
-            <div className="pl-4 border-l border-neutral-200 dark:border-neutral-800">
+            <div className="pl-2 sm:pl-4 border-l border-neutral-200 dark:border-neutral-800">
               {globalUser && (
-                <div className="flex items-center gap-3 group">
+                <div className="flex items-center gap-2 sm:gap-3 group">
                   <div className="text-right flex flex-col justify-center">
                     <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight hidden sm:block">{globalUser?.name || 'Usuário'}</div>
                     <div className="text-sm font-bold text-neutral-800 dark:text-neutral-100 leading-tight sm:hidden">{String(globalUser?.name || '').split(' ')[0] || 'Usuário'}</div>

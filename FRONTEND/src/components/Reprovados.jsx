@@ -14,6 +14,7 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
     const [searchTerm, setSearchTerm] = useState('');
     const [filterDate, setFilterDate] = useState('');
     const [formError, setFormError] = useState('');
+    const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(false);
     const [isFetchingCep, setIsFetchingCep] = useState(false);
 
     const RESIDENTIAL_PRODUCTS = [
@@ -186,27 +187,33 @@ export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGe
                         <div className="w-10 h-10 rounded-xl bg-red-50 dark:bg-[#E3000F]/10 flex items-center justify-center text-[#E3000F]">
                             <AlertOctagon size={22} />
                         </div>
-                        <div>
-                            <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100">Inviabilidade Residencial (Reprovados)</h2>
+                        <div 
+                            onDoubleClick={() => setIsOptionsCollapsed(!isOptionsCollapsed)}
+                            className="cursor-pointer select-none hover:text-[#E3000F] transition-colors"
+                            title="Duplo clique para expandir/recolher as opções"
+                        >
+                            <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 inherit">Inviabilidade Residencial (Reprovados)</h2>
                             <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Controle de vendas perdidas por problemas técnicos ou de crédito.</p>
                         </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center w-full lg:w-auto">
-                        <div className="relative w-full sm:w-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
-                            <input type="text" placeholder="Buscar Cliente, CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-56 pl-9 pr-4 py-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 rounded-xl text-sm outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all" />
-                        </div>
-                        <div className="flex w-full sm:w-auto gap-2">
-                            <div className="relative flex flex-1 items-center gap-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
-                                <Calendar size={16} className="text-neutral-500" />
-                                <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full" title="Filtrar por data" />
+                    {!isOptionsCollapsed && (
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center w-full lg:w-auto">
+                            <div className="relative w-full sm:w-auto">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
+                                <input type="text" placeholder="Buscar Cliente, CPF..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full sm:w-56 pl-9 pr-4 py-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 rounded-xl text-sm outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all" />
                             </div>
-                            {isGerente && (
-                                <button type="button" onClick={handleExportExcel} className="flex-1 sm:flex-none px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-xl hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center justify-center gap-2 whitespace-nowrap">Exportar Excel</button>
-                            )}
-                            <button onClick={openModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-2 whitespace-nowrap"><Plus size={16} /> Novo Registro</button>
+                            <div className="flex w-full sm:w-auto gap-2">
+                                <div className="relative flex flex-1 items-center gap-2 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-3 py-1.5 rounded-xl hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
+                                    <Calendar size={16} className="text-neutral-500" />
+                                    <input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full" title="Filtrar por data" />
+                                </div>
+                                {isGerente && (
+                                    <button type="button" onClick={handleExportExcel} className="flex-1 sm:flex-none px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-xl hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center justify-center gap-2 whitespace-nowrap">Exportar Excel</button>
+                                )}
+                                <button onClick={openModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-xl hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-2 whitespace-nowrap"><Plus size={16} /> Novo Registro</button>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
                 
                 <div className="flex-1 overflow-auto bg-neutral-50/50 dark:bg-neutral-950/50 p-4">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Megaphone, Plus, Edit3, Trash2, X, Calendar, Target, Award, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Megaphone, Plus, Edit3, Trash2, X, Calendar, Target, Award, CheckCircle2, AlertCircle, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
@@ -9,6 +9,7 @@ export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
         titulo: '',
         descricao: '',
         premio: '',
+        ganhadores: '',
         dataInicio: '',
         dataFim: '',
         status: 'ATIVA'
@@ -18,7 +19,7 @@ export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
 
     const handleOpenModal = () => {
         setEditingId(null);
-        setFormData({ titulo: '', descricao: '', premio: '', dataInicio: '', dataFim: '', status: 'ATIVA' });
+        setFormData({ titulo: '', descricao: '', premio: '', ganhadores: '', dataInicio: '', dataFim: '', status: 'ATIVA' });
         setIsModalOpen(true);
     };
 
@@ -99,7 +100,13 @@ export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
                                 </div>
 
                                 <h3 className="text-base font-black text-neutral-800 dark:text-neutral-100 leading-tight mb-2">{camp.titulo}</h3>
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-4 line-clamp-3">{camp.descricao}</p>
+                                <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-4 line-clamp-4">
+                                    <ul className="list-disc pl-3.5 space-y-0.5 marker:text-orange-400 dark:marker:text-orange-600">
+                                        {String(camp.descricao || '').split('\n').filter(line => line.trim() !== '').map((line, idx) => (
+                                            <li key={idx}>{line.replace(/^[-*•]\s*/, '')}</li>
+                                        ))}
+                                    </ul>
+                                </div>
 
                                 <div className="mt-auto space-y-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
                                     <div className="flex items-center gap-2 text-xs font-bold text-neutral-600 dark:text-neutral-300">
@@ -112,6 +119,15 @@ export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
                                             <div>
                                                 <span className="block text-[10px] font-bold text-orange-600 dark:text-orange-500 uppercase tracking-wider">Prêmio</span>
                                                 <span className="text-xs font-bold text-orange-800 dark:text-orange-400 leading-tight">{camp.premio}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                    {camp.ganhadores && (
+                                        <div className="flex items-start gap-2 bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/30 p-2.5 rounded-xl">
+                                            <Trophy size={16} className="text-yellow-600 dark:text-yellow-500 shrink-0 mt-0.5" />
+                                            <div>
+                                                <span className="block text-[10px] font-bold text-yellow-700 dark:text-yellow-500 uppercase tracking-wider">Ganhador(es)</span>
+                                                <span className="text-xs font-bold text-yellow-900 dark:text-yellow-400 leading-tight whitespace-pre-wrap">{camp.ganhadores}</span>
                                             </div>
                                         </div>
                                     )}
@@ -129,12 +145,13 @@ export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
                         <div className="p-6 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center"><h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2"><Target size={18} className="text-orange-500" /> {editingId ? 'Editar Campanha' : 'Lançar Nova Campanha'}</h2><button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-full transition-colors"><X size={18} /></button></div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Título da Campanha <span className="text-[#E3000F]">*</span></label><input type="text" value={formData.titulo} onChange={e => setFormData({ ...formData, titulo: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm" placeholder="Ex: Acelera Fibra" required /></div>
-                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Regras / Descrição</label><textarea value={formData.descricao} onChange={e => setFormData({ ...formData, descricao: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm min-h-[80px]" placeholder="Ex: Quem vender mais combos Multi no fim de semana ganha..." /></div>
+                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Regras / Descrição</label><textarea value={formData.descricao} onChange={e => setFormData({ ...formData, descricao: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm min-h-[80px] resize-y" placeholder="Ex:&#10;Vender 5 combos Multi.&#10;Bater meta de acessórios." /></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data Início <span className="text-[#E3000F]">*</span></label><input type="date" value={formData.dataInicio} onChange={e => setFormData({ ...formData, dataInicio: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm" required /></div>
                                 <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data Fim <span className="text-[#E3000F]">*</span></label><input type="date" value={formData.dataFim} onChange={e => setFormData({ ...formData, dataFim: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm" required /></div>
                             </div>
-                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Prêmio (Opcional)</label><input type="text" value={formData.premio} onChange={e => setFormData({ ...formData, premio: e.target.value })} className="w-full bg-orange-50/50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/50 text-orange-800 dark:text-orange-400 font-bold px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm" placeholder="Ex: Pix R$ 100,00" /></div>
+                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Prêmio (Opcional)</label><input type="text" value={formData.premio} onChange={e => setFormData({ ...formData, premio: e.target.value })} className="w-full bg-orange-50/50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/50 text-orange-800 dark:text-orange-400 font-bold px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm" placeholder="Ex: Reduzido,Folga..." /></div>
+                            <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Ganhador(es) (Opcional)</label><textarea value={formData.ganhadores || ''} onChange={e => setFormData({ ...formData, ganhadores: e.target.value })} className="w-full bg-yellow-50/50 dark:bg-yellow-900/10 border border-yellow-200 dark:border-yellow-800/50 text-yellow-800 dark:text-yellow-400 font-bold px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-yellow-500 outline-none text-sm min-h-[60px] resize-y" placeholder="Ex: João da Silva" /></div>
                             <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Status</label><select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 font-bold px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-orange-500 outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="ATIVA">ATIVA</option><option className="bg-white dark:bg-neutral-900" value="ENCERRADA">ENCERRADA</option></select></div>
                             <div className="pt-4 flex justify-end gap-3"><button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-sm">Cancelar</button><button type="submit" className="px-8 py-2.5 bg-orange-600 text-white font-bold rounded-xl hover:bg-orange-700 transition-colors shadow-lg shadow-orange-600/30 text-sm">{editingId ? 'Salvar Edição' : 'Lançar Campanha'}</button></div>
                         </form>

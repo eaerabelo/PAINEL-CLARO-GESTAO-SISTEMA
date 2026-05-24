@@ -23,6 +23,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
     const [selection, setSelection] = useState({ type: null, start: null, end: null });
     const [isDragging, setIsDragging] = useState(false);
     const [editingCell, setEditingCell] = useState(null);
+    const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(false);
     const selectionRef = useRef({ selection: null, data: null, currentTab: null, canModifySimcard });
 
     const dynamicTabs = ['GESTAO', ...safeVendedores, 'SOBREPOSIÇÃO'];
@@ -284,7 +285,11 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
         <>
             <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden flex flex-col h-full animate-fade-in transition-colors">
                 <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-wrap gap-3 justify-between items-center bg-white dark:bg-neutral-900 shrink-0">
-                    <h2 className="font-semibold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
+                    <h2 
+                        onDoubleClick={() => setIsOptionsCollapsed(!isOptionsCollapsed)}
+                        className="font-semibold text-neutral-800 dark:text-neutral-100 flex items-center gap-2 cursor-pointer select-none hover:text-[#E3000F] transition-colors"
+                        title="Duplo clique para expandir/recolher as opções"
+                    >
                         Controle de Estoque e SIM Cards
                         {canModifySimcard ? (
                             <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase ml-2"><Unlock size={12} /> Edição Liberada</span>
@@ -292,17 +297,19 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                             <span onClick={handleProtectedClick} className="bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase ml-2 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors" title="Desbloquear Edição"><Lock size={12} /> Acesso Restrito</span>
                         )}
                     </h2>
-                    <div className="flex gap-2">
-                        {!globalUser && (
-                            <button onClick={() => setAuthModal({ isOpen: true, pendingAction: null, pendingId: null })} className="px-3 py-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-medium rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors flex items-center gap-1"><Lock size={14} /> Autenticar</button>
-                        )}
-                        {canModifySimcard && (
-                            <>
-                                <button type="button" onClick={handleExportExcel} className="px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center gap-2">Exportar Excel</button>
-                                <button onClick={() => setIsBatchModalOpen(true)} className="px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center gap-2"><FileSpreadsheet size={16} /> + Lote</button>
-                            </>
-                        )}
-                    </div>
+                    {!isOptionsCollapsed && (
+                        <div className="flex gap-2">
+                            {!globalUser && (
+                                <button onClick={() => setAuthModal({ isOpen: true, pendingAction: null, pendingId: null })} className="px-3 py-2 bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-medium rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors flex items-center gap-1"><Lock size={14} /> Autenticar</button>
+                            )}
+                            {canModifySimcard && (
+                                <>
+                                    <button type="button" onClick={handleExportExcel} className="px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center gap-2">Exportar Excel</button>
+                                    <button onClick={() => setIsBatchModalOpen(true)} className="px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center gap-2"><FileSpreadsheet size={16} /> + Lote</button>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex overflow-x-auto bg-neutral-50 dark:bg-neutral-900/50 border-b border-neutral-200 dark:border-neutral-800 scrollbar-hide shrink-0">

@@ -15,10 +15,11 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         .filter(Boolean);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formError, setFormError] = useState('');
-    const [filterDate, setFilterDate] = useState(getTodaySP()); // Voltando para o filtro de HOJE por padrão
-    const [filterDateEnd, setFilterDateEnd] = useState('');
+    const [filterDate, setFilterDate] = useState(''); // Primeira data vazia por padrão
+    const [filterDateEnd, setFilterDateEnd] = useState(getTodaySP()); // Segunda data com hoje por padrão
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(false);
     const fileInputRef = useRef(null);
     
     // --- ESTADOS DO COMBO ---
@@ -114,7 +115,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         setVendaMode('INDIVIDUAL');
         setComboItems([]);
         setComboGlobal({ cpf: '', contrato: '', adicionais: [] });
-        setFormData({ vendedor: isVendedor && globalUser ? String(globalUser?.name || '').split(' ')[0] : '', data: filterDate || getTodaySP(), qtda: 1, portabilidade: '', operadoraOrigem: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '', seguroOption: '' });
+        setFormData({ vendedor: isVendedor && globalUser ? String(globalUser?.name || '').split(' ')[0] : '', data: filterDateEnd || getTodaySP(), qtda: 1, portabilidade: '', operadoraOrigem: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '', seguroOption: '' });
         setIsModalOpen(true);
     };
 
@@ -420,7 +421,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         return matchDate && matchSearch;
     });
 
-    const summaryCount = { pos: 0, ctrl: 0, apa: 0, ace: 0, fib: 0, tv: 0, seg: 0, receita: 0 };
+    const summaryCount = { pos: 0, ctrl: 0, apa: 0, ace: 0, fib: 0, tv: 0, seg: 0, mplay: 0, receita: 0 };
     filteredSales.forEach(sale => {
         const pBase = String(sale.produtoBase || sale.produto || '').toUpperCase();
         const q = Number(sale.qtda) || 1;
@@ -432,6 +433,8 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         else if (pBase.includes('FIBRA')) summaryCount.fib += q;
         else if (pBase.includes('TV')) summaryCount.tv += q;
         else if (pBase.includes('SEGURO')) summaryCount.seg += q;
+        
+        if (sale.mplay === 'SIM') summaryCount.mplay += 1;
 
         summaryCount.receita += Number(sale.receita) || 0;
     });
@@ -514,53 +517,61 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         <>
             <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-800 overflow-hidden flex flex-col h-full animate-fade-in transition-colors">
                 <div className="p-4 border-b border-neutral-100 dark:border-neutral-800 flex flex-col md:flex-row gap-3 justify-between items-start md:items-center bg-white dark:bg-neutral-900 shrink-0">
-                    <h2 className="font-semibold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">Registro de Vendas Diárias <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-xs px-2 py-0.5 rounded-full font-normal">{filteredSales.length} registros</span></h2>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center w-full md:w-auto">
-                        <div className="relative w-full sm:w-auto">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Buscar Vendedor, Produto, CPF/CNPJ, Operadora..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full sm:w-56 pl-9 pr-4 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 rounded-lg text-sm outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-3 py-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
-                            <Calendar size={16} className="text-neutral-500 shrink-0" />
-                            <div className="flex items-center gap-1 sm:gap-2 w-full">
+                    <h2 
+                        onDoubleClick={() => setIsOptionsCollapsed(!isOptionsCollapsed)}
+                        className="font-semibold text-neutral-800 dark:text-neutral-100 flex items-center gap-2 cursor-pointer select-none hover:text-[#E3000F] transition-colors"
+                        title="Duplo clique para expandir/recolher as opções"
+                    >
+                        Registro de Vendas Diárias <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-xs px-2 py-0.5 rounded-full font-normal">{filteredSales.length} registros</span>
+                    </h2>
+                    {!isOptionsCollapsed && (
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-2 items-center w-full md:w-auto animate-fade-in">
+                            <div className="relative w-full sm:w-auto">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
                                 <input
-                                    type="date"
-                                    value={filterDate}
-                                    onChange={(e) => setFilterDate(e.target.value)}
-                                    max={getTodaySP()}
-                                    className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
-                                    title="Data Inicial"
-                                />
-                                <span className="text-neutral-400 text-[10px] font-bold uppercase">Até</span>
-                                <input
-                                    type="date"
-                                    value={filterDateEnd}
-                                    onChange={(e) => setFilterDateEnd(e.target.value)}
-                                    max={getTodaySP()}
-                                    className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
-                                    title="Data Final (Opcional)"
+                                    type="text"
+                                    placeholder="Buscar Vendedor, Produto, CPF/CNPJ, Operadora..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full sm:w-56 pl-9 pr-4 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 rounded-lg text-sm outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
                                 />
                             </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 px-3 py-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer">
+                                <Calendar size={16} className="text-neutral-500 shrink-0" />
+                                <div className="flex items-center gap-1 sm:gap-2 w-full">
+                                    <input
+                                        type="date"
+                                        value={filterDate}
+                                        onChange={(e) => setFilterDate(e.target.value)}
+                                        max={getTodaySP()}
+                                        className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
+                                        title="Data Inicial"
+                                    />
+                                    <span className="text-neutral-400 text-[10px] font-bold uppercase">Até</span>
+                                    <input
+                                        type="date"
+                                        value={filterDateEnd}
+                                        onChange={(e) => setFilterDateEnd(e.target.value)}
+                                        max={getTodaySP()}
+                                        className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
+                                        title="Data Final (Opcional)"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                {/* Input Oculto e Botões de Importar/Exportar (Apenas Gerente) */}
+                                {globalUser?.role === 'GERENTE' && (
+                                    <>
+                                        <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
+                                        <button onClick={handleDownloadTemplate} className="flex-1 sm:flex-none px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors shadow-sm justify-center flex items-center whitespace-nowrap gap-1" title="Baixar Planilha Modelo"><FileDown size={16} /> Modelo</button>
+                                        <button onClick={handleImportExcelClick} className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors shadow-sm shadow-blue-700/30 justify-center flex items-center whitespace-nowrap gap-1"><Upload size={16} /> Importar</button>
+                                        <button onClick={handleExportExcel} className="flex-1 sm:flex-none px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 justify-center flex items-center whitespace-nowrap gap-1">Exportar</button>
+                                    </>
+                                )}
+                                <button onClick={openNovaVendaModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-1 whitespace-nowrap"><Plus size={16} /> Nova Venda</button>
+                            </div>
                         </div>
-                        <div className="flex gap-2 w-full sm:w-auto">
-                            {/* Input Oculto e Botões de Importar/Exportar (Apenas Gerente) */}
-                            {globalUser?.role === 'GERENTE' && (
-                                <>
-                                    <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
-                                    <button onClick={handleDownloadTemplate} className="flex-1 sm:flex-none px-4 py-2 bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-medium rounded-lg hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors shadow-sm justify-center flex items-center whitespace-nowrap gap-1" title="Baixar Planilha Modelo"><FileDown size={16} /> Modelo</button>
-                                    <button onClick={handleImportExcelClick} className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors shadow-sm shadow-blue-700/30 justify-center flex items-center whitespace-nowrap gap-1"><Upload size={16} /> Importar</button>
-                                    <button onClick={handleExportExcel} className="flex-1 sm:flex-none px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 justify-center flex items-center whitespace-nowrap gap-1">Exportar</button>
-                                </>
-                            )}
-                            <button onClick={openNovaVendaModal} className="flex-1 sm:flex-none px-4 py-2 bg-[#E3000F] text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors shadow-sm shadow-red-500/30 flex items-center justify-center gap-1 whitespace-nowrap"><Plus size={16} /> Nova Venda</button>
-                        </div>
-                    </div>
+                    )}
                 </div>
                 <div className="overflow-auto flex-1">
                     <table className="w-full text-sm text-left whitespace-nowrap">
@@ -615,6 +626,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                         {summaryCount.fib > 0 && <span>FIB: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.fib}</span></span>}
                         {summaryCount.tv > 0 && <span>TV: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.tv}</span></span>}
                         {summaryCount.seg > 0 && <span>SG: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.seg}</span></span>}
+                        {summaryCount.mplay > 0 && <span>MPLAY: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.mplay}</span></span>}
                         {summaryCount.receita > 0 && <span>RECEITA: <span className="text-neutral-800 dark:text-neutral-200">{applyCurrencyMask(summaryCount.receita)}</span></span>}
                     </div>
                 </div>

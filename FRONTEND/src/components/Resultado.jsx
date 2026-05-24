@@ -9,6 +9,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
     const monthFilter = globalMonth;
     const setMonthFilter = setGlobalMonth;
 
+    const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(false);
     const activeMetas = (goalsDB || {})[monthFilter] || METAS_PADRAO || {};
     const safeVendedores = Object.values(usersDB || {})
         .filter(u => !u?.role || u?.role === 'VENDEDOR')
@@ -24,7 +25,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
         const daysInMonth = new Date(year, month, 0).getDate();
         // Pós Total já representa o Gross da loja, não devemos somar com Controle senão a meta dobra.
         const metaGross = Number(activeMetas.posTotal) || 0; 
-
+        
         let remainingMeta = metaGross;
         let remainingDays = daysInMonth;
 
@@ -107,7 +108,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                 else if (pBase.includes('APARELHO')) { aparelho += q; receitaAparelho += rec; receitaAparelhoBruto += recBruto; }
                 else if (pBase.includes('SEGURO')) seguro += q;
                 else if (pBase.includes('ACESSÓRIO') || pBase.includes('ACESSORIO')) { acessorio += q; receitaAcessorio += rec; receitaAcessorioBruto += recBruto; }
-                else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { pelicula += q; receitaAcessorio += rec; receitaAcessorioBruto += recBruto; }
+                else if (pBase.includes('PELÍCULA') || pBase.includes('PELICULA')) { acessorio += q; receitaAcessorio += rec; receitaAcessorioBruto += recBruto; }
 
                 if (adds.includes('TROCAFY')) trocafy += 1;
                 if (adds.includes('CLARO UP')) claroUp += 1;
@@ -140,7 +141,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
             sumTotals.portabilidade += portabilidade; sumTotals.bl += bl; sumTotals.flex += flex; sumTotals.receita += receita;
             sumTotals.fibra += fibra; sumTotals.tv += tv; sumTotals.tvBox += tvBox; sumTotals.fixo += fixo; sumTotals.mplay += mplay; sumTotals.mesh += mesh;
             sumTotals.urPme += urPme; sumTotals.totalRes += totalRes; sumTotals.receitaAparelho += receitaAparelho; sumTotals.receitaAparelhoBruto += receitaAparelhoBruto; sumTotals.aparelho += aparelho;
-            sumTotals.seguro += seguro; sumTotals.trocafy += trocafy; sumTotals.claroUp += claroUp; sumTotals.receitaAcessorio += receitaAcessorio; sumTotals.receitaAcessorioBruto += receitaAcessorioBruto;
+            sumTotals.seguro += seguro; sumTotals.acessorio += acessorio; sumTotals.pelicula += pelicula; sumTotals.trocafy += trocafy; sumTotals.claroUp += claroUp; sumTotals.receitaAcessorio += receitaAcessorio; sumTotals.receitaAcessorioBruto += receitaAcessorioBruto;
         }
 
         sumTotals.total = accumulatedGross;
@@ -181,7 +182,7 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
         totalRes: Number(activeMetas.urTotal) || 0,
         aparelho: Number(activeMetas.aparelho) || 0,
         seguro: Number(activeMetas.seguro) || 0,
-        acessorio: Number(activeMetas.acessorio) || 0,
+        acessorio: (Number(activeMetas.acessorio) || 0) + (Number(activeMetas.pelicula) || 0),
         trocafy: Number(activeMetas.trocafy) || 0,
         mplay: Number(activeMetas.mplay) || 0,
         mesh: Number(activeMetas.mesh) || 0,
@@ -225,25 +226,31 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                     <div className="w-10 h-10 rounded-xl bg-[#E3000F]/10 flex items-center justify-center text-[#E3000F]">
                         <BarChart3 size={22} />
                     </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100">Resultado Consolidado</h2>
+                    <div 
+                        onDoubleClick={() => setIsOptionsCollapsed(!isOptionsCollapsed)}
+                        className="cursor-pointer select-none hover:text-[#E3000F] transition-colors"
+                        title="Duplo clique para expandir/recolher as opções"
+                    >
+                        <h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 inherit">Resultado Consolidado</h2>
                         <p className="text-xs text-neutral-500 dark:text-neutral-400 font-medium flex items-center gap-1"><TrendingUp size={12} /> Acompanhamento Mensal e Run Rate (Somente Leitura)</p>
                     </div>
                 </div>
-                <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-2">
-                    <div className="flex items-center gap-3 bg-white dark:bg-neutral-800 p-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm w-full sm:w-auto justify-between sm:justify-start">
-                        <Calendar size={16} className="text-neutral-400 ml-2" />
-                        <input 
-                            type="month" 
-                            value={monthFilter} 
-                            onChange={(e) => setMonthFilter(e.target.value)}
-                            className="bg-transparent text-sm font-bold text-neutral-700 dark:text-neutral-100 outline-none pr-2 cursor-pointer focus:text-[#E3000F] w-full sm:w-auto text-right sm:text-left"
-                        />
+                {!isOptionsCollapsed && (
+                    <div className="flex flex-col sm:flex-row w-full lg:w-auto gap-2">
+                        <div className="flex items-center gap-3 bg-white dark:bg-neutral-800 p-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm w-full sm:w-auto justify-between sm:justify-start">
+                            <Calendar size={16} className="text-neutral-400 ml-2" />
+                            <input 
+                                type="month" 
+                                value={monthFilter} 
+                                onChange={(e) => setMonthFilter(e.target.value)}
+                                className="bg-transparent text-sm font-bold text-neutral-700 dark:text-neutral-100 outline-none pr-2 cursor-pointer focus:text-[#E3000F] w-full sm:w-auto text-right sm:text-left"
+                            />
+                        </div>
+                        <button onClick={handleExportExcel} className="w-full sm:w-auto px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 justify-center flex">
+                            Exportar Excel
+                        </button>
                     </div>
-                    <button onClick={handleExportExcel} className="w-full sm:w-auto px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-lg hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 justify-center flex">
-                        Exportar Excel
-                    </button>
-                </div>
+                )}
             </div>
 
             {/* TABELA ESTILO EXCEL */}
