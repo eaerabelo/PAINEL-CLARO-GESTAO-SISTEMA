@@ -6,15 +6,14 @@ import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy, Calculator
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy, Calculator, Megaphone
 } from 'lucide-react';
 
 // Importação de biblioteca de Toasts para feedback visual de ações em tela
 import toast, { Toaster } from 'react-hot-toast';
 
-// Importações do Firebase para comunicação em tempo real e em lote (Batch) com o banco de dados
-import { doc, onSnapshot, setDoc, collection, writeBatch, query, where } from 'firebase/firestore';
-import { db } from './firebase.js'; // Conexão com o Firebase configurada
+// O Frontend agora é 100% blindado e alimentado pelo Backend via API.
+// O acesso direto ao Firebase foi completamente removido do React!
 
 // Importação do Socket.io para comunicação em Tempo Real com o Node.js
 import { io } from 'socket.io-client';
@@ -46,6 +45,7 @@ import { ParcialFechamento } from './components/ParcialFechamento.jsx';
 import { Geek } from './components/Geek.jsx';
 import { Scripts } from './components/Scripts.jsx';
 import { FatorRvv } from './components/FatorRvv.jsx';
+import { Campanha } from './components/Campanha.jsx';
 import qrWifiImg from './assets/qr-wifi.png';
 
 // URL base da API configurada via variável de ambiente (Vite) ou fallback para localhost
@@ -215,6 +215,7 @@ export default function App() {
   const [salesData, setSalesData] = useState([]);
   const [reprovadosData, setReprovadosData] = useState([]);
   const [geekDocs, setGeekDocs] = useState([]);
+  const [campanhasData, setCampanhasData] = useState([]);
   const [usersDB, setUsersDB] = useState({});
   const [scheduleData, setScheduleData] = useState({});
   const [monthlyOverrides, setMonthlyOverrides] = useState({});
@@ -273,6 +274,7 @@ export default function App() {
     simcards: [],
     reprovados: [],
     geekDocs: [],
+    campanhas: [],
     config: ''
   });
 
@@ -291,6 +293,7 @@ export default function App() {
       if (lastAction.type === 'simcardsData') setSimcardsData(lastAction.state);
       if (lastAction.type === 'reprovadosData') setReprovadosData(lastAction.state);
       if (lastAction.type === 'geekDocs') setGeekDocs(lastAction.state);
+      if (lastAction.type === 'campanhasData') setCampanhasData(lastAction.state);
       toast.success('Ação desfeita com sucesso! Registro recuperado.');
     }
     
@@ -373,37 +376,49 @@ export default function App() {
     });
   };
 
+  const handleSetCampanhasData = (action) => {
+    setCampanhasData(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
+        setUndoStack(s => [...s, { type: 'campanhasData', state: prev }]);
+      }
+      return next;
+    });
+  };
+
   // 1. CARREGAMENTO REAL-TIME SEPARADO (ON-SNAPSHOT NAS COLEÇÕES)
   // Estabelece a conexão com o Firebase do Google
   useEffect(() => {
-    const unsubs = [];
+    // 🚀 PASSO 0: CONFIGURAÇÕES GLOBAIS BUSCADAS VIA API REST (Cofre, Senhas, Metas, Escala)
+    const fetchConfigAPI = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/config`);
+        const d = await response.json();
+        
+        // 🛡️ SISTEMA DE RECUPERAÇÃO E PROTEÇÃO
+        // Se o banco foi apagado acidentalmente, restauramos do arquivo local de segurança
+        const recoveredUsers = (d && d.usersDB && Object.keys(d.usersDB).length > 0) ? d.usersDB : safeAppUsers;
+        const recoveredGoals = (d && d.goalsDB && Object.keys(d.goalsDB).length > 0) ? d.goalsDB : { [currentYYYYMM]: { ...safeMetasPadrao } };
 
-    // CONFIGS GERAIS (Usuários, Metas, Escalas - Permanece como Documento Único pois é leve)
-    unsubs.push(onSnapshot(doc(db, 'lojas', 'uniao_osasco_config'), (docSnap) => {
-      if (docSnap.exists()) {
-        const d = docSnap.data();
-        if (d.usersDB) setUsersDB(d.usersDB);
-        if (d.goalsDB) setGoalsDB(d.goalsDB);
-        if (d.scheduleData) setScheduleData(d.scheduleData);
-        if (d.monthlyOverrides) setMonthlyOverrides(d.monthlyOverrides);
+        setUsersDB(recoveredUsers);
+        setGoalsDB(recoveredGoals);
+        if (d && d.scheduleData) setScheduleData(d.scheduleData);
+        if (d && d.monthlyOverrides) setMonthlyOverrides(d.monthlyOverrides);
 
         cloudRefs.current.config = JSON.stringify({
-          usersDB: d.usersDB || {},
-          goalsDB: d.goalsDB || {},
-          scheduleData: d.scheduleData || {},
-          monthlyOverrides: d.monthlyOverrides || {}
+          usersDB: recoveredUsers,
+          goalsDB: recoveredGoals,
+          scheduleData: d?.scheduleData || {},
+          monthlyOverrides: d?.monthlyOverrides || {}
         });
-      } else {
-        setGoalsDB({ [currentYYYYMM]: { ...safeMetasPadrao } });
-      }
-      // Libera a tela principal assim que as configurações essenciais (usuários, metas) forem carregadas
-      if (!isFirebaseReady) {
+
+        if (!isFirebaseReady) setIsFirebaseReady(true);
+      } catch (error) {
+        console.error("Erro Configs API:", error);
         setIsFirebaseReady(true);
       }
-    }, (error) => {
-      console.error("Erro Configs:", error);
-      setIsFirebaseReady(true); // Libera a tela mesmo em caso de erro para não travar o login
-    }));
+    };
+    fetchConfigAPI();
 
     const startStr = `${globalMonth}-01`;
     const endStr = `${globalMonth}-31T23:59:59`; // Garante a captura até o último segundo do dia 31
@@ -412,6 +427,10 @@ export default function App() {
     const socket = io(API_URL);
     socket.on('connect', () => {
       console.log('🟢 Conectado ao Servidor em Tempo Real!');
+    });
+
+    socket.on('config-atualizada', () => {
+      fetchConfigAPI();
     });
 
     // Função de ordenação cronológica inteligente para evitar "embaralhar"
@@ -499,8 +518,25 @@ export default function App() {
       fetchGeekDocsAPI();
     });
 
+    // 🚀 PASSO 5: CAMPANHAS BUSCADAS VIA API REST
+    const fetchCampanhasAPI = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/campanhas`);
+        const data = await response.json();
+        data.sort((a, b) => b.id - a.id);
+        setCampanhasData(data);
+        cloudRefs.current.campanhas = data;
+      } catch (error) {
+        console.error("Erro ao conectar com a API de Campanhas:", error);
+      }
+    };
+    fetchCampanhasAPI();
+
+    socket.on('campanhas-atualizadas', () => {
+      fetchCampanhasAPI();
+    });
+
     return () => {
-      unsubs.forEach(unsub => unsub());
       socket.disconnect(); // Desconecta ao mudar de mês para evitar túneis duplicados
     };
   }, [globalMonth]);
@@ -510,26 +546,12 @@ export default function App() {
     if (!isFirebaseReady) return;
     const timeoutId = setTimeout(async () => {
       try {
-        let batches = [writeBatch(db)];
-        let currentBatch = 0;
-        let opsCount = 0; 
         let hasChanges = false;
-
-        const getBatch = () => {
-          if (opsCount >= 490) {
-            batches.push(writeBatch(db));
-            currentBatch++;
-            opsCount = 0;
-          }
-          hasChanges = true;
-          opsCount++;
-          return batches[currentBatch];
-        };
 
         const safeStr = (obj) => JSON.stringify(obj || {});
 
         // Função inteligente de comparação (Diff)
-        const syncCollection = async (localArray, cloudArray, collectionName) => {
+        const syncCollectionAPI = async (localArray, cloudArray, syncEndpoint) => {
           const localMap = new Map((localArray || []).map(item => [String(item.id), item]));
           const cloudMap = new Map((cloudArray || []).map(item => [String(item.id), item]));
 
@@ -540,114 +562,68 @@ export default function App() {
           localMap.forEach((item, id) => {
             const cloudItem = cloudMap.get(id);
             if (!cloudItem || safeStr(item) !== safeStr(cloudItem)) {
-              const usesAPI = ['vendas_uniao_osasco', 'estoque_uniao_osasco', 'reprovados_uniao_osasco', 'geek_docs_uniao_osasco'].includes(collectionName);
-              if (usesAPI) {
-                apiUpserts.push(item);
-              } else {
-                getBatch().set(doc(db, collectionName, id), item);
-              }
+              apiUpserts.push(item);
             }
           });
 
           // 2. Identificar Exclusões (Botão de Excluir da Tabela)
           cloudMap.forEach((item, id) => {
             if (!localMap.has(id)) {
-              const usesAPI = ['vendas_uniao_osasco', 'estoque_uniao_osasco', 'reprovados_uniao_osasco', 'geek_docs_uniao_osasco'].includes(collectionName);
-              if (usesAPI) {
-                apiDeletes.push(id);
-              } else {
-                getBatch().delete(doc(db, collectionName, id));
-              }
+              apiDeletes.push(id);
             }
           });
 
-          // 3. Se for a coleção de Vendas, despacha para a nossa API no Backend
-          if (collectionName === 'vendas_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
+          // 3. Despacha para a nossa API no Backend
+          if (apiUpserts.length > 0 || apiDeletes.length > 0) {
             try {
-              await fetch(`${API_URL}/api/vendas/sync`, {
+              await fetch(`${API_URL}${syncEndpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
               });
               hasChanges = true;
             } catch (error) {
-              console.error("Erro na Sincronização via API Backend:", error);
-            }
-          }
-
-          // 4. Se for a coleção de Estoque, despacha para a API
-          if (collectionName === 'estoque_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
-            try {
-              await fetch(`${API_URL}/api/simcards/sync`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
-              });
-              hasChanges = true;
-            } catch (error) {
-              console.error("Erro na Sincronização via API Backend:", error);
-            }
-          }
-
-          // 5. Se for a coleção de Reprovados, despacha para a API
-          if (collectionName === 'reprovados_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
-            try {
-              await fetch(`${API_URL}/api/reprovados/sync`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
-              });
-              hasChanges = true;
-            } catch (error) {
-              console.error("Erro na Sincronização via API Backend:", error);
-            }
-          }
-
-          // 6. Se for a coleção de Geek Docs, despacha para a API
-          if (collectionName === 'geek_docs_uniao_osasco' && (apiUpserts.length > 0 || apiDeletes.length > 0)) {
-            try {
-              await fetch(`${API_URL}/api/geek-docs/sync`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ upserts: apiUpserts, deletes: apiDeletes })
-              });
-              hasChanges = true;
-            } catch (error) {
-              console.error("Erro na Sincronização via API Backend:", error);
+              console.error(`Erro na Sincronização API (${syncEndpoint}):`, error);
             }
           }
         };
 
-        await syncCollection(salesData, cloudRefs.current.sales, 'vendas_uniao_osasco');
-        await syncCollection(simcardsData, cloudRefs.current.simcards, 'estoque_uniao_osasco');
-        await syncCollection(reprovadosData, cloudRefs.current.reprovados, 'reprovados_uniao_osasco');
-        await syncCollection(geekDocs, cloudRefs.current.geekDocs, 'geek_docs_uniao_osasco');
+        await syncCollectionAPI(salesData, cloudRefs.current.sales, '/api/vendas/sync');
+        await syncCollectionAPI(simcardsData, cloudRefs.current.simcards, '/api/simcards/sync');
+        await syncCollectionAPI(reprovadosData, cloudRefs.current.reprovados, '/api/reprovados/sync');
+        await syncCollectionAPI(geekDocs, cloudRefs.current.geekDocs, '/api/geek-docs/sync');
+        await syncCollectionAPI(campanhasData, cloudRefs.current.campanhas, '/api/campanhas/sync');
 
         // 3. Salva Configurações Globais apenas se houver mudança nos privilégios
         const currentConfigStr = safeStr({ usersDB, goalsDB, scheduleData, monthlyOverrides });
-        if (currentConfigStr !== cloudRefs.current.config) {
-          getBatch().set(doc(db, 'lojas', 'uniao_osasco_config'), {
-            usersDB, goalsDB, scheduleData, monthlyOverrides
-          }); // Removido { merge: true } para garantir que exclusões do painel reflitam no banco
-          cloudRefs.current.config = currentConfigStr;
+        // 🛡️ TRAVA DE SEGURANÇA: Só envia se já carregou da nuvem com sucesso (cloudRefs não está vazio)
+        if (cloudRefs.current.config !== '' && currentConfigStr !== cloudRefs.current.config) {
+          try {
+            await fetch(`${API_URL}/api/config/sync`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: currentConfigStr
+            });
+            cloudRefs.current.config = currentConfigStr;
+          } catch (error) {
+            console.error("Erro na Sincronização API (Configurações):", error);
+          }
         }
 
         // 4. Dispara todas as diferenças para a nuvem de uma vez só!
         if (hasChanges) {
-          for (const b of batches) {
-            await b.commit();
-          }
           cloudRefs.current.sales = [...salesData];
           cloudRefs.current.simcards = [...simcardsData];
           cloudRefs.current.reprovados = [...reprovadosData];
           cloudRefs.current.geekDocs = [...geekDocs];
+          cloudRefs.current.campanhas = [...campanhasData];
         }
       } catch (error) {
         console.error("Erro no Auto-Save (Smart Diff):", error);
       }
     }, 1500); 
     return () => clearTimeout(timeoutId);
-  }, [salesData, simcardsData, reprovadosData, geekDocs, goalsDB, scheduleData, monthlyOverrides, usersDB, isFirebaseReady]);
+  }, [salesData, simcardsData, reprovadosData, geekDocs, campanhasData, goalsDB, scheduleData, monthlyOverrides, usersDB, isFirebaseReady]);
 
   // 3. TIMER DE SESSÃO EXPIRADA POR INATIVIDADE (30 MINUTOS)
   // Monitoramento de inatividade global do usuário, fazendo Logout automático caso ocioso
@@ -729,6 +705,7 @@ export default function App() {
   // Abas Dinâmicas de acordo com o Menu Lateral
   const sidebarSections = [
     { name: 'ACESSOS', icon: <Key size={18} /> },
+    { name: 'CAMPANHAS', icon: <Megaphone size={18} /> },
     { name: 'COLABORADORES', icon: <Users size={18} /> },
     { name: 'CONTROLE-SIMCARD', icon: <Phone size={18} /> },
     { name: 'ESCALA DE TRABALHO', icon: <CalendarDays size={18} /> },
@@ -1043,6 +1020,8 @@ export default function App() {
             <Geek geekDocs={geekDocs} setGeekDocs={handleSetGeekDocs} isGerente={isGerente} globalUser={globalUser} />
           ) : activeTab === 'SCRIPTS' ? (
             <Scripts globalUser={globalUser} />
+          ) : activeTab === 'CAMPANHAS' ? (
+            <Campanha globalUser={globalUser} campanhasData={campanhasData} setCampanhasData={handleSetCampanhasData} />
           ) : activeTab === 'FATOR RV' ? (
             <FatorRvv globalUser={globalUser} salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} globalMonth={globalMonth} />
           ) : (
@@ -1055,7 +1034,7 @@ export default function App() {
 
         <footer className="w-full bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 py-3 shrink-0 no-print flex items-center justify-center transition-colors duration-500">
           <p className="text-[10px] sm:text-xs text-neutral-400 font-semibold tracking-widest uppercase text-center px-4 whitespace-nowrap">
-            <span className="hidden sm:inline">&copy; {new Date().getFullYear()} Todos os direitos reservados <span className="text-[#E3000F] mx-1">-</span> Desenvolvido por Matheus Rabelo <span className="text-[#E3000F] mx-1">-</span> Developer Front-End</span>
+            <span className="hidden sm:inline">&copy; {new Date().getFullYear()} Todos os direitos reservados <span className="text-[#E3000F] mx-1">-</span> Desenvolvido por Matheus Rabelo <span className="text-[#E3000F] mx-1">-</span> Developer FullStack</span>
             <span className="sm:hidden">&copy; {new Date().getFullYear()} Dev: Matheus Rabelo</span>
           </p>
         </footer>

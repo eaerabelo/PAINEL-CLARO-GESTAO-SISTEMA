@@ -26,11 +26,12 @@ Este documento detalha o fluxo de uso da plataforma, dividido em camadas operaci
 
 ### Camada 4: Acompanhamento Pessoal (Colaboradores e Escala)
 - **Placar em Tempo Real:** Na aba "Colaboradores", você clica na sua própria foto para abrir seu Dashboard e ver exatamente quanto você já vendeu versus a sua meta individual do mês.
-- **Projeção Fator RV:** A aba "Fator RV" calcula sua comissão com exatidão. O Acelerador Automático Claro Multi (1.2x a 1.8x) agora é ativado pelo atingimento da sua meta individual de **M-Play**! O painel exibe **"Dicas de Foco"** dinâmicas (avisos de alerta, formais ou de sucesso) baseadas no seu desempenho. Além disso, você tem a visão separada de quanto suas vendas de Aparelhos e Seguros representam na sua comissão.
+- **Projeção Fator RV:** A aba "Fator RV" atua como um simulador e calcula sua comissão com base nas diretrizes. O Acelerador Automático Claro Multi (1.2x a 1.8x) agora é ativado pelo atingimento da sua meta individual de **M-Play**! O painel exibe **"Dicas de Foco"** dinâmicas (avisos de alerta, formais ou de sucesso) baseadas no seu desempenho. Lembre-se: o painel atua como um simulador, o sistema IW oficial continua sendo seu canal primário e definitivo de comissionamento.
 - **Hall da Fama (Gamificação):** As caixinhas dos melhores vendedores ganham destaque! Se você tiver a maior receita da loja no mês, receberá a coroa (👑) de Top 1. Se for o líder em Pós-pago, ganha a medalha (🥇) de Destaque Pós.
 - **Sua Escala:** Você tem permissão de leitura na Escala de Trabalho, podendo verificar seus horários, folgas programadas da semana ou exceções cadastradas pelo seu gerente.
 
 ### Camada 5: Rotina e Processos (Reprovados)
+- **Acompanhamento Logístico (UR):** A aba UR-Residencial exibirá exclusivamente as suas vendas residenciais de forma sigilosa, protegendo os seus contratos dos outros vendedores.
 - **Gestão de Inviabilidades:** Caso uma venda residencial caia por falta de crédito ou cabeamento, você a registra na aba de Reprovados.
 - **Busca Mágica (ViaCEP):** Basta digitar o CEP do cliente (no estado de SP) que o sistema puxa o endereço na hora, poupando o seu tempo.
 

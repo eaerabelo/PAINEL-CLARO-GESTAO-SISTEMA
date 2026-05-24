@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Cpu, Plus, FileText, Trash2, ExternalLink, X, BookOpen, Layers, Tag, Archive, FolderPlus } from 'lucide-react';
+import { Cpu, Plus, FileText, Trash2, ExternalLink, X, BookOpen, Layers, Tag, Archive, FolderPlus, Edit3 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export function Geek({ geekDocs = [], setGeekDocs, isGerente, globalUser }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({ titulo: '', categoria: 'BOOK DE OFERTAS', link: '' });
     const [isNovaCategoria, setIsNovaCategoria] = useState(false);
     const [novaCategoriaNome, setNovaCategoriaNome] = useState('');
@@ -29,7 +30,16 @@ export function Geek({ geekDocs = [], setGeekDocs, isGerente, globalUser }) {
     const canEdit = ['GEEK', 'ADMINISTRAÇÃO', 'GERENTE'].includes(globalUser?.role);
 
     const handleOpenModal = () => {
+        setEditingId(null);
         setFormData({ titulo: '', categoria: 'BOOK DE OFERTAS', link: '' });
+        setIsNovaCategoria(false);
+        setNovaCategoriaNome('');
+        setIsModalOpen(true);
+    };
+
+    const handleEdit = (doc) => {
+        setEditingId(doc.id);
+        setFormData({ titulo: doc.titulo, categoria: doc.categoria, link: doc.link });
         setIsNovaCategoria(false);
         setNovaCategoriaNome('');
         setIsModalOpen(true);
@@ -49,17 +59,28 @@ export function Geek({ geekDocs = [], setGeekDocs, isGerente, globalUser }) {
             finalLink = 'https://' + finalLink;
         }
 
-        const newDoc = {
-            id: Date.now(),
-            titulo: formData.titulo,
-            categoria: finalCategoria,
-            link: finalLink,
-            data: new Date().toLocaleDateString('pt-BR')
-        };
+        if (editingId) {
+            setGeekDocs(prev => prev.map(doc => doc.id === editingId ? {
+                ...doc,
+                titulo: formData.titulo,
+                categoria: finalCategoria,
+                link: finalLink
+            } : doc));
+            toast.success('Documento atualizado com sucesso!');
+        } else {
+            const newDoc = {
+                id: Date.now(),
+                titulo: formData.titulo,
+                categoria: finalCategoria,
+                link: finalLink,
+                data: new Date().toLocaleDateString('pt-BR')
+            };
 
-        setGeekDocs(prev => [newDoc, ...prev]);
-        toast.success('Documento adicionado com sucesso!');
+            setGeekDocs(prev => [newDoc, ...prev]);
+            toast.success('Documento adicionado com sucesso!');
+        }
         setIsModalOpen(false);
+        setEditingId(null);
     };
 
     const handleDelete = (id) => {
@@ -106,7 +127,10 @@ export function Geek({ geekDocs = [], setGeekDocs, isGerente, globalUser }) {
                                         <div className="flex items-start justify-between gap-2 mb-3">
                                             <div className="w-10 h-10 rounded-full bg-white dark:bg-neutral-800 shadow-sm flex items-center justify-center text-indigo-500 shrink-0"><FileText size={18} /></div>
                                             {canEdit && (
-                                                <button onClick={() => handleDelete(doc.id)} className="opacity-0 group-hover:opacity-100 p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all" title="Excluir"><Trash2 size={16} /></button>
+                                                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all">
+                                                    <button onClick={() => handleEdit(doc)} className="p-1.5 text-neutral-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all" title="Editar"><Edit3 size={16} /></button>
+                                                    <button onClick={() => handleDelete(doc.id)} className="p-1.5 text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all" title="Excluir"><Trash2 size={16} /></button>
+                                                </div>
                                             )}
                                         </div>
                                         <h4 className="font-bold text-neutral-800 dark:text-neutral-100 text-sm mb-1 line-clamp-2 flex-1" title={doc.titulo}>{doc.titulo}</h4>
@@ -131,7 +155,7 @@ export function Geek({ geekDocs = [], setGeekDocs, isGerente, globalUser }) {
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center no-print">
                     <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl w-full max-w-md animate-fade-in flex flex-col transition-colors">
-                        <div className="p-6 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center"><h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2"><Cpu size={18} className="text-indigo-500" /> Adicionar Material</h2><button onClick={() => setIsModalOpen(false)} className="w-8 h-8 flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-full transition-colors"><X size={18} /></button></div>
+                        <div className="p-6 border-b border-neutral-100 dark:border-neutral-800 flex justify-between items-center"><h2 className="text-lg font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2"><Cpu size={18} className="text-indigo-500" /> {editingId ? 'Editar Material' : 'Adicionar Material'}</h2><button onClick={() => { setIsModalOpen(false); setEditingId(null); }} className="w-8 h-8 flex items-center justify-center bg-neutral-100 dark:bg-neutral-800 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-600 dark:text-neutral-400 rounded-full transition-colors"><X size={18} /></button></div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Título do Documento <span className="text-[#E3000F]">*</span></label><input type="text" value={formData.titulo} onChange={e => setFormData({ ...formData, titulo: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none text-sm" placeholder="Ex: Book de Aparelhos - Maio" required /></div>
                             <div className="space-y-1.5">
@@ -152,7 +176,7 @@ export function Geek({ geekDocs = [], setGeekDocs, isGerente, globalUser }) {
                                 <div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-wider">Nome da Nova Categoria <span className="text-[#E3000F]">*</span></label><input type="text" value={novaCategoriaNome} onChange={e => setNovaCategoriaNome(e.target.value)} className="w-full bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/50 text-indigo-800 dark:text-indigo-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none text-sm uppercase font-bold" placeholder="Ex: MANUAIS DE PROCEDIMENTO" required={isNovaCategoria} /></div>
                             )}
                             <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Link do PDF (Drive / Web) <span className="text-[#E3000F]">*</span></label><input type="text" value={formData.link} onChange={e => setFormData({ ...formData, link: e.target.value })} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none text-sm" placeholder="https://..." required /><p className="text-[10px] font-medium text-neutral-500 dark:text-neutral-400 mt-1">Dica: Faça o upload do PDF no Google Drive da loja, clique em "Compartilhar", copie o link e cole aqui!</p></div>
-                            <div className="pt-4 flex justify-end gap-3"><button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-sm">Cancelar</button><button type="submit" className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/30 text-sm">Salvar Documento</button></div>
+                            <div className="pt-4 flex justify-end gap-3"><button type="button" onClick={() => { setIsModalOpen(false); setEditingId(null); }} className="px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors text-sm">Cancelar</button><button type="submit" className="px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/30 text-sm">{editingId ? 'Salvar Edição' : 'Salvar Documento'}</button></div>
                         </form>
                     </div>
                 </div>

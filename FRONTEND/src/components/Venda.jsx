@@ -27,7 +27,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     const [comboGlobal, setComboGlobal] = useState({ cpf: '', contrato: '', adicionais: [] });
 
     const [formData, setFormData] = useState({
-        vendedor: '', data: getTodaySP(), qtda: 1, portabilidade: '',
+        vendedor: '', data: getTodaySP(), qtda: 1, portabilidade: '', operadoraOrigem: '',
         combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false,
         cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '', seguroOption: ''
     });
@@ -55,7 +55,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     const requiresContrato = (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(formData?.produto || '');
     const isMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => String(formData?.produto || '').toUpperCase().includes(term));
     const showMplay = isMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(formData?.produto || '');
-    const isServico = isMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].some(term => String(formData?.produto || '').toUpperCase().includes(term));
+    const isServico = isMovel;
 
     const calcularComissaoDinamica = (produto, adicionaisList, valorBruto, seguroOption) => {
         const valor = parseFloat(valorBruto || 0);
@@ -114,7 +114,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         setVendaMode('INDIVIDUAL');
         setComboItems([]);
         setComboGlobal({ cpf: '', contrato: '', adicionais: [] });
-        setFormData({ vendedor: isVendedor && globalUser ? String(globalUser?.name || '').split(' ')[0] : '', data: filterDate || getTodaySP(), qtda: 1, portabilidade: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '', seguroOption: '' });
+        setFormData({ vendedor: isVendedor && globalUser ? String(globalUser?.name || '').split(' ')[0] : '', data: filterDate || getTodaySP(), qtda: 1, portabilidade: '', operadoraOrigem: '', combo: 'SINGLE', produto: '', subOption: '', receita: '', isReceitaReadonly: false, cpf: '', contrato: '', mplay: '', adicionais: [], tipoOperacao: '', seguroOption: '' });
         setIsModalOpen(true);
     };
 
@@ -127,6 +127,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             data: (sale.data || '').includes('/') ? sale.data.split('/').reverse().join('-') : (sale.data || ''),
             qtda: sale.qtda || 1,
             portabilidade: sale.portabilidade || '',
+            operadoraOrigem: sale.operadoraOrigem || '',
             combo: sale.combo || 'SINGLE',
             produto: sale.produtoBase || (String(sale.produto || '').includes(' (') ? String(sale.produto || '').split(' (')[0] : sale.produto),
             subOption: sale.subOption || (String(sale.produto || '').includes('(') ? String(sale.produto || '').split('(')[1].replace(')', '') : ''),
@@ -160,10 +161,16 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                 if (name === 'produto') {
                     next.contrato = '';
                     if (value === 'FIBRA') next.subOption = '350 MEGA'; else if (value === 'TV-BOX') next.subOption = 'TV BOX'; else if (value === 'FIXO') next.subOption = 'FIXO MUNDO'; else if (value === 'MESH') next.subOption = 'MESH 2UN'; else if (value === 'SEGURO') next.subOption = 'SEGURO R$ 14,00'; else if (value === 'DEPENDENTE') next.subOption = 'GRATUITO'; else next.subOption = '';
-                    if (!isServico && !value.includes('POS') && !value.includes('CONTROLE')) next.tipoOperacao = '';
+                    const isNewMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => String(value || '').toUpperCase().includes(term));
+                    if (!isNewMovel) { next.tipoOperacao = ''; next.operadoraOrigem = ''; }
                 }
                 const price = calculatePrice(next.produto, next.combo, next.subOption);
                 if (price !== null && price !== undefined) { next.receita = applyCurrencyMask(price); next.isReceitaReadonly = true; } else { next.isReceitaReadonly = false; if (name === 'produto') next.receita = ''; }
+            }
+            if (name === 'tipoOperacao' || name === 'portabilidade') {
+                if (next.tipoOperacao !== 'ATIVAÇÃO' || next.portabilidade !== 'SIM') {
+                    next.operadoraOrigem = '';
+                }
             }
             return next;
         });
@@ -196,9 +203,11 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         const { vendedor, data, qtda, portabilidade, produto, receita, cpf, contrato, mplay, adicionais, tipoOperacao, subOption } = formData;
         
         const finalPortabilidade = isMovel ? portabilidade : 'NÃO';
+        const finalOperadoraOrigem = (isMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO') ? formData.operadoraOrigem : '';
         const finalMplay = showMplay ? mplay : 'NÃO';
 
         if (!vendedor || !data || !qtda || !produto || receita === '' || !cpf || (isMovel && !portabilidade) || (showMplay && !mplay)) { setFormError('Atenção: Você precisa preencher todas as informações obrigatórias para incluir a venda.'); return; }
+        if (isMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO' && !formData.operadoraOrigem) { setFormError('Atenção: Selecione a operadora de origem da portabilidade.'); return; }
         if (getSubOptions().length > 0 && !subOption) { setFormError('Atenção: Selecione a especificação (Plano/Velocidade) do produto.'); return; }
         if (isServico && !tipoOperacao) { setFormError('Atenção: Selecione o Tipo de Operação (Ativação, Upgrade, etc).'); return; }
         if (requiresContrato && !contrato) { setFormError(`O campo Contrato é obrigatório para a venda de ${produto}.`); return; }
@@ -230,6 +239,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             valorBruto: receitaFloat,
             contrato: requiresContrato ? contrato : '-',
             portabilidade: finalPortabilidade,
+            operadoraOrigem: finalOperadoraOrigem,
             mplay: finalMplay,
             ...(cidadeAuto && !editingId ? { cidade: cidadeAuto } : {})
         };
@@ -253,6 +263,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                     valorBruto: precoSeguro,
                     contrato: '-',
                     portabilidade: 'NÃO',
+                    operadoraOrigem: '',
                     mplay: 'NÃO',
                     adicionais: [],
                     qtda: 1,
@@ -278,24 +289,26 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         const itemShowMplay = isItemMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(produto || '');
 
         const finalPortabilidade = isItemMovel ? portabilidade : 'NÃO';
+        const finalOperadoraOrigem = (isItemMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO') ? formData.operadoraOrigem : '';
         const finalMplay = itemShowMplay ? mplay : 'NÃO';
 
         if (!vendedor || !data || !qtda || !produto || receita === '' || (isItemMovel && !portabilidade) || (itemShowMplay && !mplay)) { 
             setFormError('Preencha os campos obrigatórios do produto para adicioná-lo ao combo.'); 
             return; 
         }
+        if (isItemMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO' && !formData.operadoraOrigem) { setFormError('Selecione a operadora de origem da portabilidade.'); return; }
         if (getSubOptions().length > 0 && !subOption) { setFormError('Selecione a especificação do produto.'); return; }
-        if (itemShowMplay && !tipoOperacao) { setFormError('Selecione o Tipo de Operação.'); return; }
+        if (isItemMovel && !tipoOperacao) { setFormError('Selecione o Tipo de Operação.'); return; }
 
         setComboItems(prev => [...prev, {
-            vendedor, data, qtda, portabilidade: finalPortabilidade, combo: formData.combo,
+            vendedor, data, qtda, portabilidade: finalPortabilidade, operadoraOrigem: finalOperadoraOrigem, combo: formData.combo,
             produtoBase: produto, subOption, produto, receita, mplay: finalMplay, tipoOperacao, seguroOption: formData.seguroOption
         }]);
 
         // Limpa apenas os dados do produto para facilitar a inclusão do próximo
         setFormData(prev => ({
             ...prev, produto: '', subOption: '', receita: '', isReceitaReadonly: false,
-            portabilidade: '', mplay: '', tipoOperacao: '', seguroOption: '', qtda: 1
+            portabilidade: '', operadoraOrigem: '', mplay: '', tipoOperacao: '', seguroOption: '', qtda: 1
         }));
         setFormError('');
     };
@@ -342,7 +355,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             const cleanedAdicionais = (item.produtoBase || item.produto) === 'APARELHO' ? itemAdicionais.filter(a => a !== 'SEGURO') : itemAdicionais;
 
             novasVendas.push({
-                id: currentId++, vendedor: item.vendedor, data: item.data, qtda: item.qtda, portabilidade: item.portabilidade, combo: item.combo,
+                id: currentId++, vendedor: item.vendedor, data: item.data, qtda: item.qtda, portabilidade: item.portabilidade, operadoraOrigem: item.operadoraOrigem, combo: item.combo,
                 produtoBase: item.produtoBase || item.produto, subOption: item.subOption, produto: item.subOption ? `${item.produtoBase || item.produto} (${item.subOption})` : (item.produtoBase || item.produto),
                 receita: valorComissao, comissao: valorComissao, valorBruto: receitaFloat, cpf: comboGlobal.cpf, contrato: isItemResidential ? comboGlobal.contrato : '-',
                 mplay: item.mplay, adicionais: cleanedAdicionais, tipoOperacao: item.tipoOperacao, seguroOption: item.seguroOption || '',
@@ -352,7 +365,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             if ((item.produtoBase || item.produto) === 'APARELHO' && item.seguroOption) {
                 const precoSeguro = calculatePrice('SEGURO', 'SINGLE', item.seguroOption) || 0;
                 novasVendas.unshift({
-                    id: currentId++, vendedor: item.vendedor, data: item.data, qtda: 1, portabilidade: 'NÃO', combo: 'SINGLE', produtoBase: 'SEGURO',
+                    id: currentId++, vendedor: item.vendedor, data: item.data, qtda: 1, portabilidade: 'NÃO', operadoraOrigem: '', combo: 'SINGLE', produtoBase: 'SEGURO',
                     subOption: item.seguroOption, produto: `SEGURO (${item.seguroOption})`, receita: precoSeguro, comissao: precoSeguro, valorBruto: precoSeguro, cpf: comboGlobal.cpf,
                     contrato: '-', mplay: 'NÃO', adicionais: [], tipoOperacao: ''
                 });
@@ -388,16 +401,20 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         let matchSearch = true;
         if (searchTerm) {
             const term = String(searchTerm).toLowerCase();
+            const cleanTerm = term.replace(/\D/g, ''); // Apenas números para a busca de CPF/CNPJ e Contrato
             matchSearch = String(sale.vendedor || '').toLowerCase().includes(term) ||
                 String(sale.produto || '').toLowerCase().includes(term) ||
                 String(sale.portabilidade || '').toLowerCase().includes(term) ||
                 (sale.portabilidade === 'SIM' && 'portabilidade'.includes(term)) ||
+                String(sale.operadoraOrigem || '').toLowerCase().includes(term) ||
                 String(sale.mplay || '').toLowerCase().includes(term) ||
                 (sale.mplay === 'SIM' && ('mplay'.includes(term) || 'm-play'.includes(term))) ||
                 String(sale.combo || '').toLowerCase().includes(term) ||
                 String(sale.tipoOperacao || '').toLowerCase().includes(term) ||
                 String(sale.cpf || '').toLowerCase().includes(term) ||
+                (cleanTerm && String(sale.cpf || '').replace(/\D/g, '').includes(cleanTerm)) ||
                 String(sale.contrato || '').toLowerCase().includes(term) ||
+                (cleanTerm && String(sale.contrato || '').replace(/\D/g, '').includes(cleanTerm)) ||
                 (Array.isArray(sale.adicionais) && sale.adicionais.filter(ad => !(String(sale.produto || '').includes('APARELHO') && ad === 'SEGURO')).join(' ').toLowerCase().includes(term));
         }
         return matchDate && matchSearch;
@@ -432,6 +449,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             'Tipo': sale.combo,
             'Quantidade': sale.qtda,
             'Portabilidade': sale.portabilidade,
+            'Operadora Origem': sale.operadoraOrigem || '-',
             'Operação': sale.tipoOperacao || '-',
             'Receita (R$)': sale.receita,
             'CPF/CNPJ': sale.cpf,
@@ -456,6 +474,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
             'Tipo': 'SINGLE (Ou MULTI)',
             'Quantidade': 1,
             'Portabilidade': 'NÃO',
+            'Operadora Origem': '-',
             'Receita (R$)': 124.90,
             'CPF/CNPJ': '000.000.000-00',
             'Contrato': 'Opcional',
@@ -501,7 +520,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={16} />
                             <input
                                 type="text"
-                                placeholder="Buscar Vendedor, Produto, CPF, Adicionais..."
+                                placeholder="Buscar Vendedor, Produto, CPF/CNPJ, Operadora..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full sm:w-56 pl-9 pr-4 py-1.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 rounded-lg text-sm outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
@@ -556,7 +575,16 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                     <td className="px-6 py-3 text-neutral-700 dark:text-neutral-300 font-medium">{sale.produto}</td>
                                     <td className="px-6 py-3"><span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider">{sale.combo}</span></td>
                                     <td className="px-6 py-3 text-center"><span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300 px-2 py-1 rounded-md text-xs">{sale.qtda}</span></td>
-                                    <td className="px-6 py-3"><span className={`px-2 py-1 rounded-md text-xs font-medium ${sale.portabilidade === 'SIM' ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400'}`}>{sale.portabilidade}</span></td>
+                                    <td className="px-6 py-3">
+                                        {sale.portabilidade === 'SIM' ? (
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400">SIM</span>
+                                                {sale.operadoraOrigem && <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold leading-none">{sale.operadoraOrigem}</span>}
+                                            </div>
+                                        ) : (
+                                            <span className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 flex w-fit mx-auto">NÃO</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-3 text-center"><span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${sale.tipoOperacao === 'ATIVAÇÃO' ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400' : sale.tipoOperacao === 'MIGRAÇÃO' ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400' : 'text-neutral-400'}`}>{sale.tipoOperacao || '-'}</span></td>
                                     <td className="px-6 py-3 font-medium text-neutral-800 dark:text-neutral-200">{applyCurrencyMask(sale.receita)}</td>
                                     <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 font-mono text-xs">{sale.cpf}</td><td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 font-mono text-xs">{sale.contrato}</td>
@@ -564,7 +592,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                     <td className="px-6 py-3 text-center">{Array.isArray(sale.adicionais) && sale.adicionais.length > 0 ? (<div className="flex justify-center gap-1.5 flex-wrap">{sale.adicionais.map(ad => (<span key={ad} className="bg-[#E3000F]/10 text-[#E3000F] px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">{ad}</span>))}</div>) : <span className="text-neutral-300 text-xs">-</span>}</td>
                                     <td className="px-6 py-3 text-center">
                                         {(!isVendedor || sale.vendedor === globalUser?.name || sale.vendedor === String(globalUser?.name || '').split(' ')[0]) ? (
-                                            <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex items-center justify-center gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                                                 <button onClick={(e) => { e.stopPropagation(); handleEditSale(sale); }} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors" title="Editar Venda"><Edit3 size={16} /></button>
                                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteSale(sale.id); }} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" title="Excluir Venda"><Trash2 size={16} /></button>
                                             </div>
@@ -628,6 +656,15 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                         )}
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
                                         {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                        {isMovel && formData.portabilidade === 'SIM' && formData.tipoOperacao === 'ATIVAÇÃO' && (
+                                            <div className="space-y-1.5 animate-fade-in">
+                                                <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Operadora <span className="text-[#E3000F]">*</span></label>
+                                                <select name="operadoraOrigem" value={formData.operadoraOrigem} onChange={handleFormChange} className="w-full bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold">
+                                                    <option className="bg-white dark:bg-neutral-900 text-neutral-500" value="">Selecione</option>
+                                                    {['TIM', 'VIVO', 'CORREIOS', 'NUCEL', 'INTER', 'SURF'].map(op => <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" key={op} value={op}>{op}</option>)}
+                                                </select>
+                                            </div>
+                                        )}
                                         {formData.produto === 'APARELHO' && (
                                             <div className="space-y-1.5 animate-fade-in">
                                                 <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Seguro do Aparelho</label>
@@ -653,9 +690,9 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                     <div className="pt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-neutral-100 dark:border-neutral-800 mt-6"><button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-6 py-2.5 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 font-medium rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors">Cancelar</button><button type="submit" className="w-full sm:w-auto px-8 py-2.5 bg-[#E3000F] text-white font-medium rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-500/30 flex items-center justify-center gap-2">{editingId ? 'Salvar Alterações' : 'Confirmar Venda'}</button></div>
                                 </form>
                             ) : (
-                                <div className="grid grid-cols-1 lg:grid-cols-12 max-h-[75vh] overflow-y-auto lg:overflow-hidden scrollbar-thin">
-                                    <div className="lg:col-span-7 flex flex-col min-h-0 border-b lg:border-b-0 lg:border-r border-neutral-100 dark:border-neutral-800">
-                                        <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-y-auto scrollbar-thin">
+                                <div className="grid grid-cols-1 lg:grid-cols-12 max-h-[75vh] overflow-y-auto scrollbar-thin">
+                                    <div className="lg:col-span-7 flex flex-col border-b lg:border-b-0 lg:border-r border-neutral-100 dark:border-neutral-800">
+                                        <div className="flex-1 p-4 sm:p-6 space-y-6">
                                             {formError && (<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-[#E3000F] px-4 py-3 rounded-lg flex items-center gap-3 text-sm font-medium animate-fade-in"><AlertCircle size={18} className="shrink-0" />{formError}</div>)}
                                             <div className="bg-neutral-50 dark:bg-neutral-800/50 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center gap-4 justify-between"><div><h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide">Contexto da Venda</h3><p className="text-xs text-neutral-500 dark:text-neutral-400">Selecione o formato para calcular a receita corretamente.</p></div><div className="flex flex-wrap sm:flex-nowrap bg-white dark:bg-neutral-900 rounded-lg p-1 border border-neutral-200 dark:border-neutral-700 shadow-sm w-full md:w-auto">{['SINGLE', 'MULTI', 'MULTI 3P'].map(tipo => (<button key={tipo} type="button" onClick={() => handleFormChange({ target: { name: 'combo', value: tipo } })} className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-md transition-all ${formData.combo === tipo ? 'bg-[#E3000F] text-white shadow-md' : 'text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800'}`}>{tipo}</button>))}</div></div>
                                             
@@ -674,6 +711,15 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                                 )}
                                                 <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
                                                 {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                                {isMovel && formData.portabilidade === 'SIM' && formData.tipoOperacao === 'ATIVAÇÃO' && (
+                                                    <div className="space-y-1.5 animate-fade-in">
+                                                        <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Operadora <span className="text-[#E3000F]">*</span></label>
+                                                        <select name="operadoraOrigem" value={formData.operadoraOrigem} onChange={handleFormChange} className="w-full bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-blue-500 outline-none text-sm font-bold">
+                                                            <option className="bg-white dark:bg-neutral-900 text-neutral-500" value="">Selecione</option>
+                                                            {['TIM', 'VIVO', 'CORREIOS', 'NUCEL', 'INTER', 'SURF'].map(op => <option className="bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100" key={op} value={op}>{op}</option>)}
+                                                        </select>
+                                                    </div>
+                                                )}
                                                 {formData.produto === 'APARELHO' && (
                                                     <div className="space-y-1.5 animate-fade-in">
                                                         <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Seguro do Aparelho</label>
@@ -693,9 +739,9 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                         </div>
                                     </div>
 
-                                    <div className="lg:col-span-5 bg-neutral-50 dark:bg-neutral-800/50 p-4 sm:p-6 flex flex-col lg:overflow-y-auto scrollbar-thin">
+                                    <div className="lg:col-span-5 bg-neutral-50 dark:bg-neutral-800/50 p-4 sm:p-6 flex flex-col">
                                         <h3 className="text-sm font-bold text-neutral-800 dark:text-neutral-100 uppercase tracking-wide mb-4 shrink-0">Resumo do Combo</h3>
-                                        <div className="flex-1 space-y-3 mb-6 min-h-[150px] max-h-[250px] lg:max-h-none overflow-y-auto pr-2 scrollbar-thin">
+                                        <div className="flex-1 space-y-3 mb-6 min-h-[150px] max-h-[250px] overflow-y-auto pr-2 scrollbar-thin">
                                             {comboItems.length === 0 ? (
                                                 <div className="text-center text-neutral-400 py-10 border-2 border-dashed border-neutral-200 dark:border-neutral-700 rounded-xl flex flex-col items-center justify-center gap-2"><Briefcase size={24} className="opacity-50" /> Nenhum produto adicionado.</div>
                                             ) : (
@@ -729,7 +775,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                             })()}
 
                                             <div className="pt-2">
-                                                <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2 mb-3"><Briefcase size={14} className="text-[#E3000F]" /> Adicionais Globais (Titular do Combo)</label>
+                                                <label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-2 mb-3"><Briefcase size={14} className="text-[#E3000F]" /> Venda Adicional: (Titular do Combo)</label>
                                                 <div className="flex flex-wrap gap-2">
                                                     <label className={`flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer transition-all ${comboGlobal.adicionais.length === 0 ? 'border-[#E3000F] bg-red-50 dark:bg-red-900/20 text-[#E3000F]' : 'border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400'}`}><input type="checkbox" checked={comboGlobal.adicionais.length === 0} onChange={() => handleGlobalAdicionalToggle('NENHUM')} className="hidden" /><div className={`w-3 h-3 rounded flex items-center justify-center ${comboGlobal.adicionais.length === 0 ? 'bg-[#E3000F] border-[#E3000F]' : 'border border-neutral-300 dark:border-neutral-600'}`}>{comboGlobal.adicionais.length === 0 && <Check size={10} className="text-white" />}</div><span className="text-[10px] font-bold tracking-wide">NENHUM</span></label>
                                                     {['TROCAFY', 'CLARO UP'].map((op) => (

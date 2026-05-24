@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
-import { Edit2, Save, X, Search, Calendar, Filter, Trash2, Home, User } from 'lucide-react';
+import { Edit2, Save, X, Search, Calendar, Filter, Trash2, Home, User, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { applyCpfCnpjMask } from '../utils/masks';
 
 export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, usersDB = {}, globalMonth, setGlobalMonth }) {
+    const isLideranca = isGerente || ['SENIOR', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO', 'GEEK'].includes(globalUser?.role);
+
     const [editingId, setEditingId] = useState(null);
     const [editForm, setEditForm] = useState({});
     const [searchTerm, setSearchTerm] = useState('');
-    const [sellerFilter, setSellerFilter] = useState('');
+    
+    const isVendedor = globalUser?.role === 'VENDEDOR';
+    const loggedName = String(globalUser?.name || '').split(' ')[0];
+    const [sellerFilter, setSellerFilter] = useState(isVendedor ? loggedName : '');
   
     const monthFilter = globalMonth;
     const setMonthFilter = setGlobalMonth;
@@ -46,17 +51,21 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     const filteredData = (salesData || []).filter(item => {
         if (!isResidential(item.produto)) return false;
 
+        let matchMonth = false;
         if (typeof item.data === 'string') {
             const parts = item.data.split('/');
             if (parts.length === 3) {
                 const itemMonth = `${parts[2]}-${parts[1]}`;
-                if (itemMonth !== monthFilter) return false;
+                if (itemMonth === monthFilter) matchMonth = true;
             } else if (item.data.includes('-')) {
-                if (item.data.slice(0, 7) !== monthFilter) return false;
+                if (item.data.slice(0, 7) === monthFilter) matchMonth = true;
             }
-        } else {
-            return false;
         }
+        if (item.dataInstalacao && item.dataInstalacao.slice(0, 7) === monthFilter) {
+            matchMonth = true;
+        }
+
+        if (!matchMonth) return false;
 
         if (sellerFilter && item.vendedor !== sellerFilter) {
             return false;
@@ -64,11 +73,18 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
 
         if (searchTerm) {
             const term = String(searchTerm).toLowerCase();
+            const dataVendaBr = typeof item.data === 'string' && item.data.includes('-') ? new Date(item.data + 'T12:00:00').toLocaleDateString('pt-BR') : String(item.data || '');
+            const dataInstBr = item.dataInstalacao ? new Date(item.dataInstalacao + 'T12:00:00').toLocaleDateString('pt-BR') : '';
+            
             return (
                 String(item.contrato || '').toLowerCase().includes(term) ||
                 String(item.cpf || '').toLowerCase().includes(term) ||
                 String(item.nomeCliente || '').toLowerCase().includes(term) ||
-                String(item.cidade || '').toLowerCase().includes(term)
+                String(item.cidade || '').toLowerCase().includes(term) ||
+                dataVendaBr.includes(term) ||
+                dataInstBr.includes(term) ||
+                String(item.data || '').includes(term) ||
+                String(item.dataInstalacao || '').includes(term)
             );
         }
         return true;
@@ -86,8 +102,8 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     };
 
     const handleDelete = (id) => {
-        if (!isGerente) return;
-        if (window.confirm('Atenção Gerente: Tem certeza que deseja apagar este registro de residencial?')) {
+        if (!isLideranca) return;
+        if (window.confirm('Atenção Liderança: Tem certeza que deseja apagar este registro de residencial?')) {
             setSalesData(prev => prev.filter(item => item.id !== id));
             toast.success('Registro apagado com sucesso!');
         }
@@ -168,21 +184,25 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
                         <input
                             type="text"
-                            placeholder="Buscar Contrato, CPF..."
+                            placeholder="Buscar Contrato, CPF, Data..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full sm:w-56 pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
                         />
                     </div>
-                    <div className="relative w-full sm:w-auto flex items-center bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 focus-within:border-[#E3000F] focus-within:ring-1 focus-within:ring-[#E3000F] transition-all">
-                        <Filter className="text-neutral-400 dark:text-neutral-500 shrink-0" size={16} />
+                    <div className={`relative w-full sm:w-auto flex items-center bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 focus-within:border-[#E3000F] focus-within:ring-1 focus-within:ring-[#E3000F] transition-all ${isVendedor ? 'opacity-80' : ''}`}>
+                        {isVendedor ? <Lock className="text-[#E3000F] shrink-0" size={16} title="Acesso restrito aos seus próprios dados" /> : <Filter className="text-neutral-400 dark:text-neutral-500 shrink-0" size={16} />}
                         <select
                             value={sellerFilter}
                             onChange={(e) => setSellerFilter(e.target.value)}
-                            className="w-full sm:w-40 bg-transparent py-2 pl-2 pr-1 text-sm text-neutral-800 dark:text-neutral-100 outline-none cursor-pointer"
+                            disabled={isVendedor}
+                            className={`w-full sm:w-40 bg-transparent py-2 pl-2 pr-1 text-sm text-neutral-800 dark:text-neutral-100 outline-none ${isVendedor ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                         >
-                            <option className="bg-white dark:bg-neutral-900" value="">Todos Vendedores</option>
-                            {VENDEDORES_OPTIONS.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}
+                            {!isVendedor && <option className="bg-white dark:bg-neutral-900" value="">Todos Vendedores</option>}
+                            {isVendedor 
+                                ? <option className="bg-white dark:bg-neutral-900" value={loggedName}>{loggedName}</option>
+                                : VENDEDORES_OPTIONS.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)
+                            }
                         </select>
                     </div>
                     <div className="relative w-full sm:w-auto">
@@ -195,7 +215,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                             title="Consultar Histórico do Mês"
                         />
                     </div>
-                    {isGerente && (
+                    {isLideranca && (
                         <button type="button" onClick={handleExportExcel} className="w-full sm:w-auto px-4 py-2 bg-[#107c41] text-white text-sm font-medium rounded-xl hover:bg-[#0c5e31] transition-colors shadow-sm shadow-green-700/30 flex items-center justify-center gap-2 whitespace-nowrap">Exportar Excel</button>
                     )}
                 </div>
@@ -238,7 +258,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                                             <tr key={item.id || index} className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors bg-white dark:bg-neutral-900">
                                                 {/* REGRAS DE BLOQUEIO DE CAMPO (GESTOR) APLICADOS AQUI */}
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
-                                                    {isEditing ? <input type="text" value={editForm.contrato || ''} onChange={(e) => handleChange(e, 'contrato')} disabled={!isGerente} className={`w-28 px-2 py-1 border rounded ${!isGerente ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-neutral-500 dark:text-neutral-400 border-transparent' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 border-neutral-200 dark:border-neutral-700 focus:border-[#E3000F] outline-none'}`} /> : <span className="font-mono text-neutral-700 dark:text-neutral-300">{item.contrato || '-'}</span>}
+                                                    {isEditing ? <input type="text" value={editForm.contrato || ''} onChange={(e) => handleChange(e, 'contrato')} disabled={!isLideranca} className={`w-28 px-2 py-1 border rounded ${!isLideranca ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-neutral-500 dark:text-neutral-400 border-transparent' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 border-neutral-200 dark:border-neutral-700 focus:border-[#E3000F] outline-none'}`} /> : <span className="font-mono text-neutral-700 dark:text-neutral-300">{item.contrato || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
                                                     {isEditing ? <input type="text" value={editForm.cidade || ''} onChange={(e) => handleChange(e, 'cidade')} className="w-24 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F]" /> : <span className="text-neutral-700 dark:text-neutral-300">{item.cidade || getCidadePorContrato(item.contrato) || '-'}</span>}
@@ -268,7 +288,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                                                     {isEditing ? <input type="text" value={editForm.nomeCliente || ''} onChange={(e) => handleChange(e, 'nomeCliente')} className="w-32 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none" /> : <span className="text-neutral-800 dark:text-neutral-200">{item.nomeCliente || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
-                                                    {isEditing ? <input type="text" value={editForm.cpf || ''} onChange={(e) => handleChange(e, 'cpf')} disabled={!isGerente} className={`w-32 px-2 py-1 border rounded ${!isGerente ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-neutral-500 dark:text-neutral-400 border-transparent' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 border-neutral-200 dark:border-neutral-700 outline-none'}`} /> : <span className="font-mono text-neutral-600 dark:text-neutral-400">{item.cpf || '-'}</span>}
+                                                    {isEditing ? <input type="text" value={editForm.cpf || ''} onChange={(e) => handleChange(e, 'cpf')} disabled={!isLideranca} className={`w-32 px-2 py-1 border rounded ${!isLideranca ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-neutral-500 dark:text-neutral-400 border-transparent' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 border-neutral-200 dark:border-neutral-700 outline-none'}`} /> : <span className="font-mono text-neutral-600 dark:text-neutral-400">{item.cpf || '-'}</span>}
                                                 </td>
                                                 <td className="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 border-r border-neutral-100 dark:border-r-neutral-800">
                                                     {isEditing ? <input type="text" value={editForm.obsUr || ''} onChange={(e) => handleChange(e, 'obsUr')} className="w-36 px-2 py-1 border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100 outline-none" /> : <span className="text-neutral-500 dark:text-neutral-400 truncate max-w-[150px] inline-block" title={item.obsUr}>{item.obsUr || '-'}</span>}
@@ -285,7 +305,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                                                     ) : (
                                                         <div className="flex items-center justify-center gap-2">
                                                             <button onClick={() => handleEdit(item)} className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"><Edit2 size={16} /></button>
-                                                            {isGerente && (
+                                                            {isLideranca && (
                                                                 <button onClick={() => handleDelete(item.id)} className="p-1.5 text-neutral-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                                             )}
                                                         </div>

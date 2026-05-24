@@ -220,11 +220,11 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
 
     const handleDeleteRequest = (id) => {
         if (canModifySimcard) { setSimcardsData(prev => prev.filter(item => item.id !== id)); }
-        else { setAuthModal({ isOpen: true, pendingAction: 'DELETE', pendingId: id }); }
+        else { setAuthModal({ isOpen: true, pendingAction: 'DELETE', pendingId: id, requiredRole: 'SENIOR' }); }
     };
 
     const handleProtectedClick = () => {
-        if (!canModifySimcard) setAuthModal({ isOpen: true, pendingAction: 'UNLOCK', pendingId: null });
+        if (!canModifySimcard) setAuthModal({ isOpen: true, pendingAction: 'UNLOCK', pendingId: null, requiredRole: 'SENIOR' });
     };
 
     const handleChangeColor = (id, newColor) => {
@@ -287,7 +287,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                     <h2 className="font-semibold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
                         Controle de Estoque e SIM Cards
                         {canModifySimcard ? (
-                            <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase ml-2"><Unlock size={12} /> Gestor Liberado</span>
+                            <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase ml-2"><Unlock size={12} /> Edição Liberada</span>
                         ) : (
                             <span onClick={handleProtectedClick} className="bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-[10px] px-2 py-0.5 rounded flex items-center gap-1 font-bold uppercase ml-2 cursor-pointer hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors" title="Desbloquear Edição"><Lock size={12} /> Acesso Restrito</span>
                         )}
@@ -408,9 +408,9 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                                                 
                                                         {currentTab === 'SOBREPOSIÇÃO' && (
                                                             <>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.dataPortin || ''} onChange={e => handleInlineChange(item.id, 'dataPortin', e.target.value)} placeholder="DD/MM/AA HH:MM" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200 text-center" /></td>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numPortado || ''} onChange={e => handleInlineChange(item.id, 'numPortado', e.target.value)} placeholder="(11) 90000-0000" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numProvisorio || ''} onChange={e => handleInlineChange(item.id, 'numProvisorio', e.target.value)} placeholder="(11) 90000-0000" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.dataPortin || ''} onChange={e => handleInlineChange(item.id, 'dataPortin', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200 text-center" /></td>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numPortado || ''} onChange={e => handleInlineChange(item.id, 'numPortado', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numProvisorio || ''} onChange={e => handleInlineChange(item.id, 'numProvisorio', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
                                                             </>
                                                         )}
 
