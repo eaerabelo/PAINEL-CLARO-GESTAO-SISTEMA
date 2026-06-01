@@ -23,10 +23,16 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
     const STATUS_OPTIONS = ['PEND.DE INSTALAÇÃO', 'CONECTADO', 'CANCELADO'];
     const AGENDAMENTO_OPTIONS = ['08:00 A 12:00', '12:00 A 15:00', '15:00 A 18:00'];
     const ACAO_OPTIONS = ['REAGENDADO', 'RETENÇÃO EM FALTA', 'DESISTIU'];
-    const VENDEDORES_OPTIONS = Object.values(usersDB || {})
+
+    const activeVendedoresOptions = Object.values(usersDB || {})
         .filter(u => !u?.role || u?.role === 'VENDEDOR')
         .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
+        
+    const historicalVendedoresOptions = (salesData || []).map(s => String(s.vendedor || '').split(' ')[0]).filter(Boolean);
+    
+    const VENDEDORES_OPTIONS = [...new Set([...activeVendedoresOptions, ...historicalVendedoresOptions])].sort();
+
     const RESIDENTIAL_PRODUCTS = [
         'FIBRA 350 MEGAS', 'FIBRA 500 MEGAS', 'FIBRA 750 MEGAS', 'FIBRA 1 GIGA',
         'CLARO TV+', 'FIXO ILIMITADO BRASIL', 'PONTO ADICIONAL', 'MESH', 'EXTENSOR WIFI'
@@ -82,6 +88,10 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                 String(item.cpf || '').toLowerCase().includes(term) ||
                 String(item.nomeCliente || '').toLowerCase().includes(term) ||
                 String(item.cidade || '').toLowerCase().includes(term) ||
+                String(item.vendedor || '').toLowerCase().includes(term) ||
+                String(item.produto || '').toLowerCase().includes(term) ||
+                String(item.statusUr || 'PEND.DE INSTALAÇÃO').toLowerCase().includes(term) ||
+                String(item.agendamento || '').toLowerCase().includes(term) ||
                 dataVendaBr.includes(term) ||
                 dataInstBr.includes(term) ||
                 String(item.data || '').includes(term) ||
@@ -89,6 +99,16 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
             );
         }
         return true;
+    });
+
+    const summaryCount = { pendente: 0, conectado: 0, cancelado: 0, total: 0 };
+    filteredData.forEach(item => {
+        const q = Number(item.qtda) || 1;
+        summaryCount.total += q;
+        const status = item.statusUr || 'PEND.DE INSTALAÇÃO';
+        if (status === 'PEND.DE INSTALAÇÃO') summaryCount.pendente += q;
+        else if (status === 'CONECTADO') summaryCount.conectado += q;
+        else if (status === 'CANCELADO') summaryCount.cancelado += q;
     });
 
     const handleEdit = (item) => {
@@ -190,7 +210,7 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500" size={16} />
                             <input
                                 type="text"
-                                placeholder="Buscar Contrato, CPF, Data..."
+                                placeholder="Buscar Contrato, Cliente, Status, Produto..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full sm:w-56 pl-9 pr-4 py-2 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl text-sm text-neutral-800 dark:text-neutral-100 outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] transition-all"
@@ -229,9 +249,9 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
             </div>
 
             {/* TABELA ESTILO EXCEL */}
-            <div className="flex-1 overflow-auto p-4 bg-neutral-100/30 dark:bg-neutral-950/50">
-                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm">
-                    <div className="overflow-x-auto min-h-[400px]">
+            <div className="flex-1 overflow-auto p-4 bg-neutral-100/30 dark:bg-neutral-950/50 flex flex-col">
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden shadow-sm flex flex-col flex-1">
+                    <div className="overflow-x-auto flex-1 min-h-[300px]">
                         <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
                             <thead className="bg-[#E3000F] text-white">
                                 <tr>
@@ -324,6 +344,15 @@ export function UrResidencial({ salesData, setSalesData, globalUser, isGerente, 
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                    <div className="p-4 border-t border-neutral-100 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/50 text-xs text-neutral-500 dark:text-neutral-400 flex flex-col sm:flex-row gap-2 justify-between items-center shrink-0">
+                        <span>Mostrando 1 a {filteredData.length} de {filteredData.length} registros</span>
+                        <div className="flex flex-wrap items-center justify-center sm:justify-end gap-3 md:gap-4 font-bold uppercase tracking-wider text-[10px] md:text-xs">
+                            {summaryCount.pendente > 0 && <span>PEND: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.pendente}</span></span>}
+                            {summaryCount.conectado > 0 && <span>CONEC: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.conectado}</span></span>}
+                            {summaryCount.cancelado > 0 && <span>CANCE: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.cancelado}</span></span>}
+                            {summaryCount.total > 0 && <span>QTDA: <span className="text-neutral-800 dark:text-neutral-200">{summaryCount.total}</span></span>}
+                        </div>
                     </div>
                 </div>
             </div>

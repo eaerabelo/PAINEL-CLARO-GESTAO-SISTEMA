@@ -1,3 +1,44 @@
+// Estrutura Padrão Inicial da Matriz de Precificação (Nova Regra)
+export const DEFAULT_PRICING = {
+    lastUpdated: Date.now(),
+    movel: [
+        { id: 'm1', nome: 'Controle 30GB', valor: 59.90, valorMulti: 49.90, valorMulti3p: 49.90 },
+        { id: 'm2', nome: 'Controle 35GB', valor: 69.90, valorMulti: 69.90, valorMulti3p: 69.90 },
+        { id: 'm3', nome: 'Controle 35GB Gaming', valor: 99.90, valorMulti: 99.90, valorMulti3p: 99.90 },
+        { id: 'm4', nome: 'Pós 50GB', valor: 124.90, valorMulti: 80.00, valorMulti3p: 80.00 },
+        { id: 'm5', nome: 'Pós 50GB Gaming', valor: 164.90, valorMulti: 120.00, valorMulti3p: 120.00 },
+        { id: 'm6', nome: 'Pós 100GB', valor: 179.90, valorMulti: 125.00, valorMulti3p: 125.00 },
+        { id: 'm7', nome: 'Pós 150GB', valor: 239.90, valorMulti: 180.00, valorMulti3p: 180.00 },
+        { id: 'm8', nome: 'Pós 200GB', valor: 339.90, valorMulti: 240.00, valorMulti3p: 240.00 },
+        { id: 'm9', nome: 'Pós 500GB', valor: 849.90, valorMulti: 800.00, valorMulti3p: 800.00 },
+        { id: 'm10', nome: 'Dependente Gratuito', valor: 0.00, valorMulti: 0.00, valorMulti3p: 0.00 },
+        { id: 'm11', nome: 'Dependente Pago', valor: 55.00, valorMulti: 55.00, valorMulti3p: 55.00 },
+        { id: 'm12', nome: 'Dependente BL', valor: 29.90, valorMulti: 29.90, valorMulti3p: 29.90 },
+        { id: 'm13', nome: 'Seguro R$ 14,00', valor: 14.00, valorMulti: 14.00, valorMulti3p: 14.00 },
+        { id: 'm14', nome: 'Seguro R$ 18,00', valor: 18.00, valorMulti: 18.00, valorMulti3p: 18.00 },
+        { id: 'm15', nome: 'Seguro R$ 22,00', valor: 22.00, valorMulti: 22.00, valorMulti3p: 22.00 },
+        { id: 'm16', nome: 'Seguro R$ 24,00', valor: 24.00, valorMulti: 24.00, valorMulti3p: 24.00 }
+    ],
+    residencial: [
+        { id: 'r1', nome: 'Banda Larga 250 Mega', valor: 99.90, valorMulti: 99.90, valorMulti3p: 99.90 },
+        { id: 'r2', nome: 'Banda Larga 500 Mega', valor: 119.90, valorMulti: 99.90, valorMulti3p: 99.90 },
+        { id: 'r3', nome: 'Banda Larga 1 Giga', valor: 199.90, valorMulti: 149.90, valorMulti3p: 149.90 },
+        { id: 'r4', nome: 'Banda Larga 5 Giga', valor: 499.90, valorMulti: 449.90, valorMulti3p: 449.90 },
+        { id: 'r5', nome: 'Banda Larga 10 Giga', valor: 1999.90, valorMulti: 1949.90, valorMulti3p: 1949.90 },
+        { id: 'r6', nome: 'TV Box', valor: 134.90, valorMulti: 124.90, valorMulti3p: 99.90 },
+        { id: 'r7', nome: 'TV Box Cabo', valor: 164.90, valorMulti: 154.90, valorMulti3p: 154.90 },
+        { id: 'r8', nome: 'TV Soundbox', valor: 174.90, valorMulti: 174.90, valorMulti3p: 174.90 },
+        { id: 'r9', nome: 'Fixo Mundo', valor: 65.00, valorMulti: 65.00, valorMulti3p: 65.00 },
+        { id: 'r10', nome: 'Fixo Brasil', valor: 35.00, valorMulti: 35.00, valorMulti3p: 35.00 },
+        { id: 'r11', nome: 'Fixo Multi 3P', valor: 5.00, valorMulti: 5.00, valorMulti3p: 5.00 },
+        { id: 'r12', nome: 'Mesh 1UN', valor: 15.00, valorMulti: 15.00, valorMulti3p: 15.00 },
+        { id: 'r13', nome: 'Mesh 2UN', valor: 30.00, valorMulti: 30.00, valorMulti3p: 30.00 },
+        { id: 'r14', nome: 'Mesh 3UN', valor: 45.00, valorMulti: 45.00, valorMulti3p: 45.00 },
+        { id: 'r15', nome: 'Mesh 4UN', valor: 60.00, valorMulti: 60.00, valorMulti3p: 60.00 }
+    ]
+};
+
+// Mantidos por retrocompatibilidade com componentes não atualizados ainda
 export const PRICING_MOVEL = {
     'POS 50GB': { SINGLE: 124.90, MULTI: 80.00 },
     'POS 50GB GAMING': { SINGLE: 164.90, MULTI: 120.00 },
@@ -96,9 +137,11 @@ export const METAS_PADRAO = {
 export const SIMCARD_TABS = ['GESTAO', 'SOBREPOSIÇÃO', 'FALTA ESTOQUE', ...VENDEDORES, 'APARELHO & ACESSORIO'];
 
 export const APP_USERS = {
-    'adm': { pass: 'DEV2026', role: 'GESTOR', name: 'Desenvolvedor Master' },
-    '1234567': { pass: '00332890', role: 'ENCARREGADO', name: 'Encarregado Lider' },
-    '123654': { pass: '00332890', role: 'VENDEDOR', name: 'MATHEUS' },
+    'adm': { pass: 'DEV2026', role: 'ADMINISTRAÇÃO', name: 'Desenvolvedor Master' },
+    'gerente': { pass: '00332890', role: 'GERENTE', name: 'Gerente Lider' },
+    'senior': { pass: '00332890', role: 'SENIOR', name: 'Senior Vendas' },
+    'geek': { pass: '00332890', role: 'GEEK', name: 'Suporte Geek' },
+    '123654': { pass: '00332890', role: 'VENDEDOR', name: 'MATHEUS' }
 };
 
 export const HORARIOS_PADRAO = [

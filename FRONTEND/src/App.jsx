@@ -6,7 +6,7 @@ import {
   Menu, X, Search, ChevronRight, UserPlus,
   Users, BarChart3, FileText, Database,
   Target, AlertOctagon, Phone, CreditCard, Briefcase, AlertCircle, Check, Lock,
-  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy, Calculator, Megaphone, Trophy
+  Key, CalendarDays, UserCircle, LogOut, Crown, Undo, Sun, Moon, ClipboardCheck, Cpu, Bell, Wifi, Copy, Calculator, Megaphone, Trophy, DollarSign
 } from 'lucide-react';
 
 // Importação de biblioteca de Toasts para feedback visual de ações em tela
@@ -20,7 +20,7 @@ import { io } from 'socket.io-client';
 
 // Importações de constantes como usuários padrões e base para as metas
 import {
-  METAS_PADRAO, APP_USERS
+  METAS_PADRAO, APP_USERS, DEFAULT_PRICING
 } from './utils/constants';
 
 // Importação de função utilitária para capturar data ajustada ao fuso horário
@@ -46,6 +46,7 @@ import { Geek } from './components/Geek.jsx';
 import { Scripts } from './components/Scripts.jsx';
 import { FatorRvv } from './components/FatorRvv.jsx';
 import { Campanha } from './components/Campanha.jsx';
+import { Precificacao } from './components/Precificacao.jsx';
 import qrWifiImg from './assets/qr-wifi.png';
 import claroLogo from './assets/LOGO_CLARO.png.webp';
 
@@ -220,6 +221,7 @@ export default function App() {
   const [usersDB, setUsersDB] = useState({});
   const [scheduleData, setScheduleData] = useState({});
   const [monthlyOverrides, setMonthlyOverrides] = useState({});
+  const [pricingData, setPricingData] = useState(DEFAULT_PRICING);
   // Define se o primeiro carregamento da Nuvem já foi finalizado
   const [isFirebaseReady, setIsFirebaseReady] = useState(false);
 
@@ -253,6 +255,35 @@ export default function App() {
       }
     }
   }, [goalsDB, currentYYYYMM, isFirebaseReady]);
+
+  // --- ALERTA DE PRECIFICAÇÃO ---
+  useEffect(() => {
+    const pricingLastUpdated = pricingData?.lastUpdated;
+    if (pricingLastUpdated && isFirebaseReady) {
+      const savedLastUpdated = localStorage.getItem('last_seen_pricing_update');
+      const currentDataStr = JSON.stringify({ movel: pricingData?.movel || [], residencial: pricingData?.residencial || [] });
+      const savedDataStr = localStorage.getItem('last_seen_pricing_data');
+
+      if (!savedLastUpdated || pricingLastUpdated > parseInt(savedLastUpdated, 10)) {
+        if (savedLastUpdated && savedDataStr !== currentDataStr) { 
+          setNotifications(prev => {
+            const newNotif = {
+              id: `pricing-${pricingLastUpdated}`,
+              title: `Tabela de Preços Atualizada!`,
+              desc: `Os planos e valores foram atualizados pela Gestão.`,
+              time: pricingLastUpdated,
+              read: false,
+              type: 'pricing'
+            };
+            return [newNotif, ...(Array.isArray(prev) ? prev : []).filter(n => n.id !== newNotif.id)].slice(0, 20);
+          });
+          toast.success('A Tabela de Preços foi atualizada!', { icon: '💲' });
+        }
+        localStorage.setItem('last_seen_pricing_update', String(pricingLastUpdated));
+        localStorage.setItem('last_seen_pricing_data', currentDataStr);
+      }
+    }
+  }, [pricingData, isFirebaseReady]);
 
   // --- ALERTA DE CAMPANHAS (LANÇAMENTOS E VENCEDORES) ---
   useEffect(() => {
@@ -329,6 +360,14 @@ export default function App() {
   // Stack local do estado que armazena os últimos "Delete" efetuados
   const [undoStack, setUndoStack] = useState([]);
 
+  const addToUndoStack = (type, state) => {
+    setUndoStack(s => {
+      const nextStack = [...s, { type, state }];
+      if (nextStack.length > 50) return nextStack.slice(nextStack.length - 50);
+      return nextStack;
+    });
+  };
+
   // Função para retornar a última versão dos dados (CTRL+Z/Desfazer)
   const handleUndo = () => {
     if (undoStack.length === 0) return;
@@ -341,7 +380,7 @@ export default function App() {
       if (lastAction.type === 'reprovadosData') setReprovadosData(lastAction.state);
       if (lastAction.type === 'geekDocs') setGeekDocs(lastAction.state);
       if (lastAction.type === 'campanhasData') setCampanhasData(lastAction.state);
-      toast.success('Ação desfeita com sucesso! Registro recuperado.');
+      toast.success('Ação desfeita com sucesso! (Ctrl+Z)');
     }
     
     setUndoStack(prevStack => prevStack.slice(0, -1));
@@ -350,7 +389,7 @@ export default function App() {
   // Listener para capturar o atalho de teclado Control+Z
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      if ((e.ctrlKey || e.metaKey) && e.key && e.key.toLowerCase() === 'z') {
         const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
         const isInputFocused = ['input', 'textarea', 'select'].includes(activeTag);
 
@@ -382,12 +421,12 @@ export default function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isNotificationsOpen]);
 
-  // Interceptadores (Wrappers) para detectar exclusões e criar o backup automático na Stack (para o Undo)
+  // Interceptadores (Wrappers) para detectar alterações na nuvem e criar o backup automático na Stack (para o Undo)
   const handleSetSalesData = (action) => {
     setSalesData(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
-      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
-        setUndoStack(s => [...s, { type: 'salesData', state: prev }]);
+      if (Array.isArray(prev) && Array.isArray(next) && JSON.stringify(prev) !== JSON.stringify(next)) {
+        addToUndoStack('salesData', prev);
       }
       return next;
     });
@@ -396,8 +435,8 @@ export default function App() {
   const handleSetSimcardsData = (action) => {
     setSimcardsData(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
-      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
-        setUndoStack(s => [...s, { type: 'simcardsData', state: prev }]);
+      if (Array.isArray(prev) && Array.isArray(next) && JSON.stringify(prev) !== JSON.stringify(next)) {
+        addToUndoStack('simcardsData', prev);
       }
       return next;
     });
@@ -406,8 +445,8 @@ export default function App() {
   const handleSetReprovadosData = (action) => {
     setReprovadosData(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
-      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
-        setUndoStack(s => [...s, { type: 'reprovadosData', state: prev }]);
+      if (Array.isArray(prev) && Array.isArray(next) && JSON.stringify(prev) !== JSON.stringify(next)) {
+        addToUndoStack('reprovadosData', prev);
       }
       return next;
     });
@@ -416,8 +455,8 @@ export default function App() {
   const handleSetGeekDocs = (action) => {
     setGeekDocs(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
-      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
-        setUndoStack(s => [...s, { type: 'geekDocs', state: prev }]);
+      if (Array.isArray(prev) && Array.isArray(next) && JSON.stringify(prev) !== JSON.stringify(next)) {
+        addToUndoStack('geekDocs', prev);
       }
       return next;
     });
@@ -426,8 +465,8 @@ export default function App() {
   const handleSetCampanhasData = (action) => {
     setCampanhasData(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
-      if (Array.isArray(prev) && Array.isArray(next) && next.length < prev.length) {
-        setUndoStack(s => [...s, { type: 'campanhasData', state: prev }]);
+      if (Array.isArray(prev) && Array.isArray(next) && JSON.stringify(prev) !== JSON.stringify(next)) {
+        addToUndoStack('campanhasData', prev);
       }
       return next;
     });
@@ -446,9 +485,11 @@ export default function App() {
         // Se o banco foi apagado acidentalmente, restauramos do arquivo local de segurança
         const recoveredUsers = (d && d.usersDB && Object.keys(d.usersDB).length > 0) ? d.usersDB : safeAppUsers;
         const recoveredGoals = (d && d.goalsDB && Object.keys(d.goalsDB).length > 0) ? d.goalsDB : { [currentYYYYMM]: { ...safeMetasPadrao } };
+        const recoveredPricing = (d && d.pricingData && Object.keys(d.pricingData).length > 0) ? d.pricingData : DEFAULT_PRICING;
 
         setUsersDB(recoveredUsers);
         setGoalsDB(recoveredGoals);
+        setPricingData(recoveredPricing);
         if (d && d.scheduleData) setScheduleData(d.scheduleData);
         if (d && d.monthlyOverrides) setMonthlyOverrides(d.monthlyOverrides);
 
@@ -456,7 +497,8 @@ export default function App() {
           usersDB: recoveredUsers,
           goalsDB: recoveredGoals,
           scheduleData: d?.scheduleData || {},
-          monthlyOverrides: d?.monthlyOverrides || {}
+          monthlyOverrides: d?.monthlyOverrides || {},
+          pricingData: recoveredPricing
         });
 
         if (!isFirebaseReady) setIsFirebaseReady(true);
@@ -532,7 +574,7 @@ export default function App() {
     // 🚀 PASSO 3: REPROVADOS BUSCADOS VIA API REST
     const fetchReprovadosAPI = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/reprovados?start=${startStr}&end=${endStr}`);
+        const response = await fetch(`${API_URL}/api/reprovados`);
         const data = await response.json();
         data.sort(sortChronologically);
         setReprovadosData(data);
@@ -642,7 +684,7 @@ export default function App() {
         await syncCollectionAPI(campanhasData, cloudRefs.current.campanhas, '/api/campanhas/sync');
 
         // 3. Salva Configurações Globais apenas se houver mudança nos privilégios
-        const currentConfigStr = safeStr({ usersDB, goalsDB, scheduleData, monthlyOverrides });
+        const currentConfigStr = safeStr({ usersDB, goalsDB, scheduleData, monthlyOverrides, pricingData });
         // 🛡️ TRAVA DE SEGURANÇA: Só envia se já carregou da nuvem com sucesso (cloudRefs não está vazio)
         if (cloudRefs.current.config !== '' && currentConfigStr !== cloudRefs.current.config) {
           try {
@@ -668,9 +710,9 @@ export default function App() {
       } catch (error) {
         console.error("Erro no Auto-Save (Smart Diff):", error);
       }
-    }, 1500); 
+    }, 1500);
     return () => clearTimeout(timeoutId);
-  }, [salesData, simcardsData, reprovadosData, geekDocs, campanhasData, goalsDB, scheduleData, monthlyOverrides, usersDB, isFirebaseReady]);
+  }, [salesData, simcardsData, reprovadosData, geekDocs, campanhasData, goalsDB, scheduleData, monthlyOverrides, usersDB, pricingData, isFirebaseReady]);
 
   // 3. TIMER DE SESSÃO EXPIRADA POR INATIVIDADE (30 MINUTOS)
   // Monitoramento de inatividade global do usuário, fazendo Logout automático caso ocioso
@@ -766,6 +808,7 @@ export default function App() {
     { name: 'UR-RESIDENCIAL', icon: <Briefcase size={18} /> },
     { name: 'VENDA', icon: <CreditCard size={18} /> },
     { name: 'PARCIAL & FECHAMENTO', icon: <ClipboardCheck size={18} /> },
+    { name: 'PRECIFICAÇÃO', icon: <DollarSign size={18} /> },
     { name: 'GEEK', icon: <Cpu size={18} /> }
   ].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -780,6 +823,7 @@ export default function App() {
   const hasMetaAccess = ['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK', 'JOVEM APRENDIZ', 'ASSISTENTE RELACIONAMENTO'].includes(globalUser?.role);
   const canEditMeta = ['GERENTE', 'SENIOR'].includes(globalUser?.role);
   const hasParcialAccess = ['GERENTE', 'SENIOR', 'GEEK', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO'].includes(globalUser?.role);
+  const hasPricingAccess = ['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK'].includes(globalUser?.role);
   const isVendedor = globalUser?.role === 'VENDEDOR';
 
   // --- LÓGICA DE LOGIN ---
@@ -815,6 +859,7 @@ export default function App() {
       if (activeTab === 'META' && !['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK', 'JOVEM APRENDIZ', 'ASSISTENTE RELACIONAMENTO'].includes(userMatched.role)) setActiveTab('VENDA');
       if (activeTab === 'ESCALA DE TRABALHO' && !['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK'].includes(userMatched.role)) setActiveTab('VENDA');
       if (activeTab === 'PARCIAL & FECHAMENTO' && !['GERENTE', 'SENIOR', 'GEEK', 'ASSISTENTE RELACIONAMENTO', 'ADMINISTRAÇÃO'].includes(userMatched.role)) setActiveTab('VENDA');
+      if (activeTab === 'PRECIFICAÇÃO' && !['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK'].includes(userMatched.role)) setActiveTab('VENDA');
     } else {
       setAuthError('Usuário ou senha incorretos. Acesso negado.');
     }
@@ -825,7 +870,7 @@ export default function App() {
     setGlobalUser(null);
     setSelectedSeller(null);
     localStorage.removeItem('sessionUser');
-    if (activeTab === 'META' || activeTab === 'ESCALA DE TRABALHO' || activeTab === 'ACESSOS' || activeTab === 'PARCIAL & FECHAMENTO') setActiveTab('VENDA');
+    if (activeTab === 'META' || activeTab === 'ESCALA DE TRABALHO' || activeTab === 'ACESSOS' || activeTab === 'PARCIAL & FECHAMENTO' || activeTab === 'PRECIFICAÇÃO') setActiveTab('VENDA');
   };
 
 
@@ -888,8 +933,8 @@ export default function App() {
             {sidebarSections.map((section) => {
               if (section.name === 'META' && !hasMetaAccess) return null;
               if (section.name === 'ESCALA DE TRABALHO' && !hasScheduleAccess) return null;
-              if (section.name === 'ACESSOS' && !isGerente) return null;
               if (section.name === 'PARCIAL & FECHAMENTO' && !hasParcialAccess) return null;
+              if (section.name === 'PRECIFICAÇÃO' && !hasPricingAccess) return null;
 
               return (
                 <li key={section.name}>
@@ -1008,12 +1053,14 @@ export default function App() {
                               <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${notif.type === 'parcial' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' : 
                                 notif.type === 'campanha' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 
                                   notif.type === 'campanha_win' ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-500' : 
-                                    'bg-red-100 text-[#E3000F] dark:bg-red-900/30'
+                                    notif.type === 'pricing' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-500' :
+                                      'bg-red-100 text-[#E3000F] dark:bg-red-900/30'
                                 }`}>
                                 {notif.type === 'parcial' ? <ClipboardCheck size={16} /> : 
                                   notif.type === 'campanha' ? <Megaphone size={16} /> : 
                                     notif.type === 'campanha_win' ? <Trophy size={16} /> : 
-                                      <Target size={16} />}
+                                      notif.type === 'pricing' ? <DollarSign size={16} /> :
+                                        <Target size={16} />}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <h4 className={`text-sm mb-0.5 leading-tight ${!notif.read ? 'font-bold text-neutral-900 dark:text-white' : 'font-medium text-neutral-700 dark:text-neutral-300'}`}>{notif.title}</h4>
@@ -1034,7 +1081,7 @@ export default function App() {
 
             {/* Identificação de Empresa */}
             <div className="hidden sm:flex items-center justify-center mx-2">
-              <div className="text-[#E3000F] font-black text-xl tracking-tighter uppercase">CLARO UNIÃO OSASCO - AT1M</div>
+              <div className="text-[#E3000F] font-black text-xl tracking-tighter uppercase">{import.meta.env.VITE_STORE_NAME || 'CLARO UNIÃO OSASCO'} - {import.meta.env.VITE_STORE_CODE || 'AT1M'}</div>
             </div>
 
             {/* Dropdown/Perfil do Usuário Global Logado */}
@@ -1090,11 +1137,13 @@ export default function App() {
           ) : activeTab === 'GEEK' ? (
             <Geek geekDocs={geekDocs} setGeekDocs={handleSetGeekDocs} isGerente={isGerente} globalUser={globalUser} />
           ) : activeTab === 'SCRIPTS' ? (
-            <Scripts globalUser={globalUser} />
+            <Scripts globalUser={globalUser} usersDB={usersDB} />
           ) : activeTab === 'CAMPANHAS' ? (
             <Campanha globalUser={globalUser} campanhasData={campanhasData} setCampanhasData={handleSetCampanhasData} />
           ) : activeTab === 'FATOR RV' ? (
             <FatorRvv globalUser={globalUser} salesData={salesData} goalsDB={goalsDB} usersDB={usersDB} globalMonth={globalMonth} />
+          ) : activeTab === 'PRECIFICAÇÃO' ? (
+            <Precificacao pricingData={pricingData} setPricingData={setPricingData} globalUser={globalUser} />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-neutral-400 dark:text-neutral-500 animate-fade-in border-2 border-dashed border-neutral-200 dark:border-neutral-800 rounded-xl bg-white/50 dark:bg-neutral-900/50">
               <Database size={48} className="mb-4 text-neutral-300" />

@@ -5,10 +5,15 @@ import * as XLSX from 'xlsx';
 import { applyCpfCnpjMask, getTodaySP } from '../utils/masks';
 
 export function Reprovados({ reprovadosData, setReprovadosData, globalUser, isGerente, isVendedor, usersDB = {}, globalMonth }) {
-    const safeVendedores = Object.values(usersDB || {})
+    const activeVendedores = Object.values(usersDB || {})
         .filter(u => !u?.role || u?.role === 'VENDEDOR')
         .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
+        
+    const historicalVendedores = (reprovadosData || []).map(r => String(r.vendedor || '').split(' ')[0]).filter(Boolean);
+    
+    const safeVendedores = [...new Set([...activeVendedores, ...historicalVendedores])].sort();
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');

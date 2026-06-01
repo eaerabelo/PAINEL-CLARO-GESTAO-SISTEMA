@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Megaphone, Plus, Edit3, Trash2, X, Calendar, Target, Award, CheckCircle2, AlertCircle, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getTodaySP } from '../utils/masks';
 
 export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -14,6 +15,26 @@ export function Campanha({ globalUser, campanhasData = [], setCampanhasData }) {
         dataFim: '',
         status: 'ATIVA'
     });
+
+    // Sistema Automático: Encerra campanhas cuja data limite foi ultrapassada
+    useEffect(() => {
+        if (!campanhasData || campanhasData.length === 0) return;
+        
+        const today = getTodaySP();
+        let hasChanges = false;
+        
+        const updatedCampanhas = campanhasData.map(camp => {
+            if (camp.status === 'ATIVA' && camp.dataFim && camp.dataFim < today) {
+                hasChanges = true;
+                return { ...camp, status: 'ENCERRADA' };
+            }
+            return camp;
+        });
+
+        if (hasChanges) {
+            setCampanhasData(updatedCampanhas);
+        }
+    }, [campanhasData, setCampanhasData]);
 
     const canEdit = ['GERENTE', 'SENIOR', 'ADMINISTRAÇÃO', 'GEEK'].includes(globalUser?.role);
 

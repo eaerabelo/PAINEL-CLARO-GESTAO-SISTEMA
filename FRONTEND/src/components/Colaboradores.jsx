@@ -6,10 +6,25 @@ import toast from 'react-hot-toast';
 import { METAS_PADRAO } from '../utils/constants';
 
 export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, globalUser, salesData, goalsDB = {}, usersDB = {}, setAuthModal, globalMonth, setGlobalMonth }) => {
-    const safeVendedores = Object.values(usersDB || {})
+    const activeVendedores = Object.values(usersDB || {})
         .filter(u => !u?.role || u?.role === 'VENDEDOR')
-        .map(u => String(u?.name || ''))
+        .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
+
+    const historicalVendedores = (salesData || [])
+        .filter(s => {
+            if (typeof s.data !== 'string') return false;
+            if (s.data.includes('/')) {
+                const parts = s.data.split('/');
+                if (parts.length === 3) return `${parts[2]}-${parts[1]}` === globalMonth;
+            }
+            if (s.data.includes('-')) return s.data.slice(0, 7) === globalMonth;
+            return false;
+        })
+        .map(s => String(s.vendedor || '').split(' ')[0])
+        .filter(Boolean);
+
+    const safeVendedores = [...new Set([...activeVendedores, ...historicalVendedores])].sort();
 
     const [activeSubTab, setActiveSubTab] = useState('DESEMPENHO');
     const monthFilter = globalMonth;
@@ -172,8 +187,8 @@ export const Colaboradores = ({ selectedSeller, setSelectedSeller, isVendedor, g
                     else flex += q;
                 }
                 else if (pBase.includes('DEPENDENTE') || pBase.includes('DEP')) {
-                    if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || pBase.includes('GRÁTIS')) depGratis += q;
-                    else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA')) depBl += q;
+                    if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || sub.includes('INCLUSA') || pBase.includes('GRÁTIS') || pBase.includes('INCLUSA')) depGratis += q;
+                    else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA') || sub.includes('BL') || pBase.includes('BL')) depBl += q;
                     else depPg += q;
                 }
                 else if (pBase.includes('BANDA LARGA') || pBase === 'BL' || pBase.includes('CLARO NET VIRTUA')) bl += q;

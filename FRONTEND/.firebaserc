@@ -1,0 +1,19 @@
+{
+  "projects": {},
+  "targets": {
+    "painel-claro": {
+      "hosting": {
+        "calcadao": [
+          "painel-claro-osasco-calcadao"
+        ],
+        "lapa": [
+          "painel-claro-lapa"
+        ],
+        "osasco": [
+          "painel-claro"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

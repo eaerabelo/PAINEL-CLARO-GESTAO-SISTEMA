@@ -2,12 +2,27 @@ import React from 'react';
 import { Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export const Scripts = ({ globalUser }) => {
+export const Scripts = ({ globalUser, usersDB = {} }) => {
     // Pega o nome do usuário logado e converte para maiúsculas (Fallback para VENDEDOR se não encontrado)
     const userName = globalUser?.name?.toUpperCase() || 'VENDEDOR';
     
+    // Busca o Gerente ou Liderança atual no banco de dados da loja
+    const gerenteObj = Object.values(usersDB || {}).find(u => u?.role === 'GERENTE') || 
+        Object.values(usersDB || {}).find(u => u?.role === 'SENIOR') ||
+        Object.values(usersDB || {}).find(u => u?.role === 'ADMINISTRAÇÃO');
+                       
+    // Formata o nome do Gerente (Pega o 1º e o Último nome para não ficar gigante)
+    let gerenteName = 'NÃO INFORMADO';
+    if (gerenteObj?.name) {
+        const parts = gerenteObj.name.toUpperCase().split(' ');
+        gerenteName = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]}` : parts[0];
+    }
+
+    // Busca o nome da Loja pela variável de ambiente do Render/Vite
+    const storeName = import.meta.env.VITE_STORE_NAME || 'LOJA CLARO';
+
     // Assinatura padrão configurada de forma dinâmica
-    const signature = `${userName} / GERENTE - HEMILY MONTEIRO / LP SHOPPING UNIÃO`;
+    const signature = `${userName} / GERENTE - ${gerenteName} / ${storeName}`;
 
     const scriptsList = [
         {
@@ -37,6 +52,18 @@ export const Scripts = ({ globalUser }) => {
         {
             title: 'Devolução c/ Sucesso via APP',
             text: `DEVOLUÇÃO C/SUCESSO VIA APP \n\nCLIENTE EM LOJA REALIZA DEVOLUÇÃO DE EQUIPAMENTO\nDEVOLUÇÃO DE EQUIPAMENTO FEITA COM SUCESSO\n\n${signature}`
+        },
+        {
+            title: 'Leed Retenção',
+            text: `<<<<<<<<<<< LEED RETENÇÃO >>>>>>>>>>>>\n\nCLIENTE ENTRA EM CONTATO COM A LOJA E SOLICITA CANCELAMENTO POR MOTIVO DE DIFICULDADE TEMPORARIA\nRETIDO = OFERTADO E ACEITO  MOVEL RENT CONF FID +350MB +  PLANO MOVEL -\nAPLICADO COM SUCESSO.\nCIENTE DE PRO RATA\nOFERTADO DCC\nORIENTADO SOBRE ACESSO E FACILIDADES MINHA NET/MINHACLARO\n\n${signature}`
+        },
+        {
+            title: 'Cancelamento Residencial NET',
+            text: `////////////////// CANCELAMENTO RESIDENCIAL NET //////////////////\n\nNAO RETIDO\nNOME DO CLIENTE: \nGRAU DE PARENTESCO (SE TERCEIRO): TITULAR\nMOTIVO DE CANCELAMENTO (DESCREVER MOTIVO E PRODUTO): POUCA UTILIZAÇÃO\nOFERTA INSERIDA (PRAZO, VALORES): CLIENTE SOLICITA FAZER O CANCELAMENTO DE SEU CONTRATO\nPROTOCOLO:  (X )ACEITA  ( )NÃO ACEITA\nOBS: PROTOCOLO ENVIADO POR EMAIL PRAZO DE RECEBIMENTO DE ATÉ 24 HORAS\nINFORMAR VALOR DA PRO RATA: (R$  )\nRENOVAÇÃO DE MULTA: ( ) INFORMADO  (X) NÃO SE APLICA\nENCERRAMENTO DE COBRANÇA: (X ) INFORMADO  ( ) NÃO SE APLICA EM ATÉ 90 DIAS DO NETFONE\nMULTA FIDELIDADE: ( ) INFORMADO  ( X) NÃO SE APLICA:\nDADOS P/ CONTATO A CONFIRMAR: (MELHOR HORÁRIO/ DATA DA OS/\nPROCEDIMENTO DE AGENDAMENTO O.S: (  ) CONFIRMADO  (X) NÃO SE APLICA\n\n${signature}`
+        },
+        {
+            title: 'Cancelamento por Óbito',
+            text: `Boa tarde! Caros\n\nPor favor efetuar o cancelamento do contrato abaixo:\n\nContrato: \nCliente: \nCPF: \n\nResponsável pela notificação do óbito:\nNome: \nGRAU PARENTESCO: \nCPF: \n\n${signature}`
         }
     ];
 

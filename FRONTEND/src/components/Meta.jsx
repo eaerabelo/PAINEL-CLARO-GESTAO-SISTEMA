@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Target, Lock, Check, History, MonitorPlay, Smartphone, Home, Watch, ShieldCheck, Save, LineChart, Loader2 } from 'lucide-react';
 import { METAS_PADRAO } from '../utils/constants';
 import { applyCurrencyMask, parseCurrencyToFloat } from '../utils/masks';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../firebase.js';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 const safeMetasPadrao = METAS_PADRAO || { receita: 0, posTotal: 0, posPago: 0, controle: 0, urTotal: 0, fibra: 0, tv: 0, fixo: 0, aparelho: 0, acessorio: 0, pelicula: 0, seguro: 0, mesh: 0, trocafy: 0, mplay: 0 };
 
@@ -12,6 +12,7 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
     const [goalForm, setGoalForm] = useState({ ...safeMetasPadrao, receita: applyCurrencyMask(safeMetasPadrao.receita) });
     const [showGoalSuccess, setShowGoalSuccess] = useState(false);
     const [metaActiveSubTab, setMetaActiveSubTab] = useState('DEFINIR');
+    const [selectedSxsMonth, setSelectedSxsMonth] = useState(globalMonth || currentYYYYMM);
 
     const [allHistoricalSales, setAllHistoricalSales] = useState([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -21,11 +22,11 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
             const fetchHistory = async () => {
                 setIsLoadingHistory(true);
                 try {
-                    const snapshot = await getDocs(collection(db, 'vendas_uniao_osasco'));
-                    const data = snapshot.docs.map(doc => doc.data());
+                    const response = await fetch(`${API_URL}/api/vendas`);
+                    const data = await response.json();
                     setAllHistoricalSales(data);
                 } catch (error) {
-                    console.error("Erro ao buscar histórico:", error);
+                    console.error("Erro ao buscar histórico via API:", error);
                 } finally {
                     setIsLoadingHistory(false);
                 }
@@ -33,6 +34,10 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
             fetchHistory();
         }
     }, [metaActiveSubTab]);
+
+    useEffect(() => {
+        setSelectedSxsMonth(globalMonth || currentYYYYMM);
+    }, [globalMonth, currentYYYYMM]);
 
     useEffect(() => {
         const data = (goalsDB || {})[selectedGoalMonth] || {
@@ -152,7 +157,7 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
     }, [allHistoricalSales, salesData]);
 
     const weeklyMetrics = React.useMemo(() => {
-        const [yearStr, monthStr] = (globalMonth || currentYYYYMM).split('-');
+        const [yearStr, monthStr] = selectedSxsMonth.split('-');
         const daysInMonth = new Date(parseInt(yearStr, 10), parseInt(monthStr, 10), 0).getDate();
         const week5Label = daysInMonth > 28 ? `Semana 5 (29 a ${daysInMonth})` : 'Semana 5 (N/A)';
 
@@ -180,7 +185,7 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
                 }
             }
             
-            if (!saleIsoDate.startsWith(globalMonth || currentYYYYMM)) return;
+            if (!saleIsoDate.startsWith(selectedSxsMonth)) return;
             const day = parseInt(saleIsoDate.split('-')[2], 10);
             
             let wIdx = 0;
@@ -262,7 +267,30 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
         }
 
         return weeks;
-    }, [salesData, allHistoricalSales, globalMonth, currentYYYYMM]);
+    }, [salesData, allHistoricalSales, selectedSxsMonth]);
+
+    const renderMxMCell = (realVal, goalVal, isCurrency = false) => {
+        const rVal = Number(realVal) || 0;
+        const gVal = Number(goalVal) || 0;
+        const pct = gVal > 0 ? (rVal / gVal) * 100 : (rVal > 0 ? 100 : 0);
+        const formattedReal = isCurrency ? applyCurrencyMask(rVal) : rVal;
+        const formattedGoal = isCurrency ? applyCurrencyMask(gVal) : gVal;
+        
+        let pctColor = 'text-neutral-500 bg-neutral-100 dark:bg-neutral-800 dark:text-neutral-400';
+        if (pct >= 100) pctColor = 'text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-400';
+        else if (pct >= 80) pctColor = 'text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-400';
+        else if (gVal > 0) pctColor = 'text-red-700 bg-red-100 dark:bg-red-900/30 dark:text-red-400';
+
+        return (
+            <div className="flex flex-col">
+                <div className="flex items-center gap-1.5">
+                    <span>{formattedReal}</span>
+                    {gVal > 0 && <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${pctColor}`}>{pct.toFixed(1)}%</span>}
+                </div>
+                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {formattedGoal}</span>
+            </div>
+        );
+    };
 
     return (
         <div className="h-full flex flex-col animate-fade-in transition-colors">
@@ -364,84 +392,19 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
                                                         <td className={`px-6 py-4 font-bold tracking-wider sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] dark:shadow-[2px_0_5px_rgba(0,0,0,0.2)] ${isCurrent ? 'bg-red-50 dark:bg-neutral-800 text-[#E3000F]' : 'bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-100'}`}>
                                                             {month.split('-').reverse().join('-')} {isCurrent && <span className="ml-2 text-[9px] bg-[#E3000F] text-white px-2 py-0.5 rounded-full">Atual</span>}
                                                         </td>
-                                                        <td className="px-6 py-3 font-black text-green-600 dark:text-green-500 whitespace-nowrap">
-                                                            <div className="flex flex-col">
-                                                                <span>{applyCurrencyMask(real.receita)}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {applyCurrencyMask(m.receita)}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 font-bold text-neutral-800 dark:text-neutral-100">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.posTotal}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.posTotal}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.posPago}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.posPago}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.controle}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.controle}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 font-bold text-neutral-800 dark:text-neutral-100">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.urTotal}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.urTotal}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.fibra}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.fibra}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.tv}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.tv}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.fixo}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.fixo || 0}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 font-medium text-orange-600 dark:text-orange-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.aparelho}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.aparelho}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-600 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.acessorio}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.acessorio}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-600 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.pelicula}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.pelicula}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 font-medium text-blue-600 dark:text-blue-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.seguro}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.seguro}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-neutral-600 dark:text-neutral-400">
-                                                            <div className="flex flex-col">
-                                                                <span>{real.mplay}</span>
-                                                                <span className="text-[9px] text-neutral-500 dark:text-neutral-400 font-bold mt-0.5">Meta: {m.mplay}</span>
-                                                            </div>
-                                                        </td>
+                                                        <td className="px-6 py-3 font-black text-green-600 dark:text-green-500 whitespace-nowrap">{renderMxMCell(real.receita, m.receita, true)}</td>
+                                                        <td className="px-6 py-3 font-bold text-neutral-800 dark:text-neutral-100 whitespace-nowrap">{renderMxMCell(real.posTotal, m.posTotal)}</td>
+                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.posPago, m.posPago)}</td>
+                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.controle, m.controle)}</td>
+                                                        <td className="px-6 py-3 font-bold text-neutral-800 dark:text-neutral-100 whitespace-nowrap">{renderMxMCell(real.urTotal, m.urTotal)}</td>
+                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.fibra, m.fibra)}</td>
+                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.tv, m.tv)}</td>
+                                                        <td className="px-6 py-3 text-neutral-500 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.fixo, m.fixo || 0)}</td>
+                                                        <td className="px-6 py-3 font-medium text-orange-600 dark:text-orange-400 whitespace-nowrap">{renderMxMCell(real.aparelho, m.aparelho)}</td>
+                                                        <td className="px-6 py-3 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.acessorio, m.acessorio)}</td>
+                                                        <td className="px-6 py-3 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.pelicula, m.pelicula)}</td>
+                                                        <td className="px-6 py-3 font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">{renderMxMCell(real.seguro, m.seguro)}</td>
+                                                        <td className="px-6 py-3 text-neutral-600 dark:text-neutral-400 whitespace-nowrap">{renderMxMCell(real.mplay, m.mplay)}</td>
                                                     </tr>
                                                 );
                                             })}
@@ -455,12 +418,18 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
                     {metaActiveSubTab === 'SEMANAL' && (
                         <div className="flex-1 overflow-auto p-6 md:p-8 bg-neutral-50/50 dark:bg-neutral-950/50">
                             <div className="max-w-7xl mx-auto">
-                                <div className="mb-6">
-                                    <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
-                                        <LineChart className="text-[#E3000F]" /> Histórico Semana x Semana (SxS) - {(globalMonth || currentYYYYMM).split('-').reverse().join('-')}
-                                        {isLoadingHistory && <Loader2 size={20} className="animate-spin text-neutral-400" />}
-                                    </h2>
-                                    <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Acompanhe as vendas faturadas semana a semana referentes ao mês selecionado no topo do sistema.</p>
+                                <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 flex items-center gap-2">
+                                            <LineChart className="text-[#E3000F]" /> Histórico Semana x Semana (SxS)
+                                            {isLoadingHistory && <Loader2 size={20} className="animate-spin text-neutral-400" />}
+                                        </h2>
+                                        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">Acompanhe as vendas faturadas semana a semana referentes ao mês selecionado.</p>
+                                    </div>
+                                    <div className="flex items-center gap-4 bg-white dark:bg-neutral-900 p-2 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-700 shrink-0">
+                                        <div className="flex items-center gap-2 px-2 text-sm font-bold text-neutral-500"><History size={16} /> Mês:</div>
+                                        <input type="month" value={selectedSxsMonth} onChange={(e) => setSelectedSxsMonth(e.target.value)} className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-[#E3000F] px-4 py-2 rounded-lg font-bold outline-none cursor-pointer" />
+                                    </div>
                                 </div>
                                 <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-2xl shadow-sm overflow-x-auto">
                                     <table className="w-full text-sm text-left whitespace-nowrap">
@@ -513,7 +482,7 @@ export const Meta = ({ hasAccess, canEdit, setAuthModal, goalsDB, setGoalsDB, cu
                                         </tbody>
                                         <tfoot className="bg-neutral-50 dark:bg-neutral-900 sticky bottom-0 z-20 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
                                             {(() => {
-                                                const currentMonthMeta = (goalsDB || {})[globalMonth || currentYYYYMM] || safeMetasPadrao;
+                                                const currentMonthMeta = (goalsDB || {})[selectedSxsMonth] || safeMetasPadrao;
                                                 return (
                                                     <tr className="text-neutral-900 dark:text-neutral-100 font-black uppercase text-[11px]">
                                                         <td className="border-t-2 border-b border-neutral-300 dark:border-neutral-700 px-6 py-4 sticky left-0 bg-neutral-100 dark:bg-neutral-800 shadow-[2px_0_5px_rgba(0,0,0,0.05)] z-30 text-[#E3000F]">Realizado Mês</td>

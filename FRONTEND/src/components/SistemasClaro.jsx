@@ -9,7 +9,8 @@ export const SistemasClaro = () => {
         { name: 'PORTAL CLARO', url: 'http://portalclarobrasil/' },
         { name: 'CEMI', url: 'https://cemi/mudancastatus/jsp/login.jsp' },
         { name: 'RH SOLUTIONS', url: 'https://portalrh.claro.com.br/ords/rhportal/rhlgweb.show' },
-        { name: 'CONEXÃO APRENDER', url: 'https://hdim.fa.us2.oraclecloud.com/fscmUI/redwood/learner/learn/browse-learning-items' }
+        { name: 'CONEXÃO APRENDER', url: 'https://hdim.fa.us2.oraclecloud.com/fscmUI/redwood/learner/learn/browse-learning-items' },
+        { name: 'RCV PRIORIDADES', url: 'https://atendchat.claro.com.br/RCV-prioridades/' }
     ];
 
     // Junta os links dinamicamente garantindo que não existam duplicados

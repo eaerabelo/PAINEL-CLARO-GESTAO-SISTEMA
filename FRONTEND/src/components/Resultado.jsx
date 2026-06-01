@@ -94,8 +94,8 @@ export function Resultado({ salesData, goalsDB, usersDB = {}, globalMonth, setGl
                     else flex += q;
                 }
                 else if (pBase.includes('DEPENDENTE') || pBase.includes('DEP')) {
-                    if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || pBase.includes('GRÁTIS')) depGratis += q;
-                    else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA')) depBl += q;
+                    if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || sub.includes('INCLUSA') || pBase.includes('GRÁTIS') || pBase.includes('INCLUSA')) depGratis += q;
+                    else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA') || sub.includes('BL') || pBase.includes('BL')) depBl += q;
                     else depPg += q;
                 }
                 else if (pBase.includes('BANDA LARGA') || pBase === 'BL' || pBase.includes('CLARO NET VIRTUA')) bl += q;

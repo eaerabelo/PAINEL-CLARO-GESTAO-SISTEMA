@@ -4,6 +4,198 @@ import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
 import { applyDateShortMask, applyOvMask, applyCpfCnpjMask, applyCurrencyMask, getTodaySP } from '../utils/masks';
 
+const formatPastedValue = (field, rawValue) => {
+    if (!rawValue) return '';
+    let val = rawValue.trim();
+    if (field === 'simcardFisico' || field === 'simcardEsim') val = val.replace(/\D/g, '').slice(0, 20);
+    else if (field === 'cpf') val = applyCpfCnpjMask(val);
+    else if (field === 'valor') val = applyCurrencyMask(val);
+    else if (field === 'data') val = applyDateShortMask(val);
+    else if (field === 'ov' || field === 'plano' || field === 'cliente' || field === 'pagamento') val = val.toUpperCase();
+    else if (field === 'dataPortin') {
+        let v = val.replace(/\D/g, '');
+        if (v.length > 10) v = v.slice(0, 10);
+        let masked = v;
+        if (v.length > 8) masked = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4, 6)} ${v.slice(6, 8)}:${v.slice(8, 10)}`;
+        else if (v.length > 6) masked = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4, 6)} ${v.slice(6)}`;
+        else if (v.length > 4) masked = `${v.slice(0, 2)}/${v.slice(2, 4)}/${v.slice(4)}`;
+        else if (v.length > 2) masked = `${v.slice(0, 2)}/${v.slice(2)}`;
+        val = masked;
+    }
+    else if (field === 'numPortado' || field === 'numProvisorio') {
+        let v = val.replace(/\D/g, '');
+        if (v.length > 11) v = v.slice(0, 11);
+        let masked = v;
+        if (v.length > 7) masked = `(${v.slice(0, 2)}) ${v.slice(2, 7)}-${v.slice(7)}`;
+        else if (v.length > 2) masked = `(${v.slice(0, 2)}) ${v.slice(2)}`;
+        val = masked;
+    }
+    return val;
+};
+
+const getColumns = (tab, isFisico) => {
+    const iccidField = isFisico ? 'simcardFisico' : 'simcardEsim';
+    if (tab === 'SOBREPOSIÇÃO') {
+        return [iccidField, 'data', 'dataPortin', 'numPortado', 'numProvisorio', 'ov', 'codAutorizacao', 'cpf', 'plano', 'cliente', 'observacao'];
+    } else {
+        return [iccidField, 'data', 'ov', 'codAutorizacao', 'cpf', 'plano', 'cliente', 'pagamento', 'valor', 'observacao'];
+    }
+};
+
+const CellInput = ({ value, onCommit, onCancel, placeholder, className, maskType, autoFocus }) => {
+    const [localValue, setLocalValue] = useState(value || '');
+    const [isFocused, setIsFocused] = useState(false);
+
+    useEffect(() => {
+        if (!isFocused) {
+            setLocalValue(value || '');
+        }
+    }, [value, isFocused]);
+
+    const handleChange = (e) => {
+        let val = e.target.value;
+        val = formatPastedValue(maskType === 'iccid' ? 'simcardFisico' : maskType || 'upper', val);
+        setLocalValue(val);
+        onCommit(val);
+    };
+
+    const handleBlur = () => {
+        setIsFocused(false);
+        if (onCancel) onCancel();
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' || e.key === 'Escape') {
+            e.target.blur();
+        }
+    };
+
+    return (
+        <input
+            type="text"
+            value={isFocused ? localValue : (value || '')}
+            onChange={handleChange}
+            onFocus={() => setIsFocused(true)}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            className={className}
+            autoFocus={autoFocus}
+        />
+    );
+};
+
+const EditableCell = ({ item, idx, colIdx, field, value, tipoLote, canModifySimcard, maskType, selection, setSelection, isDragging, setIsDragging, editingCell, setEditingCell, handleInlineChange, handleProtectedClick, className = '', placeholder = '', align = 'left', showLock = false }) => {
+    const isSelected = selection.type === tipoLote && 
+        selection.startRow !== null && selection.endRow !== null &&
+        selection.startCol !== null && selection.endCol !== null &&
+        idx >= Math.min(selection.startRow, selection.endRow) && 
+        idx <= Math.max(selection.startRow, selection.endRow) &&
+        colIdx >= Math.min(selection.startCol, selection.endCol) &&
+        colIdx <= Math.max(selection.startCol, selection.endCol);
+
+    const isEditing = editingCell?.id === item.id && editingCell?.type === tipoLote && editingCell?.field === field && canModifySimcard;
+
+    const handleCommit = (newVal) => {
+        handleInlineChange(item.id, field, newVal);
+    };
+
+    let justify = 'justify-start';
+    if (align === 'center') justify = 'justify-center';
+    else if (align === 'right') justify = 'justify-end';
+
+    return (
+        <td 
+            className={`border border-neutral-200 dark:border-neutral-800 p-0 relative selectable-cell ${isSelected && !isEditing ? 'bg-red-100 dark:bg-red-900/40 ring-inset ring-2 ring-red-500 z-10' : ''}`}
+            onMouseDown={(e) => {
+                if (e.target.closest('input') || e.target.closest('select') || e.target.closest('svg') || isEditing) return;
+                
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+                window.getSelection()?.removeAllRanges();
+
+                setIsDragging(true);
+                setSelection({ type: tipoLote, startRow: idx, endRow: idx, startCol: colIdx, endCol: colIdx });
+                setEditingCell(null);
+            }}
+            onMouseEnter={() => {
+                if (isDragging && selection.type === tipoLote) {
+                    setSelection(prev => ({ ...prev, endRow: idx, endCol: colIdx }));
+                }
+            }}
+            onDoubleClick={() => {
+                if (canModifySimcard && selection.startRow === selection.endRow && selection.startCol === selection.endCol) {
+                    setEditingCell({ id: item.id, type: tipoLote, field });
+                }
+            }}
+        >
+            {isEditing ? (
+                <CellInput 
+                    value={value} 
+                    onCommit={handleCommit} 
+                    onCancel={() => setEditingCell(null)}
+                    maskType={maskType} 
+                    placeholder={placeholder} 
+                    className={`w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-red-50 dark:focus:bg-red-900/20 focus:ring-inset focus:ring-2 focus:ring-[#E3000F] text-xs text-${align} ${className}`}
+                    autoFocus={true}
+                />
+            ) : (
+                <div className={`w-full h-full min-h-[36px] px-3 py-1.5 text-xs flex items-center ${justify} ${!canModifySimcard ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-800 dark:text-neutral-200'} ${isSelected ? 'text-red-800 dark:text-red-200' : ''} cursor-cell select-none ${className} overflow-hidden whitespace-nowrap`}>
+                    {value || ''}
+                </div>
+            )}
+            {showLock && !canModifySimcard && value && <Lock size={12} onClick={handleProtectedClick} title="Desbloquear Edição" className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 cursor-pointer hover:text-[#E3000F] transition-colors" />}
+        </td>
+    );
+};
+
+const SelectableCell = ({ item, idx, colIdx, field, value, tipoLote, canModifySimcard, selection, setSelection, isDragging, setIsDragging, handleInlineChange }) => {
+    const isSelected = selection.type === tipoLote && 
+        selection.startRow !== null && selection.endRow !== null &&
+        selection.startCol !== null && selection.endCol !== null &&
+        idx >= Math.min(selection.startRow, selection.endRow) && 
+        idx <= Math.max(selection.startRow, selection.endRow) &&
+        colIdx >= Math.min(selection.startCol, selection.endCol) &&
+        colIdx <= Math.max(selection.startCol, selection.endCol);
+
+    return (
+        <td 
+            className={`border border-neutral-200 dark:border-neutral-800 p-0 relative selectable-cell ${isSelected ? 'bg-red-100 dark:bg-red-900/40 ring-inset ring-2 ring-red-500 z-10' : ''}`}
+            onMouseDown={(e) => {
+                if (e.target.tagName === 'SELECT') return;
+
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+                window.getSelection()?.removeAllRanges();
+
+                setIsDragging(true);
+                setSelection({ type: tipoLote, startRow: idx, endRow: idx, startCol: colIdx, endCol: colIdx });
+            }}
+            onMouseEnter={() => {
+                if (isDragging && selection.type === tipoLote) {
+                    setSelection(prev => ({ ...prev, endRow: idx, endCol: colIdx }));
+                }
+            }}
+        >
+            <select 
+                value={value || ''} 
+                onChange={e => handleInlineChange(item.id, field, e.target.value)} 
+                disabled={!canModifySimcard}
+                className="w-full h-full min-h-[36px] px-2 py-1.5 bg-transparent outline-none focus:bg-red-50 dark:focus:bg-red-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-[10px] font-bold text-neutral-700 dark:text-neutral-300 uppercase disabled:opacity-80"
+            >
+                <option className="bg-white dark:bg-neutral-900" value=""></option>
+                <option className="bg-white dark:bg-neutral-900" value="LPAY">LPAY</option>
+                <option className="bg-white dark:bg-neutral-900" value="PIX">PIX</option>
+                <option className="bg-white dark:bg-neutral-900" value="LINK DE PAGAMENTO">LINK DE PAGAMENTO</option>
+                <option className="bg-white dark:bg-neutral-900" value="DINHEIRO">DINHEIRO</option>
+                <option className="bg-white dark:bg-neutral-900" value="DOA">DOA</option>
+            </select>
+        </td>
+    );
+};
+
 export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcard, globalUser, setAuthModal, usersDB = {} }) => {
     const safeVendedores = Object.values(usersDB || {})
         .filter(u => !u?.role || u?.role === 'VENDEDOR')
@@ -20,7 +212,7 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
     const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
     const [batchData, setBatchData] = useState({ fisicos: '', esims: '', data: getTodaySP() });
 
-    const [selection, setSelection] = useState({ type: null, start: null, end: null });
+    const [selection, setSelection] = useState({ type: null, startRow: null, endRow: null, startCol: null, endCol: null });
     const [isDragging, setIsDragging] = useState(false);
     const [editingCell, setEditingCell] = useState(null);
     const [isOptionsCollapsed, setIsOptionsCollapsed] = useState(false);
@@ -46,8 +238,8 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
     useEffect(() => {
         const handleGlobalMouseUp = () => setIsDragging(false);
         const handleClickOutside = (e) => {
-            if (!e.target.closest('.iccid-cell')) {
-                setSelection({ type: null, start: null, end: null });
+            if (!e.target.closest('.selectable-cell')) {
+                setSelection({ type: null, startRow: null, endRow: null, startCol: null, endCol: null });
                 setEditingCell(null);
             }
         };
@@ -55,70 +247,144 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
         const handleKeyDown = (e) => {
             const { selection, simcardsData, currentTab, canModifySimcard } = selectionRef.current;
             
-            if ((e.ctrlKey || e.metaKey) && selection && selection.type && selection.start !== null && selection.end !== null) {
-                const start = Math.min(selection.start, selection.end);
-                const end = Math.max(selection.start, selection.end);
+            if (selection && selection.type && selection.startRow !== null && selection.endRow !== null && selection.startCol !== null && selection.endCol !== null) {
+                const startRow = Math.min(selection.startRow, selection.endRow);
+                const endRow = Math.max(selection.startRow, selection.endRow);
+                const startCol = Math.min(selection.startCol, selection.endCol);
+                const endCol = Math.max(selection.startCol, selection.endCol);
                 
-                // Só executa o Ctrl+C/V global se não houver um campo de texto aberto (evita sobrepor o navegador)
-                if (start !== end || (document.activeElement && document.activeElement.tagName !== 'INPUT')) {
+                const activeTag = document.activeElement ? document.activeElement.tagName.toUpperCase() : '';
+                const isEditingCell = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) || (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName.toUpperCase()));
+
+                if (!isEditingCell) {
                     const isFisico = selection.type === 'FÍSICO';
+                    const key = e.key || '';
+                    const code = e.code || '';
+                    const isDelete = key === 'Delete' || key === 'Backspace' || key === 'Del' || code === 'Delete' || code === 'Backspace' || e.keyCode === 8 || e.keyCode === 46;
 
-                    // Ação de COPIAR Múltiplas células (CTRL+C)
-                    if (e.key.toLowerCase() === 'c') {
+                    // Ação de APAGAR (DELETE / BACKSPACE)
+                    if (isDelete) {
                         e.preventDefault();
-                        const filteredData = (simcardsData || []).filter(item => {
-                            if (item.owner !== currentTab) return false;
-                            if (isFisico) {
-                                return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
-                            } else {
-                                return item.simcardEsim && !item.simcardFisico;
-                            }
-                        });
+                        if (!canModifySimcard) {
+                            toast.error('Acesso restrito: Você não tem permissão para excluir registros.');
+                            return;
+                        }
 
-                        const selectedItems = filteredData.slice(start, end + 1);
-                        const textToCopy = selectedItems.map(item => isFisico ? item.simcardFisico : item.simcardEsim).filter(Boolean).join('\n');
-                        
-                        if (textToCopy) {
-                            navigator.clipboard.writeText(textToCopy);
-                            toast.success(`${selectedItems.length} ICCID(s) copiado(s)!`);
+                        const cols = getColumns(currentTab, isFisico).slice(startCol, endCol + 1);
+
+                        setSimcardsData(prev => {
+                            const currentFiltered = (prev || []).filter(item => {
+                                if (item.owner !== currentTab) return false;
+                                if (isFisico) {
+                                    return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
+                                } else {
+                                    return item.simcardEsim && !item.simcardFisico;
+                                }
+                            });
+
+                            const itemsToUpdate = currentFiltered.slice(startRow, endRow + 1);
+                            if (itemsToUpdate.length === 0) return prev;
+                            
+                            const itemsToUpdateIds = itemsToUpdate.map(i => i.id);
+
+                            return prev.map(item => {
+                                if (itemsToUpdateIds.includes(item.id)) {
+                                    const updates = {};
+                                    cols.forEach(col => updates[col] = '');
+                                    return { ...item, ...updates };
+                                }
+                                return item;
+                            });
+                        });
+                        toast.success(`${(endRow - startRow + 1) * cols.length} item(ns) apagado(s)!`);
+                        return;
+                    }
+
+                    // Ação de EDITAR (ENTER)
+                    if (e.key === 'Enter' && startRow === endRow && startCol === endCol && canModifySimcard) {
+                        e.preventDefault();
+                        const cols = getColumns(currentTab, isFisico);
+                        const field = cols[startCol];
+                        const items = (simcardsData || []).filter(item => {
+                            if (item.owner !== currentTab) return false;
+                            return isFisico ? (item.simcardFisico || (!item.simcardFisico && !item.simcardEsim)) : (item.simcardEsim && !item.simcardFisico);
+                        });
+                        if (items[startRow]) {
+                            setEditingCell({ id: items[startRow].id, type: selection.type, field });
                         }
                     }
 
-                    // Ação de COLAR para Múltiplas Células (CTRL+V) - Exclusivo Gestão
-                    if (e.key.toLowerCase() === 'v' && canModifySimcard) {
-                        e.preventDefault();
-                        navigator.clipboard.readText().then(text => {
-                            if (!text) return;
-                            const pastedLines = text.split(/\r?\n/).map(l => l.trim().replace(/\D/g, '').slice(0, 20)).filter(Boolean);
-                            if (pastedLines.length === 0) return;
-                            
-                            setSimcardsData(prev => {
-                                const currentFiltered = (prev || []).filter(item => {
-                                    if (item.owner !== currentTab) return false;
-                                    if (isFisico) {
-                                        return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
-                                    } else {
-                                        return item.simcardEsim && !item.simcardFisico;
-                                    }
-                                });
-
-                                const itemsToUpdate = currentFiltered.slice(start, start + pastedLines.length);
-                                if (itemsToUpdate.length === 0) return prev;
-                                
-                                const itemsToUpdateIds = itemsToUpdate.map(i => i.id);
-                                toast.success(`${Math.min(itemsToUpdate.length, pastedLines.length)} ICCID(s) colado(s)!`);
-
-                                return prev.map(item => {
-                                    const idx = itemsToUpdateIds.indexOf(item.id);
-                                    if (idx !== -1 && pastedLines[idx]) {
-                                        return { ...item, [isFisico ? 'simcardFisico' : 'simcardEsim']: pastedLines[idx] };
-                                    }
-                                    return item;
-                                });
+                    if (e.ctrlKey || e.metaKey) {
+                        // Ação de COPIAR Múltiplas células (CTRL+C)
+                        if (e.key.toLowerCase() === 'c') {
+                            e.preventDefault();
+                            const filteredData = (simcardsData || []).filter(item => {
+                                if (item.owner !== currentTab) return false;
+                                if (isFisico) {
+                                    return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
+                                } else {
+                                    return item.simcardEsim && !item.simcardFisico;
+                                }
                             });
-                        }).catch(() => {
-                            toast.error('O seu navegador bloqueou o acesso à área de transferência.');
-                        });
+
+                            const selectedItems = filteredData.slice(startRow, endRow + 1);
+                            const cols = getColumns(currentTab, isFisico).slice(startCol, endCol + 1);
+                            
+                            const textToCopy = selectedItems.map(item => {
+                                return cols.map(col => item[col] || '').join('\t');
+                            }).join('\n');
+                            
+                            if (textToCopy) {
+                                navigator.clipboard.writeText(textToCopy);
+                                toast.success(`${selectedItems.length * cols.length} item(ns) copiado(s)!`);
+                            }
+                        }
+
+                        // Ação de COLAR para Múltiplas Células (CTRL+V) - Exclusivo Gestão
+                        if (e.key.toLowerCase() === 'v' && canModifySimcard) {
+                            e.preventDefault();
+                            navigator.clipboard.readText().then(text => {
+                                if (!text) return;
+                                const pastedLines = text.split(/\r?\n/).filter(line => line.trim() !== '' || line.includes('\t'));
+                                if (pastedLines.length === 0) return;
+                                
+                                const cols = getColumns(currentTab, isFisico).slice(startCol, endCol + 1);
+
+                                setSimcardsData(prev => {
+                                    const currentFiltered = (prev || []).filter(item => {
+                                        if (item.owner !== currentTab) return false;
+                                        if (isFisico) {
+                                            return item.simcardFisico || (!item.simcardFisico && !item.simcardEsim);
+                                        } else {
+                                            return item.simcardEsim && !item.simcardFisico;
+                                        }
+                                    });
+
+                                    const itemsToUpdate = currentFiltered.slice(startRow, startRow + pastedLines.length);
+                                    if (itemsToUpdate.length === 0) return prev;
+                                    
+                                    const itemsToUpdateIds = itemsToUpdate.map(i => i.id);
+                                    toast.success(`${Math.min(itemsToUpdate.length, pastedLines.length) * cols.length} item(ns) colado(s)!`);
+
+                                    return prev.map(item => {
+                                        const rowIdx = itemsToUpdateIds.indexOf(item.id);
+                                        if (rowIdx !== -1 && pastedLines[rowIdx] !== undefined) {
+                                            const pastedCells = pastedLines[rowIdx].split('\t');
+                                            const updates = {};
+                                            cols.forEach((col, cIdx) => {
+                                                if (pastedCells[cIdx] !== undefined) {
+                                                    updates[col] = formatPastedValue(col, pastedCells[cIdx]);
+                                                }
+                                            });
+                                            return { ...item, ...updates };
+                                        }
+                                        return item;
+                                    });
+                                });
+                            }).catch(() => {
+                                toast.error('O seu navegador bloqueou o acesso à área de transferência.');
+                            });
+                        }
                     }
                 }
             }
@@ -339,31 +605,31 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                                     <thead className="text-[11px] text-white uppercase bg-[#C00000] dark:bg-red-900 sticky top-0 z-10 shadow-sm">
                                         {currentTab === 'SOBREPOSIÇÃO' ? (
                                             <tr>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-44 min-w-[176px]">{isFisico ? 'SIMCARD Físico' : 'E-SIM Virtual'}</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-24 min-w-[96px]">Data</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-36 min-w-[144px]">Data Portin</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">Nº Portado</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">Nº Provisório</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">OV</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-24 min-w-[96px]">Cód. Aut.</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">CPF | CNPJ</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">Plano</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-64 min-w-[256px]">Cliente</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-64 min-w-[256px]">Observação</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-44 min-w-[176px]">{isFisico ? 'SIMCARD Físico' : 'E-SIM Virtual'}</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-24 min-w-[96px]">Data</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-36 min-w-[144px]">Data Portin</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Nº Portado</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Nº Provisório</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-20 min-w-[80px]">OV</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-24 min-w-[96px]">Cód. Aut.</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">CPF | CNPJ</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Plano</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-64 min-w-[256px]">Cliente</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-64 min-w-[256px]">Observação</th>
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Ações</th>
                                             </tr>
                                         ) : (
                                             <tr>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-44 min-w-[176px]">{isFisico ? 'SIMCARD Físico' : 'E-SIM Virtual'}</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-24 min-w-[96px]">Data</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">OV</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-24 min-w-[96px]">Cód. Aut.</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">CPF | CNPJ</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-32 min-w-[128px]">Plano</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-64 min-w-[256px]">Cliente</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-28 min-w-[112px]">Pagamento</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-24 min-w-[96px]">Valor</th>
-                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider w-64 min-w-[256px]">Observação</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-44 min-w-[176px]">{isFisico ? 'SIMCARD Físico' : 'E-SIM Virtual'}</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-24 min-w-[96px]">Data</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-20 min-w-[80px]">OV</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-24 min-w-[96px]">Cód. Aut.</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">CPF | CNPJ</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Plano</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-64 min-w-[256px]">Cliente</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-28 min-w-[112px]">Pagamento</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-24 min-w-[96px]">Valor</th>
+                                                <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-64 min-w-[256px]">Observação</th>
                                                 <th className="border border-[#A00000] dark:border-red-950 px-3 py-2.5 font-bold tracking-wider text-center w-32 min-w-[128px]">Ações</th>
                                             </tr>
                                         )}
@@ -375,68 +641,42 @@ export const ControleSimcard = ({ simcardsData, setSimcardsData, canModifySimcar
                                             </tr>
                                         ) : (
                                             filteredData.map((item, idx) => {
-                                                const isSelected = selection.type === tipoLote && selection.start !== null && selection.end !== null && idx >= Math.min(selection.start, selection.end) && idx <= Math.max(selection.start, selection.end);
-                                                const isEditing = editingCell?.id === item.id && editingCell?.type === tipoLote && canModifySimcard;
                                                 const val = isFisico ? item.simcardFisico : item.simcardEsim;
+                                                const commonProps = { item, idx, tipoLote, canModifySimcard, selection, setSelection, isDragging, setIsDragging, editingCell, setEditingCell, handleInlineChange, handleProtectedClick };
+                                                const iccidField = isFisico ? 'simcardFisico' : 'simcardEsim';
 
                                                 return (
                                                     <tr key={item.id} className={`transition-colors group ${item.statusColor === 'green' ? 'bg-green-200 dark:bg-green-900/40 hover:bg-green-300/60 dark:hover:bg-green-900/60' :
                                                         item.statusColor === 'yellow' ? 'bg-yellow-200 dark:bg-yellow-900/40 hover:bg-yellow-300/60 dark:hover:bg-yellow-900/60' :
                                                             item.statusColor === 'red' ? 'bg-red-200 dark:bg-red-900/40 hover:bg-red-300/60 dark:hover:bg-red-900/60' :
-                                                                'hover:bg-blue-50/40 dark:hover:bg-blue-900/20'
+                                                                'hover:bg-red-50/40 dark:hover:bg-red-900/20'
                                                         }`}>
-                                                        <td 
-                                                            className={`border border-neutral-200 dark:border-neutral-800 p-0 relative iccid-cell ${!canModifySimcard ? 'bg-neutral-100/50 dark:bg-neutral-800/50' : ''} ${isSelected && !isEditing ? 'bg-blue-100 dark:bg-blue-900/40 ring-inset ring-2 ring-blue-500 z-10' : ''}`}
-                                                            onMouseDown={(e) => {
-                                                                if (e.target.closest('svg') || isEditing) return;
-                                                                setIsDragging(true);
-                                                                setSelection({ type: tipoLote, start: idx, end: idx });
-                                                                setEditingCell(null);
-                                                            }}
-                                                            onMouseEnter={() => {
-                                                                if (isDragging && selection.type === tipoLote) {
-                                                                    setSelection(prev => ({ ...prev, end: idx }));
-                                                                }
-                                                            }}
-                                                            onClick={() => {
-                                                                if (canModifySimcard && selection.start === selection.end) {
-                                                                    setEditingCell({ id: item.id, type: tipoLote });
-                                                                }
-                                                            }}
-                                                        >
-                                                            {isEditing ? (
-                                                                <input type="text" autoFocus value={val || ''} onChange={e => handleInlineChange(item.id, isFisico ? 'simcardFisico' : 'simcardEsim', e.target.value)} onBlur={() => setEditingCell(null)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingCell(null); }} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-2 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" />
-                                                            ) : (
-                                                                <div className={`w-full h-full min-h-[36px] px-3 py-1.5 font-mono text-xs flex items-center ${!canModifySimcard ? 'text-neutral-500 dark:text-neutral-400' : 'text-neutral-800 dark:text-neutral-200'} ${isSelected ? 'text-blue-800 dark:text-blue-200' : ''} cursor-cell select-none`}>{val}</div>
-                                                            )}
-                                                            {!canModifySimcard && val && <Lock size={12} onClick={handleProtectedClick} title="Desbloquear Edição" className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 dark:text-neutral-500 cursor-pointer hover:text-[#E3000F] transition-colors" />}
-                                                        </td>
-                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative w-24"><input type="text" value={item.data} onChange={e => handleInlineChange(item.id, 'data', e.target.value)} placeholder="DD/MM/AA" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400 text-center" /></td>
+                                                        <EditableCell {...commonProps} field={iccidField} colIdx={0} value={val} maskType="iccid" className="font-mono text-xs" showLock={true} />
+                                                        <EditableCell {...commonProps} field="data" colIdx={1} value={item.data} maskType="data" placeholder="DD/MM/AA" align="center" className="text-neutral-600 dark:text-neutral-400" />
                                                 
                                                         {currentTab === 'SOBREPOSIÇÃO' && (
                                                             <>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.dataPortin || ''} onChange={e => handleInlineChange(item.id, 'dataPortin', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200 text-center" /></td>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numPortado || ''} onChange={e => handleInlineChange(item.id, 'numPortado', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.numProvisorio || ''} onChange={e => handleInlineChange(item.id, 'numProvisorio', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
+                                                                <EditableCell {...commonProps} field="dataPortin" colIdx={2} value={item.dataPortin} maskType="dataPortin" align="center" className="font-mono text-neutral-800 dark:text-neutral-200" />
+                                                                <EditableCell {...commonProps} field="numPortado" colIdx={3} value={item.numPortado} maskType="telefone" className="font-mono text-neutral-800 dark:text-neutral-200" />
+                                                                <EditableCell {...commonProps} field="numProvisorio" colIdx={4} value={item.numProvisorio} maskType="telefone" className="font-mono text-neutral-800 dark:text-neutral-200" />
                                                             </>
                                                         )}
 
-                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.ov} onChange={e => handleInlineChange(item.id, 'ov', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.codAutorizacao} onChange={e => handleInlineChange(item.id, 'codAutorizacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cpf} onChange={e => handleInlineChange(item.id, 'cpf', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] font-mono text-xs text-neutral-800 dark:text-neutral-200" /></td>
-                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.plano} onChange={e => handleInlineChange(item.id, 'plano', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs font-bold text-neutral-800 dark:text-neutral-200 uppercase" /></td>
-                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.cliente} onChange={e => handleInlineChange(item.id, 'cliente', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-800 dark:text-neutral-200 uppercase" /></td>
+                                                        <EditableCell {...commonProps} field="ov" colIdx={currentTab === 'SOBREPOSIÇÃO' ? 5 : 2} value={item.ov} maskType="upper" className="font-mono text-neutral-800 dark:text-neutral-200" />
+                                                        <EditableCell {...commonProps} field="codAutorizacao" colIdx={currentTab === 'SOBREPOSIÇÃO' ? 6 : 3} value={item.codAutorizacao} className="font-mono text-neutral-800 dark:text-neutral-200" />
+                                                        <EditableCell {...commonProps} field="cpf" colIdx={currentTab === 'SOBREPOSIÇÃO' ? 7 : 4} value={item.cpf} maskType="cpf" className="font-mono text-neutral-800 dark:text-neutral-200" />
+                                                        <EditableCell {...commonProps} field="plano" colIdx={currentTab === 'SOBREPOSIÇÃO' ? 8 : 5} value={item.plano} maskType="upper" className="font-bold uppercase text-neutral-800 dark:text-neutral-200" />
+                                                        <EditableCell {...commonProps} field="cliente" colIdx={currentTab === 'SOBREPOSIÇÃO' ? 9 : 6} value={item.cliente} maskType="upper" className="uppercase text-neutral-800 dark:text-neutral-200" />
                                                 
                                                         {currentTab !== 'SOBREPOSIÇÃO' && (
                                                             <>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative">
-                                                                    <select value={item.pagamento} onChange={e => handleInlineChange(item.id, 'pagamento', e.target.value)} className="w-full h-full min-h-[36px] px-2 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-[10px] font-bold text-neutral-700 dark:text-neutral-300 uppercase"><option className="bg-white dark:bg-neutral-900" value=""></option><option className="bg-white dark:bg-neutral-900" value="LPAY">LPAY</option><option className="bg-white dark:bg-neutral-900" value="PIX">PIX</option><option className="bg-white dark:bg-neutral-900" value="LINK DE PAGAMENTO">LINK DE PAGAMENTO</option><option className="bg-white dark:bg-neutral-900" value="DINHEIRO">DINHEIRO</option><option className="bg-white dark:bg-neutral-900" value="DOA">DOA</option></select>
-                                                                </td>
-                                                                <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.valor} onChange={e => handleInlineChange(item.id, 'valor', e.target.value)} placeholder="R$ 0,00" className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs font-bold text-neutral-800 dark:text-neutral-200" /></td>
+                                                                <SelectableCell {...commonProps} field="pagamento" colIdx={7} value={item.pagamento} />
+                                                                <EditableCell {...commonProps} field="valor" colIdx={8} value={item.valor} maskType="valor" placeholder="R$ 0,00" className="font-bold text-neutral-800 dark:text-neutral-200" />
                                                             </>
                                                         )}
 
-                                                        <td className="border border-neutral-200 dark:border-neutral-800 p-0 relative"><input type="text" value={item.observacao} onChange={e => handleInlineChange(item.id, 'observacao', e.target.value)} className="w-full h-full min-h-[36px] px-3 py-1.5 bg-transparent outline-none focus:bg-blue-50 dark:focus:bg-blue-900/20 focus:ring-inset focus:ring-1 focus:ring-[#E3000F] text-xs text-neutral-600 dark:text-neutral-400" /></td>
+                                                        <EditableCell {...commonProps} field="observacao" colIdx={currentTab === 'SOBREPOSIÇÃO' ? 10 : 9} value={item.observacao} className="text-neutral-600 dark:text-neutral-400" />
+                                                        
                                                         <td className="border border-neutral-200 dark:border-neutral-800 p-0 text-center align-middle">
                                                             <div className="flex items-center justify-center gap-1.5 h-full min-h-[36px] px-2">
                                                                 {canModifySimcard && (

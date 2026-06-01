@@ -9,10 +9,15 @@ import { parseExcelSales } from '../utils/excelImporter';
 const safeProdutos = Array.isArray(PRODUTOS) ? PRODUTOS : [];
 
 export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB = {}, globalMonth }) => {
-    const safeVendedores = Object.values(usersDB || {})
+    const activeVendedores = Object.values(usersDB || {})
         .filter(u => !u?.role || u?.role === 'VENDEDOR')
         .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
+
+    const historicalVendedores = (salesData || []).map(s => String(s.vendedor || '').split(' ')[0]).filter(Boolean);
+    
+    const safeVendedores = [...new Set([...activeVendedores, ...historicalVendedores])].sort();
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formError, setFormError] = useState('');
     const [filterDate, setFilterDate] = useState(''); // Primeira data vazia por padrão
@@ -55,7 +60,8 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
     const isComissionado = ['APARELHO', 'ACESSORIO', 'PELICULA'].includes(formData?.produto || '');
     const requiresContrato = (PRODUTOS_CONTRATO_OBRIGATORIO || []).includes(formData?.produto || '');
     const isMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => String(formData?.produto || '').toUpperCase().includes(term));
-    const showMplay = isMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(formData?.produto || '');
+    const isMplayAlreadySelectedInCombo = vendaMode === 'COMBO' && comboItems.some(item => item.mplay === 'SIM');
+    const showMplay = (isMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(formData?.produto || '')) && !isMplayAlreadySelectedInCombo;
     const isServico = isMovel;
 
     const calcularComissaoDinamica = (produto, adicionaisList, valorBruto, seguroOption) => {
@@ -169,6 +175,9 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                 if (price !== null && price !== undefined) { next.receita = applyCurrencyMask(price); next.isReceitaReadonly = true; } else { next.isReceitaReadonly = false; if (name === 'produto') next.receita = ''; }
             }
             if (name === 'tipoOperacao' || name === 'portabilidade') {
+                if (name === 'tipoOperacao' && value === 'MIGRAÇÃO') {
+                    next.portabilidade = 'NÃO';
+                }
                 if (next.tipoOperacao !== 'ATIVAÇÃO' || next.portabilidade !== 'SIM') {
                     next.operadoraOrigem = '';
                 }
@@ -203,12 +212,12 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         e.preventDefault();
         const { vendedor, data, qtda, portabilidade, produto, receita, cpf, contrato, mplay, adicionais, tipoOperacao, subOption } = formData;
         
-        const finalPortabilidade = isMovel ? portabilidade : 'NÃO';
-        const finalOperadoraOrigem = (isMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO') ? formData.operadoraOrigem : '';
+        const finalPortabilidade = isMovel ? (tipoOperacao === 'MIGRAÇÃO' ? 'NÃO' : portabilidade) : 'NÃO';
+        const finalOperadoraOrigem = (isMovel && finalPortabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO') ? formData.operadoraOrigem : '';
         const finalMplay = showMplay ? mplay : 'NÃO';
 
-        if (!vendedor || !data || !qtda || !produto || receita === '' || !cpf || (isMovel && !portabilidade) || (showMplay && !mplay)) { setFormError('Atenção: Você precisa preencher todas as informações obrigatórias para incluir a venda.'); return; }
-        if (isMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO' && !formData.operadoraOrigem) { setFormError('Atenção: Selecione a operadora de origem da portabilidade.'); return; }
+        if (!vendedor || !data || !qtda || !produto || receita === '' || !cpf || (isMovel && !finalPortabilidade) || (showMplay && !mplay)) { setFormError('Atenção: Você precisa preencher todas as informações obrigatórias para incluir a venda.'); return; }
+        if (isMovel && finalPortabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO' && !formData.operadoraOrigem) { setFormError('Atenção: Selecione a operadora de origem da portabilidade.'); return; }
         if (getSubOptions().length > 0 && !subOption) { setFormError('Atenção: Selecione a especificação (Plano/Velocidade) do produto.'); return; }
         if (isServico && !tipoOperacao) { setFormError('Atenção: Selecione o Tipo de Operação (Ativação, Upgrade, etc).'); return; }
         if (requiresContrato && !contrato) { setFormError(`O campo Contrato é obrigatório para a venda de ${produto}.`); return; }
@@ -287,17 +296,17 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
         const { vendedor, data, qtda, portabilidade, produto, receita, mplay, tipoOperacao, subOption } = formData;
         
         const isItemMovel = ['POS', 'PÓS', 'CONTROLE', 'FLEX', 'PRÉ', 'PRE', 'DEPENDENTE'].some(term => String(produto || '').toUpperCase().includes(term));
-        const itemShowMplay = isItemMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(produto || '');
+        const itemShowMplay = (isItemMovel || ['FIBRA', 'TV-BOX', 'FIXO', 'MESH'].includes(produto || '')) && !isMplayAlreadySelectedInCombo;
 
-        const finalPortabilidade = isItemMovel ? portabilidade : 'NÃO';
-        const finalOperadoraOrigem = (isItemMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO') ? formData.operadoraOrigem : '';
+        const finalPortabilidade = isItemMovel ? (tipoOperacao === 'MIGRAÇÃO' ? 'NÃO' : portabilidade) : 'NÃO';
+        const finalOperadoraOrigem = (isItemMovel && finalPortabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO') ? formData.operadoraOrigem : '';
         const finalMplay = itemShowMplay ? mplay : 'NÃO';
 
-        if (!vendedor || !data || !qtda || !produto || receita === '' || (isItemMovel && !portabilidade) || (itemShowMplay && !mplay)) { 
+        if (!vendedor || !data || !qtda || !produto || receita === '' || (isItemMovel && !finalPortabilidade) || (itemShowMplay && !mplay)) { 
             setFormError('Preencha os campos obrigatórios do produto para adicioná-lo ao combo.'); 
             return; 
         }
-        if (isItemMovel && portabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO' && !formData.operadoraOrigem) { setFormError('Selecione a operadora de origem da portabilidade.'); return; }
+        if (isItemMovel && finalPortabilidade === 'SIM' && tipoOperacao === 'ATIVAÇÃO' && !formData.operadoraOrigem) { setFormError('Selecione a operadora de origem da portabilidade.'); return; }
         if (getSubOptions().length > 0 && !subOption) { setFormError('Selecione a especificação do produto.'); return; }
         if (isItemMovel && !tipoOperacao) { setFormError('Selecione o Tipo de Operação.'); return; }
 
@@ -542,8 +551,8 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                     <input
                                         type="date"
                                         value={filterDate}
-                                        onChange={(e) => setFilterDate(e.target.value)}
                                         max={getTodaySP()}
+                                        onChange={(e) => setFilterDate(e.target.value)}
                                         className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
                                         title="Data Inicial"
                                     />
@@ -551,8 +560,8 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                     <input
                                         type="date"
                                         value={filterDateEnd}
-                                        onChange={(e) => setFilterDateEnd(e.target.value)}
                                         max={getTodaySP()}
+                                        onChange={(e) => setFilterDateEnd(e.target.value)}
                                         className="text-sm text-neutral-700 dark:text-neutral-300 outline-none bg-transparent font-medium cursor-pointer w-full"
                                         title="Data Final (Opcional)"
                                     />
@@ -667,7 +676,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                             </div>
                                         )}
                                         <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
-                                        {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                        {isMovel && formData.tipoOperacao !== 'MIGRAÇÃO' && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
                                         {isMovel && formData.portabilidade === 'SIM' && formData.tipoOperacao === 'ATIVAÇÃO' && (
                                             <div className="space-y-1.5 animate-fade-in">
                                                 <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Operadora <span className="text-[#E3000F]">*</span></label>
@@ -710,7 +719,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                             
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                                 <div className="space-y-1.5 relative"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider flex justify-between"><span>Vendedor <span className="text-[#E3000F]">*</span></span>{isVendedor && <Lock size={12} className="text-[#E3000F]" />}</label><select name="vendedor" value={formData.vendedor} onChange={handleFormChange} disabled={isVendedor} className={`w-full border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium ${isVendedor ? 'bg-neutral-100 dark:bg-neutral-800 cursor-not-allowed text-[#E3000F]' : 'bg-neutral-50 dark:bg-neutral-800/50'}`}><option className="bg-white dark:bg-neutral-900" value="">Selecione o vendedor</option>{safeVendedores.map(v => <option className="bg-white dark:bg-neutral-900" key={v} value={v}>{v}</option>)}</select></div>
-                                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" max={getTodaySP()} value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
+                                                <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Data <span className="text-[#E3000F]">*</span></label><input type="date" name="data" value={formData.data} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
                                                 <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Produto <span className="text-[#E3000F]">*</span></label><select name="produto" value={formData.produto} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-medium"><option className="bg-white dark:bg-neutral-900" value="">Selecione o produto</option>{safeProdutos.map(p => <option className="bg-white dark:bg-neutral-900" key={p} value={p}>{p}</option>)}</select></div>
                                                 {getSubOptions().length > 0 && (<div className="space-y-1.5 animate-fade-in bg-yellow-50/50 dark:bg-yellow-900/20 p-2 -m-2 rounded-lg border border-yellow-100 dark:border-yellow-800"><label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wider flex items-center gap-1">Especificação <span className="text-[#E3000F]">*</span></label><select name="subOption" value={formData.subOption} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-[#E3000F]"><option className="bg-white dark:bg-neutral-900" value="">Selecione a opção</option>{getSubOptions().map(o => <option className="bg-white dark:bg-neutral-900" key={o.label} value={o.label}>{o.label}</option>)}</select></div>)}
                                                 {isServico && (<div className="space-y-1.5 animate-fade-in bg-purple-50/50 dark:bg-purple-900/20 p-2 -m-2 rounded-lg border border-purple-100 dark:border-purple-800"><label className="text-xs font-bold text-purple-700 dark:text-purple-400 uppercase tracking-wider flex items-center gap-1">Tipo de Operação <span className="text-[#E3000F]">*</span></label><select name="tipoOperacao" value={formData.tipoOperacao} onChange={handleFormChange} className="w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm font-bold text-purple-700 dark:text-purple-400"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="ATIVAÇÃO">ATIVAÇÃO</option><option className="bg-white dark:bg-neutral-900" value="MIGRAÇÃO">MIGRAÇÃO</option></select></div>)}
@@ -722,7 +731,7 @@ export const Venda = ({ salesData, setSalesData, isVendedor, globalUser, usersDB
                                                     </div>
                                                 )}
                                                 <div className="space-y-1.5"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Qtda <span className="text-[#E3000F]">*</span></label><input type="number" min="1" name="qtda" value={formData.qtda} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm" /></div>
-                                                {isMovel && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
+                                                {isMovel && formData.tipoOperacao !== 'MIGRAÇÃO' && (<div className="space-y-1.5 animate-fade-in"><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Portabilidade <span className="text-[#E3000F]">*</span></label><select name="portabilidade" value={formData.portabilidade} onChange={handleFormChange} className="w-full bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-800 dark:text-neutral-100 px-3 py-2.5 rounded-lg focus:ring-1 focus:ring-[#E3000F] outline-none text-sm"><option className="bg-white dark:bg-neutral-900" value="">Selecione</option><option className="bg-white dark:bg-neutral-900" value="SIM">SIM</option><option className="bg-white dark:bg-neutral-900" value="NÃO">NÃO</option></select></div>)}
                                                 {isMovel && formData.portabilidade === 'SIM' && formData.tipoOperacao === 'ATIVAÇÃO' && (
                                                     <div className="space-y-1.5 animate-fade-in">
                                                         <label className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Operadora <span className="text-[#E3000F]">*</span></label>

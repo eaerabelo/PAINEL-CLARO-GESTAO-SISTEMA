@@ -85,9 +85,6 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
                         return newData;
                     });
                 }
-                if (setReprovadosData) {
-                    setReprovadosData(prev => prev.filter(item => item.vendedor !== userName && item.vendedor !== firstName));
-                }
             }
             toast.success('Usuário apagado com sucesso!');
         }
@@ -143,19 +140,6 @@ export function Acessos({ usersDB, setUsersDB, setScheduleData, setMonthlyOverri
             default: return 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400';
         }
     };
-
-    // --- BARREIRA DE SEGURANÇA (Apenas Gestor) ---
-    if (globalUser?.role !== 'GERENTE') {
-        return (
-            <div className="h-full flex flex-col items-center justify-center animate-fade-in bg-white dark:bg-neutral-900 rounded-2xl shadow-sm border border-neutral-200 dark:border-neutral-800 p-6 transition-colors">
-                <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center text-[#E3000F] mb-4">
-                    <ShieldAlert size={32} />
-                </div>
-                <h2 className="text-2xl font-bold text-neutral-800 dark:text-neutral-100 mb-2">Acesso Restrito</h2>
-                <p className="text-neutral-500 dark:text-neutral-400 text-center max-w-md">Sua conta não possui privilégios para visualizar o Cofre de Acessos. Esta área é restrita à Gerência.</p>
-            </div>
-        );
-    }
 
     // --- TELA DE BLOQUEIO (CADEADO) ---
     if (!isUnlocked) {

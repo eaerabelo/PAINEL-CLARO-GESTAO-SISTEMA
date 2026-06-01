@@ -5,12 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:osasco": "vite --mode osasco",
+    "dev:lapa": "vite --mode lapa",
+    "dev:calcadao": "vite --mode calcadao",
     "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:osasco": "vite build --mode osasco && firebase deploy --only hosting:osasco",
+    "deploy:lapa": "vite build --mode lapa && firebase deploy --only hosting:lapa",
+    "deploy:calcadao": "vite build --mode calcadao && firebase deploy --only hosting:calcadao"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
+    "@google/generative-ai": "^0.24.1",
     "firebase": "^12.13.0",
     "html2canvas": "^1.4.1",
     "lucide-react": "^1.14.0",

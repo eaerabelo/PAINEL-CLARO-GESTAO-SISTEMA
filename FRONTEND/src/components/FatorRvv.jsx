@@ -19,7 +19,9 @@ export const FatorRvv = ({ globalUser, salesData = [], goalsDB = {}, usersDB = {
         .filter(u => u?.role !== 'SUSPENDER')
         .map(u => String(u?.name || '').split(' ')[0])
         .filter(Boolean);
-    const uniqueSelectableUsers = [...new Set(allUsers)];
+        
+    const historicalUsers = (salesData || []).map(s => String(s.vendedor || '').split(' ')[0]).filter(Boolean);
+    const uniqueSelectableUsers = [...new Set([...allUsers, ...historicalUsers])].sort();
 
     const [selectedSeller, setSelectedSeller] = useState(loggedName);
     const [metrics, setMetrics] = useState(null);

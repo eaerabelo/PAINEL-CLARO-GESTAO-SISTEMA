@@ -48,25 +48,25 @@ export function ParcialFechamento({ hasAccess, salesData = [], goalsDB = {}, glo
             const q = Number(sale.qtda) || 1;
             const adds = sale.adicionais || [];
 
+            if (port === 'SIM') sumTotals.portabilidade += q;
+
             // CÁLCULOS DETALHADOS PARA FECHAMENTO
             if (pBase.includes('PÓS PME') || pBase === 'PME' || pBase.includes('POS PME')) { sumTotals.grossPme += q; }
             else if (pBase.includes('PÓS') || pBase.includes('POS')) {
                 if (op.includes('MIGRA') || pBase.includes('MIGRA') || sub.includes('MIGRA')) sumTotals.migraPos += q;
                 else sumTotals.posTt += q; 
-                if (port === 'SIM') sumTotals.portabilidade += q;
             }
             else if (pBase.includes('CONTROLE')) {
                 if (op.includes('MIGRA') || pBase.includes('MIGRA') || sub.includes('MIGRA')) sumTotals.migraControle += q;
                 else sumTotals.controle += q; 
-                if (port === 'SIM') sumTotals.portabilidade += q;
             }
             else if (pBase.includes('FLEX')) {
                 if (op.includes('MIGRA') || pBase.includes('MIGRA') || sub.includes('MIGRA')) sumTotals.migraControle += q;
                 else sumTotals.flex += q;
             }
             else if (pBase.includes('DEPENDENTE') || pBase.includes('DEP')) {
-                if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || pBase.includes('GRÁTIS')) sumTotals.depGratis += q;
-                else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA')) sumTotals.depBl += q;
+                if (sub.includes('GRATUITO') || sub.includes('GRÁTIS') || sub.includes('GRATIS') || sub.includes('INCLUSA') || pBase.includes('GRÁTIS') || pBase.includes('INCLUSA')) sumTotals.depGratis += q;
+                else if (sub.includes('BANDA-LARGA') || sub.includes('BANDA LARGA') || sub.includes('BL') || pBase.includes('BL')) sumTotals.depBl += q;
                 else sumTotals.depPg += q;
             }
             else if (pBase.includes('BANDA LARGA') || pBase === 'BL' || pBase.includes('CLARO NET VIRTUA')) sumTotals.bl += q;
@@ -85,14 +85,14 @@ export function ParcialFechamento({ hasAccess, salesData = [], goalsDB = {}, glo
             if (adds.includes('CLARO UP')) sumTotals.claroUp += 1;
             if (sale.mplay === 'SIM') sumTotals.mplay += 1;
 
-            if (op === 'ATIVAÇÃO') sumTotals.ativacao += q;
+            if (op === 'ATIVAÇÃO' && port !== 'SIM') sumTotals.ativacao += q;
             if (op === 'MIGRAÇÃO' || op === 'MIGRA') sumTotals.migracao += q;
         });
 
         // Consolidações Globais
         sumTotals.grossDia = sumTotals.posTt + sumTotals.controle + sumTotals.depPg + sumTotals.depBl + sumTotals.depGratis + sumTotals.migraPos + sumTotals.migraControle + sumTotals.grossPme + sumTotals.bl + sumTotals.flex;
         sumTotals.totalRes = sumTotals.fibra + sumTotals.virtuaPme + sumTotals.tv + sumTotals.tvBox + sumTotals.fixo + sumTotals.mesh;
-        sumTotals.contaTotal = sumTotals.posTt + sumTotals.depPg + sumTotals.depBl;
+        sumTotals.contaTotal = sumTotals.posTt + sumTotals.depPg + sumTotals.depBl + sumTotals.depGratis + sumTotals.migraPos;
 
         // Mapeamento compatível para a Parcial Antiga
         sumTotals.gross = sumTotals.grossDia;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, ArrowLeft, Key, Mail, Calendar, Smartphone } from 'lucide-react';
+import { User, Lock, ArrowLeft, Key, Mail, Calendar, Smartphone, Store } from 'lucide-react';
 import toast from 'react-hot-toast';
 import emailjs from '@emailjs/browser';
 import viteLogo from '../assets/LOGO_CLARO.png.webp';
@@ -49,6 +49,7 @@ export function Login({ usersDB, setUsersDB, onLogin }) {
     const [regPass, setRegPass] = useState('');
     const [regBirthDate, setRegBirthDate] = useState('');
     const [regConfirmPass, setRegConfirmPass] = useState('');
+    const [regStoreCode, setRegStoreCode] = useState('');
 
     // Forgot Password State
     const [forgotStep, setForgotStep] = useState(1);
@@ -93,8 +94,14 @@ export function Login({ usersDB, setUsersDB, onLogin }) {
     const handleRegister = (e) => {
         e.preventDefault();
         
-        if (!regName || !regUser || !regEmail || !regPhone || !regPass || !regConfirmPass || !regBirthDate) {
+        if (!regName || !regUser || !regEmail || !regPhone || !regPass || !regConfirmPass || !regBirthDate || !regStoreCode) {
             toast.error('Preencha todos os campos.');
+            return;
+        }
+
+        const expectedStoreCode = import.meta.env.VITE_STORE_CODE || 'AT1M';
+        if (regStoreCode.toUpperCase() !== expectedStoreCode.toUpperCase()) {
+            toast.error('Código da loja incorreto. Verifique com a liderança.');
             return;
         }
         
@@ -147,6 +154,7 @@ export function Login({ usersDB, setUsersDB, onLogin }) {
         setRegPass('');
         setRegBirthDate('');
         setRegConfirmPass('');
+        setRegStoreCode('');
     };
 
     const handleForgotRequest = async (e) => {
@@ -288,6 +296,7 @@ export function Login({ usersDB, setUsersDB, onLogin }) {
                                 <div><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase ml-1">E-mail <span className="text-[#E3000F]">*</span></label><div className="relative mt-1"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} /><input type="email" value={regEmail} onChange={e => setRegEmail(e.target.value)} placeholder="Ex: seucorporat@claro.com.br" required className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-xl outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] text-sm" /></div></div>
                                 <div><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase ml-1">Celular <span className="text-[#E3000F]">*</span></label><div className="relative mt-1"><Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} /><input type="text" maxLength={15} value={regPhone} onChange={e => setRegPhone(e.target.value)} placeholder="Ex: (11) 90000-0000" required className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-xl outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] text-sm" /></div></div>
                                 <div><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase ml-1">Data de Nascimento <span className="text-[#E3000F]">*</span></label><div className="relative mt-1"><Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} /><input type="date" value={regBirthDate} onChange={e => setRegBirthDate(e.target.value)} required className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 rounded-xl outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] text-sm" /></div></div>
+                                <div><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase ml-1">Código da Loja <span className="text-[#E3000F]">*</span></label><div className="relative mt-1"><Store className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} /><input type="text" value={regStoreCode} onChange={e => setRegStoreCode(e.target.value.toUpperCase())} placeholder="Solicite ao Gerente" required className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-xl outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] text-sm font-mono" /></div></div>
                                 <div><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase ml-1">Senha</label><div className="relative mt-1"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} /><input type="password" value={regPass} onChange={e => setRegPass(e.target.value)} placeholder="Crie com mínimo de 6 caracteres" className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-xl outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] text-sm" /></div></div>
                                 <div><label className="text-xs font-bold text-neutral-500 dark:text-neutral-400 uppercase ml-1">CONFIRME A SENHA</label><div className="relative mt-1"><Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" size={18} /><input type="password" value={regConfirmPass} onChange={e => setRegConfirmPass(e.target.value)} placeholder="Crie com mínimo de 6 caracteres" className="w-full pl-10 pr-4 py-2.5 bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100 rounded-xl outline-none focus:border-[#E3000F] focus:ring-1 focus:ring-[#E3000F] text-sm" /></div></div>
                             </div>
