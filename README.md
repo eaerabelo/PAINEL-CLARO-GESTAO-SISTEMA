@@ -1,7 +1,7 @@
 # Manual do Sistema - Painel Gestão Claro
 
 Bem-vindo ao repositório oficial do **Painel de Gestão Claro**. 
-Este sistema foi desenvolvido como uma Single Page Application (SPA) para revolucionar o acompanhamento de vendas, metas, escalas e auditorias de estoque em lojas e operações comerciais.
+Este sistema foi desenvolvido como uma Single Page Application (SPA) **Multi-Tenant**, projetado para revolucionar o acompanhamento de vendas, metas, escalas e auditorias de estoque em **múltiplas lojas e operações comerciais simultâneas**.
 
 ---
 
@@ -12,8 +12,10 @@ Este sistema foi desenvolvido como uma Single Page Application (SPA) para revolu
 - **Bundler:** Vite (Extrema velocidade em HMR)
 - **Estilização:** Tailwind CSS (Utility-first framework)
 - **Ícones:** Lucide React
+- **Inteligência Artificial:** API Google Gemini (Generative AI) nativa
 - **Exportações:** XLSX (Excel) e Imagens via HTML2Canvas
 - **Persistência de Dados:** Firebase Firestore (Banco de Dados em Nuvem NoSQL em tempo real)
+- **Multi-Tenant:** Isolamento completo de dados por loja guiado por variáveis de ambiente.
 
 ---
 
@@ -51,7 +53,7 @@ Painel atuando como simulador das regras financeiras oficiais do IW para o vende
 ### 8. UR-Residencial, Reprovados & Propostas
 - **Residencial:** Acompanhamento logístico refinado com filtro exclusivo por Vendedores (Vendedores têm visão restrita apenas aos próprios contratos), formatação nativa de datas (BR) e máscara de edição para documentos (CPF/CNPJ).
 - **Reprovados:** Lida com vendas perdidas (viabilidade de CEP ou crédito) utilizando uma API Externa (`ViaCEP`).
-- **Propostas:** Simulador de ofertas com cálculo de abatimento em combos (Single, Multi, Multi 3P). Integrado nativamente com botão de geração de orçamentos em formato **Imagem (PNG)** e atalho Flutuante de disparo pro **WhatsApp**.
+- **Propostas e Comparador IA:** Simulador de ofertas e comparativo visual (Lado a Lado) com cálculo de abatimento em combos. Traz integração com a **Inteligência Artificial Gemini** atuando como Consultor (Upsell). Integrado nativamente com botão de geração de orçamentos em formato **Imagem (PNG)** e atalho Flutuante pro **WhatsApp**.
 
 ### 9. Scripts (Textos Padrões)
 Módulo de produtividade contendo textos padronizados e pré-montados para facilitar o registro de observações e solicitações em sistemas da Claro.
@@ -91,14 +93,17 @@ npm run dev
 ```
 *O backend será inicializado, sincronizará com o Firebase e ouvirá na porta padrão.*
 
-**2. Iniciar o Frontend:**
+**2. Iniciar o Frontend (Multi-Tenant):**
 Abra um novo terminal e navegue para a pasta frontend:
    ```bash
 cd FRONTEND
    npm install
-   npm run dev
+   # Execute a loja desejada através dos scripts dedicados:
+   npm run dev:osasco
+   # ou npm run dev:lapa
+   # ou npm run dev:calcadao
    ```
-O painel estará disponível no seu navegador (geralmente `http://localhost:5173/`).
+O painel estará disponível no seu navegador apontando dinamicamente para o backend.
 
 ### Construir para Produção (Build)
 Para gerar os artefatos otimizados, execute:
@@ -112,4 +117,64 @@ Os arquivos consolidados ficarão dentro da pasta `/dist/`, prontos para serem h
 ## 🗄️ Estrutura de Armazenamento
 O sistema utiliza o **Firebase Firestore** na nuvem com uma arquitetura robusta de Múltiplas Coleções (garantindo escalabilidade infinita e fugindo do limite de 1MB por arquivo). As alterações são propagadas em Real-Time usando listeners (`onSnapshot`) e gravadas de forma otimizada via **Smart Diff** e **Batch Writes**, sendo sincronizadas instantaneamente em todas as telas da loja para que nenhum colaborador trabalhe com informações desatualizadas.
 
-### 📝 Documentação Estrutura de Dados do Sistema
+---
+
+## 🗂️ Arquitetura de Pastas e Arquivos
+
+Abaixo está a árvore completa da arquitetura do projeto, separada por responsabilidade (Client e Server).
+
+### Frontend (React + Vite)
+```text
+FRONTEND/
+├── public/                 # Arquivos estáticos (favicon, manifest)
+├── src/
+│   ├── assets/             # Imagens, logos e ícones locais
+│   ├── components/         # Módulos principais (Telas do sistema)
+│   │   ├── App.jsx             # Contêiner Mestre (Roteamento, WebSocket, Layout, Smart Diff)
+│   │   ├── Login.jsx           # Autenticação e redefinição de senha via EmailJS
+│   │   ├── Venda.jsx           # Formulário de lançamento de Vendas e Combos
+│   │   ├── ControleSimcard.jsx # Planilha Excel-like para gestão de estoque
+│   │   ├── Resultado.jsx       # Dashboard consolidado da loja e run rate
+│   │   ├── Meta.jsx            # Definição e Histórico de Metas
+│   │   ├── ParcialFechamento.jsx# Relatórios automáticos para WhatsApp
+│   │   ├── FatorRvv.jsx        # Simulador de contracheque e dicas gamificadas
+│   │   ├── Reprovados.jsx      # Histórico de Inviabilidades Técnicas/Crédito
+│   │   ├── UrResidencial.jsx   # Gestão de Instalações e Status UR
+│   │   ├── Colaboradores.jsx   # Desempenho individual e Ranking da equipe
+│   │   ├── Geek.jsx            # Mural de Informações e PDFs (Módulo Geek)
+│   │   ├── Campanha.jsx        # Gestão de Prêmios e Incentivos
+│   │   ├── Scripts.jsx         # Textos padrões para cópia rápida
+│   │   ├── Precificacao.jsx    # Gestão de preços
+│   │   ├── SistemasClaro.jsx   # Links rápidos
+│   │   ├── Acessos.jsx         # Cofre de acessos e permissões (Master Key)
+│   │   ├── Proposta.jsx        # Simulador de Orçamentos e Comparador
+│   │   └── ProgressBar.jsx     # Componente visual genérico
+│   ├── utils/              # Funções auxiliares
+│   │   ├── constants.js        # Constantes (Metas, Preços Iniciais, Produtos)
+│   │   ├── masks.js            # Máscaras de CPF, CNPJ, Moeda, Data
+│   │   └── excelImporter.js    # Lógica de importação inteligente (Smart Mapper)
+│   ├── index.css           # Configurações do Tailwind e Estilos Globais
+│   └── main.jsx            # Ponto de inicialização do React
+├── .env.osasco             # Variáveis de ambiente da Loja Osasco
+├── .env.lapa               # Variáveis de ambiente da Loja Lapa
+├── .env.calcadao           # Variáveis de ambiente da Loja Calçadão
+├── package.json            # Dependências e scripts de execução
+├── tailwind.config.js      # Configurações de design do TailwindCSS
+└── vite.config.js          # Configuração do empacotador (Build/Dev Server)
+```
+
+### Backend (Node.js + Express)
+```text
+BACKEND/
+├── src/
+│   ├── server.js           # Ponto de inicialização (Middlewares, Rotas e API)
+│   ├── socket.js           # Configuração de eventos do WebSocket (Tempo Real)
+│   ├── firebaseAdmin.js    # Inicialização do SDK Admin do Firestore seguro
+│   ├── routes/             # Rotas segmentadas da API
+│   │   ├── vendas.js       # Endpoints: GET /vendas, POST /vendas/sync
+│   │   ├── simcards.js     # Endpoints de leitura e diff de estoque
+│   │   └── ...             # Demais rotas (config, reprovados, etc)
+│   └── controllers/        # Inteligência de negócio e processamentos em lote
+├── .env                    # Chaves de API (Gemini), Credenciais Firestore (Oculto)
+└── package.json            # Dependências do servidor (express, socket.io, firebase-admin)
+```
